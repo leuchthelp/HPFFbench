@@ -1,11 +1,13 @@
-import zarr, h5py
+import zarr, h5py, xarray
 from mpi4py import MPI
 from netCDF4 import Dataset
 
 if __name__ == '__main__':
 
-    #Todo read up on hdf5, zarr, netcdf, mpi, lustre, ceph
+    #Todo read up on hdf5, zarr, netcdf, xarray, mpi, lustre, ceph
     # and check back with dkrz their structure, code conventions, datasets
+
+    # Todo setup test cases proactively to ensure proper comparability and best practice
 
     #Todo use netcdf dataset for testing (for now) should already bet hdf5
     dest_hdf = Dataset("data/source.nc", "w", format="NETCDF4")
@@ -17,7 +19,16 @@ if __name__ == '__main__':
     zarr.copy_all(dest_hdf, dest_zarr)
     dest_zarr.tree()
 
-    #Todo setup test cases proactively to ensure proper comparability and best practice
+    #Todo conversion to netcdf
+
+    #for hdf5 nothing needs to be done
+
+    #for zarr (wip). netcdf is developing its own implementation
+    # but that isn't available yet so I will work on something myself in the meantime
+
+
+
+
 
     #Todo setup Lustre and Ceph (need info on that)
 
