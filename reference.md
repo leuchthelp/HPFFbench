@@ -3,6 +3,7 @@ https://www.icon-model.org/icon_model/getting_started
 https://docs.dkrz.de/doc/levante/
 https://www.unidata.ucar.edu/blogs/developer/entry/chunking_data_why_it_matters
 https://docs.python.org/3/library/unittest.html
+https://www.astro.umd.edu/~teuben/nemo/man_html/hdf.1.html
 
 Coding:
 https://zarr.readthedocs.io/en/stable/tutorial.html
