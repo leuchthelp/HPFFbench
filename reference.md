@@ -24,4 +24,8 @@ Features:
 https://registry.opendata.aws/nasa-power/
 https://stackoverflow.com/questions/19309287/how-to-intermittently-skip-certain-cells-when-running-ipython-notebook
 
-
+Citation:
+https://apastyle.apa.org/style-grammar-guidelines/citations/appropriate-citation
+https://apastyle.apa.org/style-grammar-guidelines/citations/basic-principles
+https://apastyle.apa.org/style-grammar-guidelines/citations/paraphrasing
+https://apastyle.apa.org/style-grammar-guidelines/citations/basic-principles/parenthetical-versus-narrative
