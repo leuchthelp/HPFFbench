@@ -4,6 +4,7 @@ https://docs.dkrz.de/doc/levante/
 https://www.unidata.ucar.edu/blogs/developer/entry/chunking_data_why_it_matters
 https://docs.python.org/3/library/unittest.html
 https://www.astro.umd.edu/~teuben/nemo/man_html/hdf.1.html
+https://github.com/zarr-developers/geozarr-spec/blob/main/geozarr-spec.md
 
 Coding:
 https://zarr.readthedocs.io/en/stable/tutorial.html
@@ -30,6 +31,12 @@ https://apastyle.apa.org/style-grammar-guidelines/citations/appropriate-citation
 https://apastyle.apa.org/style-grammar-guidelines/citations/basic-principles
 https://apastyle.apa.org/style-grammar-guidelines/citations/paraphrasing
 https://apastyle.apa.org/style-grammar-guidelines/citations/basic-principles/parenthetical-versus-narrative
+https://radiant.earth/blog/2023/06/exploring-the-potential-of-geozarr-for-storage-and-analysis/
+https://en.wikipedia.org/wiki/Zarr_(data_format)
+https://www.youtube.com/watch?v=qyJXBlrdzBs&list=PLvkeNUPrCU04Xvcph4ErxsRkZq28Oucr7
+https://zarr.dev/slides/scipy-2019.html#/14
+https://cyrille.rossant.net/moving-away-hdf5/
+https://cyrille.rossant.net/should-you-use-hdf5/
 
 Related Work:
 https://github.com/asriniket/File-Format-Testing (benchmarking for all 3)
