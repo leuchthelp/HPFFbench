@@ -7,3 +7,5 @@ h5netcdf~=1.4.1
 plotly
 nbformat
 dask
+pandas
+matplotlib
