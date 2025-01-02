@@ -9,3 +9,4 @@ nbformat
 dask
 pandas
 matplotlib
+gprof2dot
