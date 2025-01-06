@@ -44,3 +44,9 @@ Vertrautheit mit Benchmarking-Tools für Speicher- und I/O-Leistung.
 Ergebnis:
 
 Am Ende des Projekts liegt eine umfassende Analyse der Leistungsfähigkeit und Kompatibilität der genannten Dateiformate auf verschiedenen Systemen vor. Zudem ist der Benchmark entsprechend erweitert und es wurden konkrete Implementierungsschritte für die Integration von Zarr 3 in NetCDF dokumentiert.
+
+
+Next two weeks: 
+
+
+Threading, C Wrapper for python to use NCZarr v2 and v3. For this build both current and .rc2 library of NetCDF4 
