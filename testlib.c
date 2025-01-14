@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include <netcdf.h>
+#include "netcdf.h"
 #include <time.h>
-#include <hdf5.h>
+#include "hdf5.h"
 
 /* void handle_error(int status)
 {
@@ -126,15 +126,16 @@ int main(int, char **)
     printf("Saving to json for netcdf benchmark \n");
     save_to_json(arr, "test_plotting_netcdf.json", "lol2", 10000);
 
-
     for (int i = 0; i < 10000; i++)
     {
         
         struct timespec start, end;
 
+        int faplist_id = H5Pcreate(H5P_FILE_ACCESS); 
+
         clock_gettime(CLOCK_MONOTONIC, &start);
 
-        status = nc_open("data/test_dataset.h5", NC_WRITE, &ncid);
+        int fileid = H5Fopen("data/test_dataset.h5", H5F_ACC_SWMR_WRITE, faplist_id);
 
         clock_gettime(CLOCK_MONOTONIC, &end);
 
@@ -146,6 +147,8 @@ int main(int, char **)
 
     printf("Saving to json for hdf benchmark \n");
     save_to_json(arr, "test_plotting_hdf.json", "lol3", 10000);
+    
+
 /* 
     printf("Status %d \n", status);
     printf("ncid %d \n", ncid);
