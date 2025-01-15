@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include "netcdf.h"
+#include <netcdf.h>
 #include <time.h>
-#include "hdf5.h"
+#include <hdf5.h>
 
 /* void handle_error(int status)
 {
@@ -23,7 +23,7 @@ void save_to_json(double *arr, char *file_name, char *name, size_t size)
     {
         fprintf(fptr, "\"%d\":%f", i, arr[i]);
 
-        if (i != size-1)
+        if (i != size - 1)
         {
             fprintf(fptr, ",");
         }
@@ -54,40 +54,40 @@ int main(int, char **)
     int status = NC_NOERR;
     int ncid;
 
-/*     printf("create Dataset with netcdf-c \n");
-    status = nc_create("test.nc", NC_NETCDF4, &ncid);
+    /*     printf("create Dataset with netcdf-c \n");
+        status = nc_create("test.nc", NC_NETCDF4, &ncid);
 
-    printf("Status %d \n", status);
-    printf("ncid %d \n", ncid);
+        printf("Status %d \n", status);
+        printf("ncid %d \n", ncid);
 
-    if (status != NC_NOERR)
-        handle_error(status);
+        if (status != NC_NOERR)
+            handle_error(status);
 
-    printf("open Dataset with netcdf-c \n");
-    status = nc_open("test.nc", NC_WRITE, &ncid);
+        printf("open Dataset with netcdf-c \n");
+        status = nc_open("test.nc", NC_WRITE, &ncid);
 
-    printf("Status %d \n", status);
-    printf("ncid %d \n", ncid);
+        printf("Status %d \n", status);
+        printf("ncid %d \n", ncid);
 
-    if (status != NC_NOERR)
-        handle_error(status);
+        if (status != NC_NOERR)
+            handle_error(status);
 
-    printf("open Dataset created in python with netcdf-c \n");
-    status = nc_open("data/test_dataset.nc", NC_WRITE, &ncid);
+        printf("open Dataset created in python with netcdf-c \n");
+        status = nc_open("data/test_dataset.nc", NC_WRITE, &ncid);
 
-    printf("Status %d \n", status);
-    printf("ncid %d \n", ncid);
+        printf("Status %d \n", status);
+        printf("ncid %d \n", ncid);
 
-    if (status != NC_NOERR)
-        handle_error(status);
+        if (status != NC_NOERR)
+            handle_error(status);
 
-    printf("open Dataset with zarr using netcdf-c \n");
- */
-    double arr[10000];
+        printf("open Dataset with zarr using netcdf-c \n");
+     */
+    double arr[1000];
 
-    for (int i = 0; i < 10000; i++)
+    for (int i = 0; i < 1000; i++)
     {
-        
+
         struct timespec start, end;
 
         clock_gettime(CLOCK_MONOTONIC, &start);
@@ -103,12 +103,14 @@ int main(int, char **)
     }
 
     printf("Saving to json for zarr benchmark \n");
-    save_to_json(arr, "test_plotting_zarr.json", "lol", 10000);
+    save_to_json(arr, "test_plotting_zarr.json", "lol", 1000);
+    printf("Finished saving \n");
 
+    double arr2[1000];
 
-    for (int i = 0; i < 10000; i++)
+    for (int i = 0; i < 1000; i++)
     {
-        
+
         struct timespec start, end;
 
         clock_gettime(CLOCK_MONOTONIC, &start);
@@ -119,40 +121,42 @@ int main(int, char **)
 
         double elapsed = end.tv_sec - start.tv_sec;
         elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr[i] = elapsed;
+        arr2[i] = elapsed;
         // printf("Time spend: %f \n", time_spent);
     }
 
     printf("Saving to json for netcdf benchmark \n");
-    save_to_json(arr, "test_plotting_netcdf.json", "lol2", 10000);
+    save_to_json(arr2, "test_plotting_netcdf.json", "lol2", 1000);
+    printf("Finished saving \n");
 
-    for (int i = 0; i < 10000; i++)
+    double arr3[1000];
+
+    for (int i = 0; i < 1000; i++)
     {
-        
+
         struct timespec start, end;
 
-        int faplist_id = H5Pcreate(H5P_FILE_ACCESS); 
+        int faplist_id = H5Pcreate(H5P_FILE_ACCESS);
 
         clock_gettime(CLOCK_MONOTONIC, &start);
 
-        int fileid = H5Fopen("data/test_dataset.h5", H5F_ACC_SWMR_WRITE, faplist_id);
+        long fileid = H5Fopen("data/test_dataset.h5", H5F_ACC_SWMR_WRITE, faplist_id);
 
         clock_gettime(CLOCK_MONOTONIC, &end);
 
         double elapsed = end.tv_sec - start.tv_sec;
         elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr[i] = elapsed;
+        arr3[i] = elapsed;
         // printf("Time spend: %f \n", time_spent);
     }
 
     printf("Saving to json for hdf benchmark \n");
-    save_to_json(arr, "test_plotting_hdf.json", "lol3", 10000);
-    
+    save_to_json(arr3, "test_plotting_hdf.json", "lol3", 1000);
+    printf("Finished saving \n");
 
-/* 
-    printf("Status %d \n", status);
-    printf("ncid %d \n", ncid);
+    /*     printf("Status %d \n", status);
+        printf("ncid %d \n", ncid);
 
-    if (status != NC_NOERR)
-        handle_error(status); */
+        if (status != NC_NOERR)
+            handle_error(status); */
 }
