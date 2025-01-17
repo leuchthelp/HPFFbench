@@ -11,3 +11,4 @@ pandas
 matplotlib
 gprof2dot
 schedule~=1.2.2.
+ipyparallel
