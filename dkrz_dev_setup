@@ -1,0 +1,18 @@
+git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~/spack
+cd ~/spack
+. share/spack/setup-env.sh
+
+spack install py-netcdf4
+spack install hdf5
+spack install hdf5-vol-async
+spack install py-numpy
+spack install py-h5py
+spack install py-xarray
+spack install py-plotly
+spack install py-pandas
+spack install py-matplotlib
+spack install py-rich
+spack install py-ipyparallel
+
+
+pip install -r requirements.txt

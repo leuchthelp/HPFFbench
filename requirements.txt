@@ -1,14 +1,2 @@
 zarr
-h5py
-xarray
-netCDF4
-h5netcdf
-plotly
-nbformat
-dask
-pandas
-matplotlib
 gprof2dot
-schedule
-ipyparallel
-rich
