@@ -4,7 +4,7 @@ import numpy as np
 class Datastruct:
     
     
-    def __init__(self, path=str, shape=(), chunks=(), mode=str, engine=str, compression=str, dataset=any):
+    def __init__(self, path=str, shape=(10), chunks=(10), mode=str, engine=str, compression=str, dataset=any):
         self.path = path
         self.mode = mode
         self.shape = shape
@@ -28,29 +28,52 @@ class Datastruct:
                 self.path = path
             
             root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
-            temperature = root.create_array(name="temperature", shape=shape, chunks=chunks, dtype="float64")
-            humidity = root.create_array(name="humidity", shape=shape, chunks=chunks, dtype="float64")
+            temperature = root.create_array(name="temperature", shape=shape, chunks=chunks, dtype="f8")
+            humidity = root.create_array(name="humidity", shape=shape, chunks=chunks, dtype="f8")
             
-            temperature[:, :, :] = np.random.random_sample((512, 512, 512))
-            humidity[:, :, :] = np.random.random_sample((512, 512, 512))
+            temperature[:, :, :] = np.random.random_sample(shape)
+            humidity[:, :, :] = np.random.random_sample(shape)
             
             self.dataset = root
+            return self
             
         if engine =="hdf5":
             
             if type(path) == str:
                 self.path = path
                 
+            f = h5py.File("data/test_dataset.h5", "r+")
+            root = f.create_group("/")
+            temperature = root.create_datset("temperature", shape=shape,chunks=chunks, dtype="f8")
+            humidity = root.create_datset("humidity", shape=shape, chunks=chunks, dtype="f8")
             
+            temperature[:, :, :] = np.random.random_sample(shape)
+            humidity[:, :, :] = np.random.random_sample(shape)
             
-            return print("not implemented")
+            self.dataset = root
+            root.close()
+            return self
             
         if engine == "netcdf4":
             
             if type(path) == str:
                 self.path = path
                 
-            return print("not implemented")
+            root = netCDF4.Dataset("data/test_dataset.nc", "r+", format="NETCDF4")
+            grp = root.createGroup("/")
+            time= root.createDimension("time", 512)
+            level = root.createDimension("level", 512)
+            lat = root.createDimension("lat", 512)
+            
+            temperature = root.createVariable("temperature", "f8", ("time", "level", "lat"), chunksize=chunks)
+            humidity = root.createVariable("humidity", "f8", ("time", "level", "lat"), chunksize=chunks)
+            
+            temperature = np.random.random_sample(shape)
+            humidity = np.random.random_sample(shape)
+                
+            self.dataset = root
+            root.close()
+            return self
         
         
     def open(self, mode):
