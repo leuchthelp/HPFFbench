@@ -1,2 +1,4 @@
 zarr
 gprof2dot
+plotly
+ipyparallel

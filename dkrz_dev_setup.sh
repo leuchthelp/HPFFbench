@@ -15,7 +15,7 @@ echo "install netcdf-c via spack"
 spack install netcdf-c
 
 echo "install py-netcdf4 via spack"
-spack install py-netcdf4
+spack install py-netcdf4@1.6.5
 
 echo "install hdf5 via spack"
 spack install hdf5
@@ -32,9 +32,6 @@ spack install py-h5py
 echo "install py-xarray via spack"
 spack install py-xarray
 
-echo "install py-plotly via spack"
-spack install py-plotly
-
 echo "install py-pandas via spack"
 spack install py-pandas
 
@@ -44,11 +41,16 @@ spack install py-matplotlib
 echo "install py-rich via spack"
 spack install py-rich
 
-echo "install py-ippyparallel via spack"
-spack install py-ipyparallel
-
 echo "install py-mpi4py via spack"
 spack install py-mpi4py
 
+cd ~/dkrz_dev
+spack env create -d
+spack env activate
+spack env status
+
+spack add gcc hdf5 netcdf-c py-netcdf4@1.6.5 hdf5-vol-async py-numpy py-h5py py-xarray py-pandas py-matplotlib py-rich py-mpi4py
+spack install
+
 echo "install packages missing in spack via pip"
-pip install -r requirements.txt
+pip3 install -r requirements.txt
