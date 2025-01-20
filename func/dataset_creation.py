@@ -9,9 +9,8 @@ def create_dataset():
     print(f"Hello World from rank {comm.Get_rank()}. total ranks={comm.Get_size()}")
 
     var_levels = np.random.rand(1_000_000)
-    var_rooms = np.random.rand(10)
 
-    rootgrp = netCDF4.Dataset("data/test_dataset.nc", mode="w", format="NETCDF4", comm=MPI_COMM_WORLD, parallel=True)
+    #rootgrp = netCDF4.Dataset("data/test_dataset.nc", mode="w", format="NETCDF4", comm=MPI_COMM_WORLD, parallel=True)
     xgrp = rootgrp.createGroup("x")
     level = rootgrp.createDimension("level", None)
     room = rootgrp.createDimension("room", None)
