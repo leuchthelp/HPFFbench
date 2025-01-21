@@ -28,8 +28,8 @@ class Datastruct:
                 self.path = path
             
             root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
-            temperature = root.create_array(name="temperature", shape=shape, chunks=chunks, dtype="f8")
-            humidity = root.create_array(name="humidity", shape=shape, chunks=chunks, dtype="f8")
+            temperature = root.create_array(name="X", shape=shape, chunks=chunks, dtype="f8")
+            humidity = root.create_array(name="Y", shape=shape, chunks=chunks, dtype="f8")
             
             temperature[:, :, :] = np.random.random_sample(shape)
             humidity[:, :, :] = np.random.random_sample(shape)
@@ -44,8 +44,8 @@ class Datastruct:
                 
             f = h5py.File("data/test_dataset.h5", "r+")
             root = f.create_group("/")
-            temperature = root.create_datset("temperature", shape=shape,chunks=chunks, dtype="f8")
-            humidity = root.create_datset("humidity", shape=shape, chunks=chunks, dtype="f8")
+            temperature = root.create_datset("X", shape=shape,chunks=chunks, dtype="f8")
+            humidity = root.create_datset("Y", shape=shape, chunks=chunks, dtype="f8")
             
             temperature[:, :, :] = np.random.random_sample(shape)
             humidity[:, :, :] = np.random.random_sample(shape)
@@ -65,8 +65,8 @@ class Datastruct:
             level = root.createDimension("level", 512)
             lat = root.createDimension("lat", 512)
             
-            temperature = root.createVariable("temperature", "f8", ("time", "level", "lat"), chunksize=chunks)
-            humidity = root.createVariable("humidity", "f8", ("time", "level", "lat"), chunksize=chunks)
+            temperature = root.createVariable("X", "f8", ("time", "level", "lat"), chunksize=chunks)
+            humidity = root.createVariable("Y", "f8", ("time", "level", "lat"), chunksize=chunks)
             
             temperature = np.random.random_sample(shape)
             humidity = np.random.random_sample(shape)
