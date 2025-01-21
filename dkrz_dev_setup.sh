@@ -12,6 +12,8 @@ spack load gcc
 which gcc
 spack compiler find
 
+spack config add "modules:default:enable:[tcl]"
+
 spack install lmod
 . $(spack location -i lmod)/lmod/lmod/init/bash
 . share/spack/setup-env.sh
