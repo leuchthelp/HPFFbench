@@ -34,23 +34,8 @@ spack install py-numpy
 echo "install py-h5py via spack"
 spack install py-h5py
 
-echo "install py-xarray via spack"
-spack install py-xarray
-
-echo "install py-pandas via spack"
-spack install py-pandas
-
-echo "install py-matplotlib via spack"
-spack install py-matplotlib
-
-echo "install py-rich via spack"
-spack install py-rich
-
 echo "install py-mpi4py via spack"
 spack install py-mpi4py
-
-echo "install py-ipython via spack"
-spack install py-ipython
 
 cd ..
 spack env activate --create ./dkrz_dev
@@ -58,7 +43,7 @@ spack env status
 
 cd dkrz_dev/
 
-spack add gcc hdf5 netcdf-c py-netcdf4@1.6.5 hdf5-vol-async py-numpy py-h5py py-xarray py-pandas py-matplotlib py-rich py-mpi4py py-ipython python@3.11.9 python-venv lmod
+spack add gcc hdf5 netcdf-c py-netcdf4@1.6.5 hdf5-vol-async py-numpy py-h5py py-mpi4py python@3.11.9 python-venv lmod py-rich
 spack install
-spack load gcc hdf5 netcdf-c py-netcdf4@1.6.5 hdf5-vol-async py-numpy py-h5py py-xarray py-pandas py-matplotlib py-rich py-mpi4py py-ipython python@3.11.9 python-venv lmod
+spack load gcc hdf5 netcdf-c py-netcdf4@1.6.5 hdf5-vol-async py-numpy py-h5py py-mpi4py python@3.11.9 python-venv lmod py-rich
 spack load --list

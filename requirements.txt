@@ -2,3 +2,7 @@ zarr
 gprof2dot
 plotly
 ipyparallel
+ipython
+xarray
+matplotlib
+pandas
