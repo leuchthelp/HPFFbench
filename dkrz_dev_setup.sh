@@ -1,8 +1,8 @@
 echo "install spack"
 
 git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~/spack
-cd ~/spack
-. share/spack/setup-env.sh
+. spack/share/spack/setup-env.sh
+. $SPACK_ROOT/share/spack/setup-env.sh
 
 echo "finish install spack"
 
@@ -14,9 +14,10 @@ echo "finish install spack"
 
 spack config add "modules:default:enable:[tcl]"
 
+echo "install lmod via spack"
 spack install lmod
 . $(spack location -i lmod)/lmod/lmod/init/bash
-. share/spack/setup-env.sh
+. $SPACK_ROOT/share/spack/setup-env.sh
 
 echo "install python@3.11.9 via spack"
 spack install python@3.11.9 
