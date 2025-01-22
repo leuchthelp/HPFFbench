@@ -8,6 +8,7 @@ class Datastruct:
         self.path = path
         self.shape = shape
         self.chunks = chunks
+        self.mode = mode
         self.engine = engine
         self.compression = compression
         self.dataset = dataset
@@ -72,6 +73,9 @@ class Datastruct:
         
         
     def open(self, mode):
+        
+        if type(mode) == str:
+            self.mode = mode
             
         if self.engine == "zarr":
             

@@ -6,11 +6,11 @@ cd ~/spack
 
 echo "finish install spack"
 
-echo "install gcc via spack"
-spack install gcc
-spack load gcc
-which gcc
-spack compiler find
+#echo "install gcc via spack"
+#spack install gcc
+#spack load gcc
+#which gcc
+#spack compiler find
 
 spack config add "modules:default:enable:[tcl]"
 
