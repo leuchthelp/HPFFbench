@@ -24,6 +24,9 @@ spack install python@3.11.9
 echo "install python-venv via spack"
 spack install python-venv
 
+echo "install openmpi via spack"
+spack install openmpi
+
 echo "install hdf5 via spack"
 spack install hdf5+threadsafe
 
@@ -33,7 +36,8 @@ spack install hdf5-vol-async
 echo "install netcdf-c via spack"
 spack install netcdf-c
 
-#spack add gcc python@3.11.9 python-venv hdf5 netcdf-c hdf5-vol-async lmod py-rich
-spack install
-#spack load gcc python@3.11.9 python-venv hdf5 netcdf-c hdf5-vol-async lmod py-rich
+#spack add gcc python@3.11.9 python-venv hdf5 netcdf-c hdf5-vol-async lmod
+#spack install
+#spack load gcc python@3.11.9 python-venv hdf5 netcdf-c hdf5-vol-async lmod
+#spack load gcc python@3.11.9 python-venv openmpi hdf5 /opj45mn netcdf-c
 spack load --list

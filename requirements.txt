@@ -1,5 +1,4 @@
 zarr
-mpi4py
 h5py
 netCDF4
 gprof2dot

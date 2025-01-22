@@ -6,7 +6,6 @@ class Datastruct:
     
     def __init__(self, path=str, shape=(10), chunks=(10), mode=str, engine=str, compression=str, dataset=any):
         self.path = path
-        self.mode = mode
         self.shape = shape
         self.chunks = chunks
         self.engine = engine
@@ -14,10 +13,7 @@ class Datastruct:
         self.dataset = dataset
         
     
-    def create(self, path, shape, chunks, mode, engine):
-        
-        if type(mode) == str:
-            self.mode = mode
+    def create(self, path, shape, chunks, engine):
             
         if type(engine) == str:
             self.engine = engine
@@ -28,11 +24,11 @@ class Datastruct:
                 self.path = path
             
             root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
-            temperature = root.create_array(name="X", shape=shape, chunks=chunks, dtype="f8")
-            humidity = root.create_array(name="Y", shape=shape, chunks=chunks, dtype="f8")
+            x = root.create_array(name="X", shape=shape, chunks=chunks, dtype="f8")
+            y= root.create_array(name="Y", shape=shape, chunks=chunks, dtype="f8")
             
-            temperature[:, :, :] = np.random.random_sample(shape)
-            humidity[:, :, :] = np.random.random_sample(shape)
+            x[:, :, :] = np.random.random_sample(shape)
+            y[:, :, :] = np.random.random_sample(shape)
             
             self.dataset = root
             return self
@@ -42,13 +38,12 @@ class Datastruct:
             if type(path) == str:
                 self.path = path
                 
-            f = h5py.File("data/test_dataset.h5", "r+")
-            root = f.create_group("/")
-            temperature = root.create_datset("X", shape=shape,chunks=chunks, dtype="f8")
-            humidity = root.create_datset("Y", shape=shape, chunks=chunks, dtype="f8")
+            root = h5py.File(path, "w-")
+            x = root.create_dataset("X", shape=shape,chunks=chunks, dtype="f8")
+            y = root.create_dataset("Y", shape=shape, chunks=chunks, dtype="f8")
             
-            temperature[:, :, :] = np.random.random_sample(shape)
-            humidity[:, :, :] = np.random.random_sample(shape)
+            x[:, :, :] = np.random.random_sample(shape)
+            y[:, :, :] = np.random.random_sample(shape)
             
             self.dataset = root
             root.close()
@@ -59,17 +54,17 @@ class Datastruct:
             if type(path) == str:
                 self.path = path
                 
-            root = netCDF4.Dataset("data/test_dataset.nc", "r+", format="NETCDF4")
+            root = netCDF4.Dataset(path, "w", format="NETCDF4")
             grp = root.createGroup("/")
-            time= root.createDimension("time", 512)
-            level = root.createDimension("level", 512)
-            lat = root.createDimension("lat", 512)
+            u = root.createDimension("u", 512)
+            v = root.createDimension("v", 512)
+            w = root.createDimension("w", 512)
             
-            temperature = root.createVariable("X", "f8", ("time", "level", "lat"), chunksize=chunks)
-            humidity = root.createVariable("Y", "f8", ("time", "level", "lat"), chunksize=chunks)
+            x = root.createVariable("X", "f8", ("u", "v", "w"), chunksizes=chunks)
+            y = root.createVariable("Y", "f8", ("u", "v", "w"), chunksizes=chunks)
             
-            temperature = np.random.random_sample(shape)
-            humidity = np.random.random_sample(shape)
+            x = np.random.random_sample(shape)
+            y = np.random.random_sample(shape)
                 
             self.dataset = root
             root.close()
@@ -84,11 +79,11 @@ class Datastruct:
             
         if self.engine =="hdf5":
             
-            self.dataset = h5py.File(self.path, mode="r+")
+            self.dataset = h5py.File(self.path, mode=mode)
             
         if self.engine == "netcdf4":
                 
-            self.dataset = netCDF4.Dataset(self.path, mode="r+", format="NETCDF4")
+            self.dataset = netCDF4.Dataset(self.path, mode=mode, format="NETCDF4")
         
     
     def read(self, chunk):
