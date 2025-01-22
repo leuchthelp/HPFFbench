@@ -1,4 +1,7 @@
 zarr
+mpi4py
+h5py
+netCDF4
 gprof2dot
 plotly
 ipyparallel
@@ -8,6 +11,3 @@ matplotlib
 pandas
 numpy
 rich
-h5py
-netCDF4
-mpi4py
