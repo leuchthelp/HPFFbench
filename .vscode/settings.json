@@ -69,5 +69,6 @@
   "files.associations": {
     "stdio.h": "c",
     "netcdf.h": "c"
-  }
+  },
+  "cmake.sourceDirectory": "/home/dev/dkrz_dev/c-stuff"
 }
