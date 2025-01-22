@@ -18,6 +18,12 @@ spack install lmod
 . $(spack location -i lmod)/lmod/lmod/init/bash
 . share/spack/setup-env.sh
 
+echo "install python@3.11.9 via spack"
+spack install python@3.11.9 
+
+echo "install python-venv via spack"
+spack install python-venv
+
 echo "install netcdf-c via spack"
 spack install netcdf-c
 
@@ -45,7 +51,7 @@ spack env status
 
 cd dkrz_dev/
 
-spack add gcc hdf5 netcdf-c py-netcdf4@1.6.5 hdf5-vol-async py-numpy py-h5py py-mpi4py python@3.11.9 python-venv lmod py-rich
+spack add gcc python@3.11.9 python-venv hdf5 netcdf-c hdf5-vol-async lmod py-rich
 spack install
-spack load gcc hdf5 netcdf-c py-netcdf4@1.6.5 hdf5-vol-async py-numpy py-h5py py-mpi4py python@3.11.9 python-venv lmod py-rich
+spack load gcc python@3.11.9 python-venv hdf5 netcdf-c hdf5-vol-async lmod py-rich
 spack load --list
