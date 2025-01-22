@@ -15,9 +15,7 @@ def main():
 
     ds_zarr = ds.Datastruct()
     ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr")
-
-    
-    
+    print(ds_zarr.dataset)
 
 if __name__=="__main__":
     main()
