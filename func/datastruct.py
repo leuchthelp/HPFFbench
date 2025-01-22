@@ -4,7 +4,7 @@ import numpy as np
 class Datastruct:
     
     
-    def __init__(self, path=str, shape=(10), chunks=(10), mode=str, engine=str, compression=str, dataset=any):
+    def __init__(self, path=None, shape=(10), chunks=(10), mode=None, engine=None, compression=None, dataset=any):
         self.path = path
         self.shape = shape
         self.chunks = chunks
@@ -72,22 +72,30 @@ class Datastruct:
             return self
         
         
-    def open(self, mode):
+    def open(self, mode, engine = None | str, path = None | str):
+        
+        if type(path) == str:
+            self.path = path
+            
+        if type(engine) == str:
+            self.engine = engine
         
         if type(mode) == str:
             self.mode = mode
             
         if self.engine == "zarr":
             
-            self.dataset = zarr.open(self.path, mode=mode ,zarr_version=3)
+            self.dataset = zarr.open(self.path, mode=self.mode ,zarr_version=3)
             
         if self.engine =="hdf5":
             
-            self.dataset = h5py.File(self.path, mode=mode)
+            self.dataset = h5py.File(self.path, mode=self.mode)
             
         if self.engine == "netcdf4":
                 
-            self.dataset = netCDF4.Dataset(self.path, mode=mode, format="NETCDF4")
+            self.dataset = netCDF4.Dataset(self.path, mode=self.mode, format="NETCDF4")
+        
+        return self
         
     
     def read(self, chunk):
