@@ -3,3 +3,5 @@ gprof2dot
 xarray
 matplotlib
 pandas
+schedule
+plotly
