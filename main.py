@@ -1,6 +1,5 @@
 import func.datastruct as ds
 from func.datastruct import bcolors as color
-import plotly.express as px
 
 def create_ds():
     ds_zarr = ds.Datastruct()
@@ -40,7 +39,6 @@ def main():
     ds_zarr.read("bench_complete", variable="X", iterations=10_000)
     ds_hdf5.read("bench_complete", variable="X", iterations=10_000)
     ds_netcdf4.read("bench_complete", variable="X", iterations=10_000)
-    
     
     
 

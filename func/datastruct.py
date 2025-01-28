@@ -156,7 +156,7 @@ class Datastruct:
                 for i in range(iterations):
                     start = time.monotonic()
                     res = self.dataset[variable]
-                    bench.append(start - time.monotonic())
+                    bench.append(time.monotonic() - start)
                 
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
@@ -166,7 +166,7 @@ class Datastruct:
                 for i in range(iterations):
                     start = time.monotonic()
                     res = self.dataset[variable]
-                    bench.append(start - time.monotonic())
+                    bench.append(time.monotonic() - start)
                 
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
@@ -176,7 +176,7 @@ class Datastruct:
                 for i in range(iterations):
                     start = time.monotonic()
                     res = self.dataset[variable]
-                    bench.append(start - time.monotonic())
+                    bench.append(time.monotonic() - start)
                 
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
