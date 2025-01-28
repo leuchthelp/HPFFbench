@@ -36,9 +36,13 @@ def main():
     #show_header(ds_hdf5)
     #show_header(ds_netcdf4)
     
-    ds_zarr.read("bench_complete", variable="X", iterations=10_000)
-    ds_hdf5.read("bench_complete", variable="X", iterations=10_000)
-    ds_netcdf4.read("bench_complete", variable="X", iterations=10_000)
+    print(ds_zarr.read("complete", variable="X").shape)
+    print(ds_hdf5.read("complete", variable="X").shape)
+    print(ds_netcdf4.read("complete", variable="X").shape)
+    
+    #ds_zarr.read("bench_complete", variable="X", iterations=10)
+    #ds_hdf5.read("bench_complete", variable="X", iterations=10)
+    #ds_netcdf4.read("bench_complete", variable="X", iterations=10)
     
     
 

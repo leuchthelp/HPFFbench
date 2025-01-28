@@ -76,11 +76,11 @@ class Datastruct:
                 v = root.createDimension("v", 512)
                 w = root.createDimension("w", 512)
                 
-                x = root.createVariable("X", "f8", ("u", "v", "w"), chunksizes=chunks)
-                y = root.createVariable("Y", "f8", ("u", "v", "w"), chunksizes=chunks)
+                x = root.createVariable("X", "f8", ("u", "v", "w",), chunksizes=chunks)
+                y = root.createVariable("Y", "f8", ("u", "v", "w",), chunksizes=chunks)
                 
-                x = np.random.random_sample(shape)
-                y = np.random.random_sample(shape)
+                x[:, :, :] = np.random.random_sample(shape)
+                y[:, :, :] = np.random.random_sample(shape)
                     
                 self.dataset = root
                 root.close()
@@ -138,13 +138,13 @@ class Datastruct:
     def _read_complete(self, variable, iterations):
         match self.engine:
             case "zarr":
-                print(self.dataset[variable])
+                return self.dataset[variable][:]
                 
             case "hdf5":
-                print(self.dataset[variable])
+                return self.dataset[variable][:]
                 
             case "netcdf4":
-                print(self.dataset.variables[variable])  
+                return self.dataset.variables[variable][:] 
                 
     def _bench_complete(self, variable, iterations):
         res = None
@@ -154,8 +154,9 @@ class Datastruct:
             case "zarr":
                 
                 for i in range(iterations):
+                    print(i)
                     start = time.monotonic()
-                    res = self.dataset[variable]
+                    res = self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
@@ -164,8 +165,11 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
+                    print(i)
+                    #arr = np.zeros((512, 512, 512))
                     start = time.monotonic()
-                    res = self.dataset[variable]
+                    #res = self.dataset[variable].read_direct(arr)
+                    res = self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
@@ -174,12 +178,18 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
+                    print(i)
                     start = time.monotonic()
-                    res = self.dataset[variable]
+                    res = self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+        #return res
+    
+    def _bench_sinus(self, variable, iterations):
+        pass
     
     def _bench_calc_max(self, variable, iterations):
         match self.engine:
