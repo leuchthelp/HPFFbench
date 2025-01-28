@@ -43,10 +43,10 @@ class Datastruct:
                 
                 root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
                 x = root.create_array(name="X", shape=shape, chunks=chunks, dtype="f8")
-                y= root.create_array(name="Y", shape=shape, chunks=chunks, dtype="f8")
+                #y= root.create_array(name="Y", shape=shape, chunks=chunks, dtype="f8")
                 
                 x[:, :, :] = np.random.random_sample(shape)
-                y[:, :, :] = np.random.random_sample(shape)
+                #y[:, :, :] = np.random.random_sample(shape)
                 
                 self.dataset = root
             
@@ -57,10 +57,10 @@ class Datastruct:
                     
                 root = h5py.File(path, "w-")
                 x = root.create_dataset("X", shape=shape,chunks=chunks, dtype="f8")
-                y = root.create_dataset("Y", shape=shape, chunks=chunks, dtype="f8")
+                #y = root.create_dataset("Y", shape=shape, chunks=chunks, dtype="f8")
                 
                 x[:, :, :] = np.random.random_sample(shape)
-                y[:, :, :] = np.random.random_sample(shape)
+                #y[:, :, :] = np.random.random_sample(shape)
                 
                 self.dataset = root
                 root.close()
@@ -72,15 +72,15 @@ class Datastruct:
                     
                 root = netCDF4.Dataset(path, "w", format="NETCDF4")
                 grp = root.createGroup("/")
-                u = root.createDimension("u", 512)
-                v = root.createDimension("v", 512)
-                w = root.createDimension("w", 512)
+                u = root.createDimension("u", shape[0])
+                v = root.createDimension("v", shape[1])
+                w = root.createDimension("w", shape[2])
                 
                 x = root.createVariable("X", "f8", ("u", "v", "w",), chunksizes=chunks)
-                y = root.createVariable("Y", "f8", ("u", "v", "w",), chunksizes=chunks)
+                #y = root.createVariable("Y", "f8", ("u", "v", "w",), chunksizes=chunks)
                 
                 x[:, :, :] = np.random.random_sample(shape)
-                y[:, :, :] = np.random.random_sample(shape)
+                #y[:, :, :] = np.random.random_sample(shape)
                     
                 self.dataset = root
                 root.close()
