@@ -147,7 +147,6 @@ class Datastruct:
                 return self.dataset.variables[variable][:] 
                 
     def _bench_complete(self, variable, iterations):
-        res = None
         bench = []
          
         match self.engine:
@@ -156,7 +155,7 @@ class Datastruct:
                 for i in range(iterations):
                     print(i)
                     start = time.monotonic()
-                    res = self.dataset[variable][:]
+                    self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
@@ -169,7 +168,7 @@ class Datastruct:
                     #arr = np.zeros((512, 512, 512))
                     start = time.monotonic()
                     #res = self.dataset[variable].read_direct(arr)
-                    res = self.dataset[variable][:]
+                    self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
@@ -180,7 +179,7 @@ class Datastruct:
                 for i in range(iterations):
                     print(i)
                     start = time.monotonic()
-                    res = self.dataset[variable][:]
+                    self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
@@ -203,7 +202,7 @@ class Datastruct:
                 self.dataset.variables[variable]
         
     
-    def read(self, pattern, variable=None, iterations=None):
+    def read(self, pattern, variable=None, iterations=None, logging=False):
         
         patterns = {
             "header": self._read_header,
@@ -211,7 +210,7 @@ class Datastruct:
             "bench_complete": self._bench_complete
         }
         
-        if pattern not in  ("header", "complete"):
+        if logging:
             proc = mp.Process(target=logger.run_logging, args=(f'{pattern}_{self.engine}_test.txt',))
             proc.start()
             print(f"pid: {proc.pid}")
@@ -223,7 +222,7 @@ class Datastruct:
         
         res = patterns[pattern](variable=variable, iterations=iterations)
         
-        if pattern not in  ("header", "complete"):
+        if logging:
             proc.kill()
             proc.join()
             proc.close()
