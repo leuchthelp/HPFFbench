@@ -20,7 +20,7 @@ class bcolors:
 class Datastruct:
     
     
-    def __init__(self, path=None, shape=(), chunks=(), mode=None, engine=None, compression=None, dataset=any, log=None):
+    def __init__(self, path=None, shape=[], chunks=[], mode=None, engine=None, compression=None, dataset=any, log=None):
         self.path = path
         self.shape = shape
         self.chunks = chunks
@@ -31,7 +31,7 @@ class Datastruct:
         self.log = log
         
     
-    def create(self, path, shape, chunks, engine):
+    def create(self, path, shape, chunks, engine, variables=("X"), dtype="f8"):
             
         if type(engine) == str:
             self.engine = engine
@@ -42,11 +42,10 @@ class Datastruct:
                     self.path = path
                 
                 root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
-                x = root.create_array(name="X", shape=shape, chunks=chunks, dtype="f8")
-                #y= root.create_array(name="Y", shape=shape, chunks=chunks, dtype="f8")
                 
-                x[:, :, :] = np.random.random_sample(shape)
-                #y[:, :, :] = np.random.random_sample(shape)
+                for variable in variables:
+                    x = root.create_array(name=variable, shape=shape, chunks=chunks, dtype=dtype)
+                    x[:] = np.random.random_sample(shape)
                 
                 self.dataset = root
             
@@ -56,11 +55,10 @@ class Datastruct:
                     self.path = path
                     
                 root = h5py.File(path, "w-")
-                x = root.create_dataset("X", shape=shape,chunks=chunks, dtype="f8")
-                #y = root.create_dataset("Y", shape=shape, chunks=chunks, dtype="f8")
-                
-                x[:, :, :] = np.random.random_sample(shape)
-                #y[:, :, :] = np.random.random_sample(shape)
+
+                for variable in variables:
+                    x = root.create_dataset(variable, shape=shape,chunks=tuple(chunks), dtype=dtype)
+                    x[:] = np.random.random_sample(shape)
                 
                 self.dataset = root
                 root.close()
@@ -71,16 +69,16 @@ class Datastruct:
                     self.path = path
                     
                 root = netCDF4.Dataset(path, "w", format="NETCDF4")
-                grp = root.createGroup("/")
-                u = root.createDimension("u", shape[0])
-                v = root.createDimension("v", shape[1])
-                w = root.createDimension("w", shape[2])
+                root.createGroup("/")
                 
-                x = root.createVariable("X", "f8", ("u", "v", "w",), chunksizes=chunks)
-                #y = root.createVariable("Y", "f8", ("u", "v", "w",), chunksizes=chunks)
+                dimensions = []
+                for i in range(len(tuple(shape))):
+                    root.createDimension(f"{i}", shape[i])
+                    dimensions.append(f"{i}")
                 
-                x[:, :, :] = np.random.random_sample(shape)
-                #y[:, :, :] = np.random.random_sample(shape)
+                for variable in variables:
+                    x = root.createVariable(variable, dtype, dimensions, chunksizes=chunks)
+                    x[:] = np.random.random_sample(shape)
                     
                 self.dataset = root
                 root.close()
