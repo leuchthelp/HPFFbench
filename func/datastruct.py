@@ -3,7 +3,6 @@ import numpy as np
 import func.dev_logging as logger
 import multiprocessing as mp
 import time
-import timeit
 from mpi4py import MPI
 
 class bcolors:
@@ -30,6 +29,7 @@ class Datastruct:
         self.compression = compression
         self.dataset = dataset
         self.log = log
+        self.parallel = parallel
         
     
     def create(self, path, form, engine, dtype="f8", parallel=False):
@@ -46,16 +46,18 @@ class Datastruct:
                 if type(path) == str:
                     self.path = path
                 
-                root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
-                
-                for variable, element in form.items():
-                    shape = element[0]
-                    chunks = element[1]
-                    
-                    x = root.create_array(name=variable, shape=shape, chunks=chunks, dtype=dtype)
-                    x[:] = np.random.random_sample(shape)
-                
-                self.dataset = root
+                if MPI.COMM_WORLD.rank == 0 or parallel == False:
+                    root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
+
+                    for variable, element in form.items():
+                        shape = element[0]
+                        chunks = element[1]
+
+                        x = root.create_array(name=variable, shape=shape, chunks=chunks, dtype=dtype)
+                        x[:] = np.random.random_sample(shape)
+
+                    self.dataset = root
+                    print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
             
         
             case "hdf5":
@@ -64,7 +66,8 @@ class Datastruct:
                 
                 match parallel:
                     case True:
-                        root = h5py.File(path, "w-", driver="mpio")
+                        print(f"{bcolors.WARNING}Creating hdf5 file{bcolors.ENDC}")
+                        root = h5py.File(path, "w-", driver="mpio", comm=MPI.COMM_WORLD)
                     case False:
                         root = h5py.File(path, "w-")
 
@@ -73,19 +76,28 @@ class Datastruct:
                     chunks = element[1]
                     
                     x = root.create_dataset(variable, shape=shape,chunks=tuple(chunks), dtype=dtype)
-                    x[:] = np.random.random_sample(shape)
-                
+                    
+                    if MPI.COMM_WORLD.rank == 0 or parallel == False:
+                        x[:] = np.random.random_sample(shape)
+                    
                 self.dataset = root
                 root.close()
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
             
         
             case "netcdf4":
                 if type(path) == str:
                     self.path = path
                     
-                root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=parallel)
-                root.createGroup("/")
                 
+                match parallel:
+                    case True:
+                        print(f"{bcolors.WARNING}Setting up netcdf4 file{bcolors.ENDC}")
+                        root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=parallel)
+                    case False:
+                        root = netCDF4.Dataset(path, "w", format="NETCDF4")
+
+                root.createGroup("/")
                 used = 0
                 
                 for variable, element in form.items():
@@ -97,12 +109,15 @@ class Datastruct:
                         root.createDimension(f"{used}", size)
                         dimensions.append(f"{used}")
                         used += 1
-                    
+                        
                     x = root.createVariable(variable, dtype, dimensions, chunksizes=chunks)
-                    x[:] = np.random.random_sample(shape)
+                    
+                    if MPI.COMM_WORLD.rank == 0 or parallel == False:
+                        x[:] = np.random.random_sample(shape)
                     
                 self.dataset = root
                 root.close()
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
                 
         return self
         

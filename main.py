@@ -3,32 +3,36 @@ from func.datastruct import bcolors as color
 import os
 import pandas as pd
 import shutil
+from mpi4py import MPI
 
-def create_ds(form):
+def create_ds(form, parallel=False):
     ds_zarr = ds.Datastruct()
     ds_hdf5 = ds.Datastruct()
     ds_netcdf4 = ds.Datastruct()
     #new.create(path="data/test_dataset.zarr", shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
     
-    if os.path.exists("data/datasets/test_dataset.zarr"):
-        shutil.rmtree("data/datasets/test_dataset.zarr")
-    else:
-        print(f"{color.WARNING}The file does not exist{color.ENDC}")
-        
-    if os.path.exists("data/datasets/test_dataset.nc"):
-        os.remove("data/datasets/test_dataset.nc")
-    else:
-        print(f"{color.WARNING}The file does not exist{color.ENDC}")
-        
-    if os.path.exists("data/datasets/test_dataset.h5"):
-        os.remove("data/datasets/test_dataset.h5")
-    else:
-        print(f"{color.WARNING}The file does not exist{color.ENDC}")
+    if parallel is False or MPI.COMM_WORLD.rank == 0:
+        if os.path.exists("data/datasets/test_dataset.zarr"):
+            shutil.rmtree("data/datasets/test_dataset.zarr")
+        else:
+            print(f"{color.WARNING}The file does not exist{color.ENDC}")
+            
+        if os.path.exists("data/datasets/test_dataset.nc"):
+            os.remove("data/datasets/test_dataset.nc")
+        else:
+            print(f"{color.WARNING}The file does not exist{color.ENDC}")
+            
+        if os.path.exists("data/datasets/test_dataset.h5"):
+            os.remove("data/datasets/test_dataset.h5")
+        else:
+            print(f"{color.WARNING}The file does not exist{color.ENDC}")
 
-    ds_zarr.create(path="data/datasets/test_dataset.zarr", form=form, engine="zarr")
-    ds_hdf5.create(path="data/datasets/test_dataset.h5", form=form, engine="hdf5")
-    ds_netcdf4.create(path="data/datasets/test_dataset.nc", form=form, engine="netcdf4")
-   
+    ds_zarr.create(path="data/datasets/test_dataset.zarr", form=form, engine="zarr", parallel=parallel)
+    print(f"{color.WARNING}Creating hdf5{color.ENDC}")
+    ds_hdf5.create(path="data/datasets/test_dataset.h5", form=form, engine="hdf5", parallel=parallel)
+    print(f"{color.WARNING}Creating netcdf4{color.ENDC}")
+    ds_netcdf4.create(path="data/datasets/test_dataset.nc", form=form, engine="netcdf4", parallel=parallel)
+    
     
 def show_header(ds_tmp):
     print(f"{color.OKGREEN}check header with format: {ds_tmp.engine}{color.ENDC}")
@@ -178,8 +182,10 @@ def main():
     
     #bench_variable(setup, pd.DataFrame(), "X")
     
-    bench_variable(setup, pd.DataFrame(), variable="X")
+    #bench_variable(setup, pd.DataFrame(), variable="X")
     #bench_complete(setup, pd.DataFrame())
+    
+    create_ds(setup["run01"])
 
 if __name__=="__main__":
     main()
