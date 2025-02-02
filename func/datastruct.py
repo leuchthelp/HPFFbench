@@ -4,6 +4,7 @@ import func.dev_logging as logger
 import multiprocessing as mp
 import time
 import timeit
+from mpi4py import MPI
 
 class bcolors:
     HEADER = '\033[95m'
@@ -20,7 +21,7 @@ class bcolors:
 class Datastruct:
     
     
-    def __init__(self, path=None, shape=[], chunks=[], mode=None, engine=None, compression=None, dataset=any, log=None):
+    def __init__(self, path=None, shape=[], chunks=[], mode=None, engine=None, compression=None, dataset=any, log=None, parallel=False):
         self.path = path
         self.shape = shape
         self.chunks = chunks
@@ -31,10 +32,14 @@ class Datastruct:
         self.log = log
         
     
-    def create(self, path, shape, chunks, engine, variables=("X"), dtype="f8"):
+    def create(self, path, form, engine, dtype="f8", parallel=False):
             
         if type(engine) == str:
             self.engine = engine
+            
+        if parallel == True:
+            self.parallel = parallel
+            
             
         match self.engine:
             case "zarr":
@@ -43,7 +48,10 @@ class Datastruct:
                 
                 root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
                 
-                for variable in variables:
+                for variable, element in form.items():
+                    shape = element[0]
+                    chunks = element[1]
+                    
                     x = root.create_array(name=variable, shape=shape, chunks=chunks, dtype=dtype)
                     x[:] = np.random.random_sample(shape)
                 
@@ -53,10 +61,17 @@ class Datastruct:
             case "hdf5":
                 if type(path) == str:
                     self.path = path
-                    
-                root = h5py.File(path, "w-")
+                
+                match parallel:
+                    case True:
+                        root = h5py.File(path, "w-", driver="mpio")
+                    case False:
+                        root = h5py.File(path, "w-")
 
-                for variable in variables:
+                for variable, element in form.items():
+                    shape = element[0]
+                    chunks = element[1]
+                    
                     x = root.create_dataset(variable, shape=shape,chunks=tuple(chunks), dtype=dtype)
                     x[:] = np.random.random_sample(shape)
                 
@@ -68,15 +83,21 @@ class Datastruct:
                 if type(path) == str:
                     self.path = path
                     
-                root = netCDF4.Dataset(path, "w", format="NETCDF4")
+                root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=parallel)
                 root.createGroup("/")
                 
-                dimensions = []
-                for i in range(len(tuple(shape))):
-                    root.createDimension(f"{i}", shape[i])
-                    dimensions.append(f"{i}")
+                used = 0
                 
-                for variable in variables:
+                for variable, element in form.items():
+                    shape = element[0]
+                    chunks = element[1]
+                    dimensions = []
+                    
+                    for size in shape:
+                        root.createDimension(f"{used}", size)
+                        dimensions.append(f"{used}")
+                        used += 1
+                    
                     x = root.createVariable(variable, dtype, dimensions, chunksizes=chunks)
                     x[:] = np.random.random_sample(shape)
                     
@@ -133,7 +154,7 @@ class Datastruct:
                     print(self.dataset)
       
                     
-    def _read_complete(self, variable, iterations):
+    def _read_variable(self, variable, iterations):
         match self.engine:
             case "zarr":
                 return self.dataset[variable][:]
@@ -143,15 +164,16 @@ class Datastruct:
                 
             case "netcdf4":
                 return self.dataset.variables[variable][:] 
+ 
                 
-    def _bench_complete(self, variable, iterations):
+    def _bench_variable(self, variable, iterations):
         bench = []
          
         match self.engine:
             case "zarr":
                 
                 for i in range(iterations):
-                    print(i)
+                    print(f"i: {i} for variable: {variable}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
@@ -162,10 +184,10 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
-                    print(i)
+                    print(f"i: {i} for variable: {variable}")
                     #arr = np.zeros((512, 512, 512))
                     start = time.monotonic()
-                    #res = self.dataset[variable].read_direct(arr)
+                    #rself.dataset[variable].read_direct(arr)
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
@@ -175,18 +197,67 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
-                    print(i)
+                    print(f"i: {i} for variable: {variable}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
-
-        #return res
-    
+ 
+  
+    def _bench_complete(self, variable, iterations):
+        bench = []
+         
+        match self.engine:
+            case "zarr":
+                
+                for i in range(iterations):
+                    print(f"i: {i} for variable: {variable}")
+                    start = time.monotonic()
+                    
+                    for var in variable:
+                        self.dataset[var][:]
+                    
+                    bench.append(time.monotonic() - start)
+                
+                self.log = bench
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+                
+            case "hdf5":
+                
+                for i in range(iterations):
+                    print(f"i: {i} for variable: {variable}")
+                    #arr = np.zeros((512, 512, 512))
+                    start = time.monotonic()
+                    
+                    for var in variable:
+                        #self.dataset[variable].read_direct(arr)
+                        self.dataset[var][:]
+                        
+                    bench.append(time.monotonic() - start)
+                
+                self.log = bench
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+                
+            case "netcdf4":
+                
+                for i in range(iterations):
+                    print(f"i: {i} for variable: {variable}")
+                    start = time.monotonic()
+                    
+                    for var in variable:
+                        self.dataset[var][:]
+                    
+                    bench.append(time.monotonic() - start)
+                
+                self.log = bench
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+ 
+ 
     def _bench_sinus(self, variable, iterations):
         pass
+   
     
     def _bench_calc_max(self, variable, iterations):
         match self.engine:
@@ -204,8 +275,9 @@ class Datastruct:
         
         patterns = {
             "header": self._read_header,
-            "complete": self._read_complete,
-            "bench_complete": self._bench_complete
+            "complete": self._read_variable,
+            "bench_variable": self._bench_variable,
+            "bench_complete": self._bench_complete,
         }
         
         if logging:

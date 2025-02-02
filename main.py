@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import shutil
 
-def create_ds(shape, chunks):
+def create_ds(form):
     ds_zarr = ds.Datastruct()
     ds_hdf5 = ds.Datastruct()
     ds_netcdf4 = ds.Datastruct()
@@ -25,9 +25,10 @@ def create_ds(shape, chunks):
     else:
         print(f"{color.WARNING}The file does not exist{color.ENDC}")
 
-    ds_zarr.create(path="data/datasets/test_dataset.zarr", shape=shape, chunks=chunks, engine="zarr")
-    ds_hdf5.create(path="data/datasets/test_dataset.h5", shape=shape, chunks=chunks, engine="hdf5")
-    ds_netcdf4.create(path="data/datasets/test_dataset.nc", shape=shape, chunks=chunks, engine="netcdf4")
+    ds_zarr.create(path="data/datasets/test_dataset.zarr", form=form, engine="zarr")
+    ds_hdf5.create(path="data/datasets/test_dataset.h5", form=form, engine="hdf5")
+    ds_netcdf4.create(path="data/datasets/test_dataset.nc", form=form, engine="netcdf4")
+   
     
 def show_header(ds_tmp):
     print(f"{color.OKGREEN}check header with format: {ds_tmp.engine}{color.ENDC}")
@@ -54,68 +55,131 @@ def calc_chunksize(chunks):
         res /= 1024
         size = "MB"
 
-    return res, size
+    return (res, size)
 
+
+def bench_variable(setup, df, variable):
+    index = 0
+    
+    for run in setup.values():
+        
+        shape = run[variable][0]
+        chunks = run[variable][1]
+        
+        size_chunks = calc_chunksize(chunks=chunks)
+        
+        print(f"{color.WARNING}create Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        create_ds(form=run)
+        
+        print(f"{color.OKBLUE}bench zarr with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        ds_zarr = ds.Datastruct()
+        ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr")
+        ds_zarr.read("bench_variable", variable=variable, iterations=10)
+        
+        tmp = pd.DataFrame(data={"time taken": ds_zarr.log, "format": f"{ds_zarr.engine}-{shape}-{chunks}", "run":index, "engine": ds_zarr.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+        df = pd.concat([df, tmp], ignore_index=True)
+        
+        print(f"{color.OKBLUE}bench netcdf4 with shape: {shape} and chunks: {chunks}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        ds_netcdf4 = ds.Datastruct()
+        ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
+        ds_netcdf4.read("bench_variable", variable=variable, iterations=10)
+        
+        tmp = pd.DataFrame(data={"time taken": ds_netcdf4.log, "format": f"{ds_netcdf4.engine}-{shape}-{chunks}", "run":index, "engine": ds_netcdf4.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+        df= pd.concat([df, tmp], ignore_index=True)
+        
+        print(f"{color.OKBLUE}bench hdf5 with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        ds_hdf5 = ds.Datastruct()
+        ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5")
+        ds_hdf5.read("bench_variable", variable=variable, iterations=10)
+
+        tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+        df = pd.concat([df, tmp], ignore_index=True)
+        
+        index +=1
+        
+    df.to_json("data/plotting/plotting_bench_variable.json")
+    
+
+def bench_complete(setup, df):
+    index = 0
+    
+    for run in setup.values():
+        
+        variable = []
+        shape = []
+        chunks = []
+        size_chunks = []
+                
+        for key in run.keys():
+            variable.append(key)
+            shape.append(run[key][0])
+            chunks.append(run[key][1])
+            
+        for i in range(len(chunks)):    
+            tmp = calc_chunksize(chunks=chunks[i])
+            size_chunks.append(tmp)
+            
+    
+        print(f"{color.WARNING}create Datasets for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
+        create_ds(form=run)
+        
+        print(f"{color.OKBLUE}bench zarr for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
+        ds_zarr = ds.Datastruct()
+        ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr")
+        ds_zarr.read("bench_complete", variable=variable, iterations=10)
+        
+        tmp = pd.DataFrame(data={"time taken": ds_zarr.log, "format": f"{ds_zarr.engine}-{shape}-{chunks}", "run":index, "engine": ds_zarr.engine})
+        df = pd.concat([df, tmp], ignore_index=True)
+        
+        print(f"{color.OKBLUE}bench netcdf4 for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
+        ds_netcdf4 = ds.Datastruct()
+        ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
+        ds_netcdf4.read("bench_complete", variable=variable, iterations=10)
+        
+        tmp = pd.DataFrame(data={"time taken": ds_netcdf4.log, "format": f"{ds_netcdf4.engine}-{shape}-{chunks}", "run":index, "engine": ds_netcdf4.engine})
+        df= pd.concat([df, tmp], ignore_index=True)
+        
+        
+        print(f"{color.OKBLUE}bench hdf5 for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
+        ds_hdf5 = ds.Datastruct()
+        ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5")
+        ds_hdf5.read("bench_complete", variable=variable, iterations=10)
+
+        tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine})
+        df = pd.concat([df, tmp], ignore_index=True)
+        
+        index +=1
+    
+    
+    df.to_json("data/plotting/plotting_bench_complete.json")
+    
 
 def main():
     
     setup = {
-            "run01":([512, 512, 512], [512, 512, 1]),
-            "run02":([512, 512, 512], [512, 512, 8]),
-            "run03":([512, 512, 512], [512, 512, 16]),
-            "run04":([512, 512, 512], [512, 512, 32]),
-            "run05":([512, 512, 512], [512, 512, 64]),
-            "run06":([512, 512, 512], [512, 512, 128]),
-            "run07":([512, 512, 512], [512, 512, 256]),
-            "run08":([512, 512, 512], [512, 512, 512]),
+            "run01": {"X": ([512, 512, 512], [512, 512, 1]), "Y": ([10, 10], [2, 2])},
+            "run02": {"X": ([512, 512, 512], [512, 512, 8]), "Y": ([10, 10], [2, 2])},
+            "run03": {"X": ([512, 512, 512], [512, 512, 16]), "Y": ([10, 10], [2, 2])},
+            "run04": {"X": ([512, 512, 512], [512, 512, 32]), "Y": ([10, 10], [2, 2])},
+            "run05": {"X": ([512, 512, 512], [512, 512, 64]), "Y": ([10, 10], [2, 2])},
+            "run06": {"X": ([512, 512, 512], [512, 512, 128]), "Y": ([10, 10], [2, 2])},
+            "run07": {"X": ([512, 512, 512], [512, 512, 256]), "Y": ([10, 10], [2, 2])},
+            "run08": {"X": ([512, 512, 512], [512, 512, 512]), "Y": ([10, 10], [2, 2])},
             
-            #"run11":([512, 512, 512], [512, 1, 1]),
-            #"run12":([512, 512, 512], [512, 8, 8]),
-            "run13":([512, 512, 512], [512, 16, 16]),
-            "run14":([512, 512, 512], [512, 32, 32]),
-            "run15":([512, 512, 512], [512, 64, 64]),
-            "run16":([512, 512, 512], [512, 128, 128]),
-            "run17":([512, 512, 512], [512, 256, 256]),
-            "run18":([512, 512, 512], [512, 512, 512]), 
+            #"run11": {"X": ([512, 512, 512], [512, 1, 1])},
+            #"run12": {"X": ([512, 512, 512], [512, 8, 8])},
+            #"run13": {"X": ([512, 512, 512], [512, 16, 16]), "Y": ([10, 10], [2, 2])},
+            #"run14": {"X": ([512, 512, 512], [512, 32, 32]), "Y": ([10, 10], [2, 2])},
+            #"run15": {"X": ([512, 512, 512], [512, 64, 64]), "Y": ([10, 10], [2, 2])},
+            #"run16": {"X": ([512, 512, 512], [512, 128, 128]), "Y": ([10, 10], [2, 2])},
+            #"run17": {"X": ([512, 512, 512], [512, 256, 256]), "Y": ([10, 10], [2, 2])},
+            #"run18": {"X": ([512, 512, 512], [512, 512, 512]), "Y": ([10, 10], [2, 2])}, 
             }
     
-    df_bench = pd.DataFrame()
-    index = 0
+    #bench_variable(setup, pd.DataFrame(), "X")
     
-    for run in setup.values():
-        size_chunks, unit = calc_chunksize(run[1])
-        
-        print(f"{color.WARNING}create Datasets with shape:{run[0]} and chunks:{run[1]}, filesize per chunk: {size_chunks} {unit}{color.ENDC}")
-        create_ds(shape=run[0], chunks=run[1])
-        
-        print(f"{color.OKBLUE}bench zarr with shape:{run[0]} and chunks:{run[1]}, filesize per chunk: {size_chunks}{color.ENDC}")
-        ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr")
-        ds_zarr.read("bench_complete", variable="X", iterations=10)
-        
-        tmp = pd.DataFrame(data={"time taken": ds_zarr.log, "format": f"{ds_zarr.engine}-{run[0]}-{run[1]}", "run":index, "engine": ds_zarr.engine, "filesize per chunk": size_chunks})
-        df_bench = pd.concat([df_bench, tmp], ignore_index=True)
-        
-        print(f"{color.OKBLUE}bench netcdf4 with shape:{run[0]} and chunks:{run[1]}, filesize per chunk: {size_chunks} {unit}{color.ENDC}")
-        ds_netcdf4 = ds.Datastruct()
-        ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
-        ds_netcdf4.read("bench_complete", variable="X", iterations=10)
-        
-        tmp = pd.DataFrame(data={"time taken": ds_netcdf4.log, "format": f"{ds_netcdf4.engine}-{run[0]}-{run[1]}", "run":index, "engine": ds_netcdf4.engine, "filesize per chunk": size_chunks})
-        df_bench = pd.concat([df_bench, tmp], ignore_index=True)
-        
-        print(f"{color.OKBLUE}bench hdf5 with shape:{run[0]} and chunks:{run[1]}, filesize per chunk: {size_chunks} {unit}{color.ENDC}")
-        ds_hdf5 = ds.Datastruct()
-        ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5")
-        ds_hdf5.read("bench_complete", variable="X", iterations=10)
-
-        tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{run[0]}-{run[1]}", "run":index, "engine": ds_hdf5.engine, "filesize per chunk": size_chunks})
-        df_bench = pd.concat([df_bench, tmp], ignore_index=True)
-        
-        index +=1
-    
-    df_bench.to_json("data/plotting/plotting_bench_complete.json")
-    
+    bench_variable(setup, pd.DataFrame(), variable="X")
+    #bench_complete(setup, pd.DataFrame())
 
 if __name__=="__main__":
     main()
