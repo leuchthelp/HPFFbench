@@ -185,7 +185,8 @@ def main():
     #bench_variable(setup, pd.DataFrame(), variable="X")
     #bench_complete(setup, pd.DataFrame())
     
-    create_ds(setup["run01"])
+    #create_ds(setup["run01"], parallel=False)
+    create_ds(setup["run01"], parallel=True)
 
 if __name__=="__main__":
     main()

@@ -21,9 +21,9 @@ spack install lmod
 
 spack install python@3.11.9 
 spack install openmpi
-spack install hdf5+threadsafe
-spack install hdf5-vol-async
-spack install netcdf-c
+spack install hdf5+threadsafe+mpi+subfiling
+# spack install hdf5-vol-async
+spack install netcdf-c build_system=cmake
 spack install py-pip
 spack install py-netcdf4
 spack install py-h5py
@@ -43,4 +43,4 @@ spack install py-rich
 # source .venv/bin/activate
 # pip install -r requirements.txt
 
-# All other packages should already be available to pip via stack / modules
+# All other packages should already be available to pip via spack / modules

@@ -70,5 +70,6 @@
     "stdio.h": "c",
     "netcdf.h": "c"
   },
-  "cmake.sourceDirectory": "/home/dev/dkrz_dev/c-stuff"
+  "cmake.sourceDirectory": "/home/dev/dkrz_dev/c-stuff",
+  "C_Cpp.default.compilerPath": "/usr/bin/gcc"
 }
