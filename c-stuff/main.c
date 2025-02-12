@@ -4,14 +4,6 @@
 #include <time.h>
 #include <hdf5.h>
 
-/* void handle_error(int status)
-{
-    if (status != NC_NOERR)
-    {
-        fprintf(stderr, "%s\n", nc_strerror(status));
-    }
-} */
-
 void save_to_json(double *arr, char *file_name, char *name, size_t size)
 {
     FILE *fptr;
@@ -35,178 +27,6 @@ void save_to_json(double *arr, char *file_name, char *name, size_t size)
     fclose(fptr);
 }
 
-void bench_nczarr_open()
-{
-
-    int status = NC_NOERR;
-    int ncid;
-    double arr[10000];
-
-    for (int i = 0; i < 10000; i++)
-    {
-
-        struct timespec start, end;
-
-        clock_gettime(CLOCK_MONOTONIC, &start);
-
-        status = nc_open("file:///home/test/dkrz_dev/data/test_dataset.zarr#mode=nczarr,file", NC_WRITE, &ncid);
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-
-        status = nc_close(ncid);
-
-        double elapsed = end.tv_sec - start.tv_sec;
-        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr[i] = elapsed;
-        // printf("Time spend: %f \n", time_spent);
-    }
-
-    printf("Saving to json for nczarr benchmark \n");
-    save_to_json(arr, "test_plotting_zarr.json", "nczarr-open", 10000);
-    printf("Finished saving \n");
-}
-
-void bench_netcdf4_open()
-{
-
-    int status = NC_NOERR;
-    int ncid;
-
-    double arr2[10000];
-
-    for (int i = 0; i < 10000; i++)
-    {
-
-        struct timespec start, end;
-
-        clock_gettime(CLOCK_MONOTONIC, &start);
-
-        status = nc_open("data/test_dataset.nc", NC_WRITE, &ncid);
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-
-        status = nc_close(ncid);
-
-        double elapsed = end.tv_sec - start.tv_sec;
-        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr2[i] = elapsed;
-        // printf("Time spend: %f \n", time_spent);
-    }
-
-    printf("Saving to json for netcdf benchmark \n");
-    save_to_json(arr2, "test_plotting_netcdf.json", "netcdf4-open", 10000);
-    printf("Finished saving \n");
-}
-
-void bench_hdf5_open()
-{
-
-    int status = NC_NOERR;
-    int ncid;
-
-    double arr3[10000];
-
-    for (int i = 0; i < 10000; i++)
-    {
-
-        struct timespec start, end;
-
-        int faplist_id = H5Pcreate(H5P_FILE_ACCESS);
-
-        clock_gettime(CLOCK_MONOTONIC, &start);
-
-        hid_t fileid = H5Fopen("data/test_dataset.h5", H5F_ACC_RDWR, faplist_id);
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-
-        H5Fclose(fileid);
-
-        double elapsed = end.tv_sec - start.tv_sec;
-        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr3[i] = elapsed;
-        // printf("Time spend: %f \n", time_spent);
-    }
-
-    printf("Saving to json for hdf benchmark \n");
-    save_to_json(arr3, "test_plotting_hdf.json", "hdf5-open", 10000);
-    printf("Finished saving \n");
-}
-
-void bench_nczarr_read()
-{
-    int status = NC_NOERR;
-    int ncid;
-    double arr[10000];
-    status = nc_open("file:///home/test/dkrz_dev/data/test_dataset.zarr#mode=nczarr,file", NC_WRITE, &ncid);
-
-    for (int i = 0; i < 10000; i++)
-    {
-
-        struct timespec start, end;
-
-        clock_gettime(CLOCK_MONOTONIC, &start);
-
-        status = nc_open("file:///home/test/dkrz_dev/data/test_dataset.zarr#mode=nczarr,file", NC_WRITE, &ncid);
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-
-        double elapsed = end.tv_sec - start.tv_sec;
-        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr[i] = elapsed;
-        // printf("Time spend: %f \n", time_spent);
-    }
-
-    status = nc_close(ncid);
-
-    printf("Saving to json for nczarr benchmark \n");
-    save_to_json(arr, "test_plotting_zarr.json", "nczarr-open", 10000);
-    printf("Finished saving \n");
-}
-
-void bench_hdf5_read()
-{
-
-    int status = NC_NOERR;
-    int ncid;
-
-    double arr3[1];
-    hid_t fileid, dset;
-    float tmp[1];
-
-    fileid = H5Fopen("data/test_dataset.h5", H5F_ACC_RDWR, H5P_DEFAULT);
-
-    for (int i = 0; i < 1; i++)
-    {
-
-        struct timespec start, end;
-
-        clock_gettime(CLOCK_MONOTONIC, &start);
-
-        if ((dset = H5Dopen2(fileid, "/x", H5P_DEFAULT)) == H5I_INVALID_HID)
-        {
-            printf("something went wrong when opening dataset");
-        };
-
-        if (H5Dread(dset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, tmp) < 0)
-        {
-            printf("something went wrong when reading");
-        };
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-
-        H5Dclose(dset);
-        H5Fclose(fileid);
-
-        double elapsed = end.tv_sec - start.tv_sec;
-        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr3[i] = elapsed;
-        // printf("Time spend: %f \n", time_spent);
-    }
-
-    printf("Saving to json for hdf benchmark \n");
-    save_to_json(arr3, "test_plotting_hdf_read.json", "hdf5-read", 1);
-    printf("Finished saving \n");
-}
 
 void create_hdf5_subfiling(int argc, char **argv)
 {
@@ -260,7 +80,6 @@ void create_hdf5_subfiling(int argc, char **argv)
      */
     file_id = H5Fcreate("data/datasets/test_dataset_subfiling.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 
-
     hid_t dset, fspace, lcpl;
 
     lcpl = H5Pcreate(H5P_LINK_CREATE);
@@ -280,55 +99,106 @@ void create_hdf5_subfiling(int argc, char **argv)
     MPI_Finalize();
 }
 
-void create_hdf5(){
-    hid_t       file_id, dataspace_id, dataset_id;   /* file identifier */
-    herr_t      status;
-    hsize_t dims[3];
 
-    int some_size = 128;
-
-    dims[0]      = some_size;
-    dims[1]      = some_size;
-    dims[2]      = some_size;
-
-    float (* dset_data)[some_size][some_size] = calloc(some_size, sizeof(dset_data));
-
-    if ( !dset_data )
-    {
-      fprintf( stderr, "Fatal: unable to allocate array\n" );
-      exit( EXIT_FAILURE );
-    }
+void create_hdf5(bool with_chunking)
+{
+    hid_t plist_id, file_id, dataspace_id, dataset_id; /* file identifier */
+    herr_t status;
+    hsize_t dims[1];
+    hsize_t cdims[1];
 
     /* Create a new file using default properties. */
     printf("Create file \n");
     file_id = H5Fcreate("data/datasets/test_dataset_hdf5-c.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
-    dataspace_id = H5Screate_simple (3, dims, NULL);
+    // setup dimensions
+    int some_size = 134217728;
+    printf("size: %d \n", some_size);
 
+    dims[0] = some_size;
+    dataspace_id = H5Screate_simple(1, dims, NULL);
+
+    plist_id = H5Pcreate(H5P_DATASET_CREATE);
+
+    if (with_chunking)
+    {
+        // setup chunking
+        cdims[0] = 512;
+        status = H5Pset_chunk(plist_id, 1, cdims);
+    }
+
+    // fill buffer
+    float *dset_data = calloc(some_size, sizeof(float));
+
+    if (!dset_data)
+    {
+        fprintf(stderr, "Fatal: unable to allocate array\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // create Dataset
     printf("Create dataset \n");
-    dataset_id = H5Dcreate2(file_id, "/X", H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    dataset_id = H5Dcreate2(file_id, "/X", H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, plist_id, H5P_DEFAULT);
 
     int i, j, k;
-    int a = 12;
 
     printf("Fill with values \n");
     for (i = 0; i < some_size; i++)
-        for (j = 0; j < some_size; j++)
-            for (k = 0; k < some_size; k++)
-                printf("i: %d, j: %d, k: %d \n", i, j, k);
-                dset_data[i][j][k] = (float)((double)rand()/(double)(RAND_MAX/a));
+    {
 
-    
+        float rand_float = (float)rand() / RAND_MAX;
+        // printf("i: %d, j: %d, k: %d, random float: %f \n", i, j, k, rand_float);
+
+        dset_data[i] = (float)rand() / RAND_MAX;
+    }
+
     printf("Write data to dataset \n");
-    //status = H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset_data);
+    status = H5Dwrite(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset_data);
 
     free(dset_data);
 
     /* Terminate access to the file. */
-    status = H5Dclose (dataset_id);
-    status = H5Sclose (dataspace_id);
-    status = H5Fclose(file_id); 
+    status = H5Dclose(dataset_id);
+    status = H5Sclose(dataspace_id);
+    status = H5Fclose(file_id);
 }
+
+
+void bench_variable()
+{
+    int iteration = 10;
+    double arr3[iteration];
+
+    for (int i = 0; i < iteration; i++)
+    {
+        struct timespec start, end;
+
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        hid_t file_id, dataset_id;
+        herr_t status;
+        int some_size = 134217728;
+        float *rbuf = calloc(some_size, sizeof(float));
+
+        file_id = H5Fopen("data/datasets/test_dataset_hdf5-c.h5", H5F_ACC_RDWR, H5P_DEFAULT);
+        dataset_id = H5Dopen2(file_id, "/X", H5P_DEFAULT);
+
+        status = H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rbuf);
+
+        status = H5Dclose(dataset_id);
+        status = H5Fclose(file_id);
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double elapsed = end.tv_sec - start.tv_sec;
+        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+        arr3[i] = elapsed;
+
+        free(rbuf);
+    }
+
+    save_to_json(arr3, "test_hdf5-c.json", "hdf5-c-read", iteration);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -337,8 +207,11 @@ int main(int argc, char **argv)
     // bench_netcdf4_open();
     // bench_hdf5_open();
 
-    //create_hdf5_subfiling(argc, argv);
-    create_hdf5();
+    // create_hdf5_subfiling(argc, argv);
+    create_hdf5(false);
+
+    printf("Bench variable complete \n");
+    bench_variable();
 
     return 0;
 }
