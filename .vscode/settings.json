@@ -68,7 +68,8 @@
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
     "stdio.h": "c",
-    "netcdf.h": "c"
+    "netcdf.h": "c",
+    "type_traits": "c"
   },
   "cmake.sourceDirectory": "/home/dev/dkrz_dev/c-stuff",
   "C_Cpp.default.compilerPath": "/usr/bin/gcc"
