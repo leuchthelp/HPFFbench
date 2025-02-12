@@ -80,19 +80,28 @@ void create_hdf5_subfiling(int argc, char **argv)
      */
     file_id = H5Fcreate("data/datasets/test_dataset_subfiling.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 
-    hid_t dset, fspace, lcpl;
+    hid_t dataset_id, dataspace_id;
+    hid_t plist_id;
+    hsize_t dims[1];
 
-    lcpl = H5Pcreate(H5P_LINK_CREATE);
+    // setup dimensions
+    int some_size = 134217728;
+    printf("size: %d \n", some_size);
 
-    fspace = H5Screate_simple(3, (hsize_t[]){512}, NULL);
+    dims[0] = some_size;
+    dataspace_id = H5Screate_simple(1, dims, NULL);
 
-    dset = H5Dcreate2(file_id, "/X", H5T_IEEE_F64LE, fspace, lcpl, H5P_DEFAULT, H5P_DEFAULT);
+    plist_id = H5Pcreate(H5P_DATASET_CREATE);
+
+    // create Dataset
+    printf("Create dataset \n");
+    dataset_id = H5Dcreate2(file_id, "/X", H5T_IEEE_F64LE, dataspace_id,  H5P_DEFAULT, plist_id, H5P_DEFAULT);
 
     /* Close/free resources */
 
-    H5Dclose(dset);
-    H5Sclose(fspace);
-    H5Pclose(lcpl);
+    H5Dclose(dataset_id);
+    H5Sclose(dataspace_id);
+    H5Pclose(plist_id);
 
     H5Pclose(fapl_id);
     H5Fclose(file_id);
@@ -127,6 +136,11 @@ void create_hdf5(bool with_chunking)
         status = H5Pset_chunk(plist_id, 1, cdims);
     }
 
+    // create Dataset
+    printf("Create dataset \n");
+    dataset_id = H5Dcreate2(file_id, "/X", H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+
+
     // fill buffer
     float *dset_data = calloc(some_size, sizeof(float));
 
@@ -135,10 +149,6 @@ void create_hdf5(bool with_chunking)
         fprintf(stderr, "Fatal: unable to allocate array\n");
         exit(EXIT_FAILURE);
     }
-
-    // create Dataset
-    printf("Create dataset \n");
-    dataset_id = H5Dcreate2(file_id, "/X", H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, plist_id, H5P_DEFAULT);
 
     int i, j, k;
 
@@ -207,11 +217,12 @@ int main(int argc, char **argv)
     // bench_netcdf4_open();
     // bench_hdf5_open();
 
-    // create_hdf5_subfiling(argc, argv);
-    create_hdf5(false);
+    create_hdf5_subfiling(argc, argv);
+    /* create_hdf5(false);
 
     printf("Bench variable complete \n");
     bench_variable();
+    */
 
     return 0;
 }
