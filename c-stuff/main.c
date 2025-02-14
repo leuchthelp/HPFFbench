@@ -4,6 +4,13 @@
 #include <time.h>
 #include <hdf5.h>
 
+#define ERRCODE 2
+#define ERR(e)                                 \
+    {                                          \
+        printf("Error: %s\n", nc_strerror(e)); \
+        exit(ERRCODE);                         \
+    }
+
 void save_to_json(double *arr, char *file_name, char *name, size_t size)
 {
     FILE *fptr;
@@ -268,7 +275,6 @@ void create_hdf5_async(int argc, char **argv, bool with_chunking)
     status = H5Dwrite_async(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset_data, es_id);
     printf("status: %d \n", status);
 
-    free(dset_data);
     printf("Finish writing data to dataset \n");
 
     /* Terminate access to the file. */
@@ -276,9 +282,37 @@ void create_hdf5_async(int argc, char **argv, bool with_chunking)
     size_t num_in_progress;
     hbool_t op_failed;
     printf("Wait for async answer \n");
-    H5ESwait(es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
-    printf("Finish waiting for async, num in progess: %ld, failed: %d \n", num_in_progress, op_failed);
+    status = H5ESwait(es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
+    printf("Finish waiting for async, num in progess: %ld, failed: %d, status: %d \n", num_in_progress, op_failed, status);
 
+
+    // Check if event set has failed operations (es_err_status is set to true)
+    hbool_t  	es_err_status;
+    status = H5ESget_err_status(es_id, &es_err_status);
+    // Retrieve the number of failed operations in this event set
+    size_t  	es_err_count;
+    H5ESget_err_count(es_id, &es_err_count);
+    // Retrieve information about failed operations
+    H5ES_err_info_t  	err_info;
+    size_t  	es_err_cleared;
+    H5ESget_err_info(es_id, 1, &err_info, &es_err_cleared);
+    // Inspect and handle the error if there is any
+    printf("Get error handling \n");
+    printf("errors cleared: %ld \n", es_err_cleared);
+
+    printf("err_info.api_name: %s \n", err_info.api_name);
+    printf("err_info.api_args: %s \n", err_info.api_args);
+    printf("err_info.app_file_name: %s \n", err_info.app_file_name);
+    printf("err_info.app_func_name: %s \n", err_info.app_func_name);
+    printf("err_info.app_line_num: %d \n", err_info.app_line_num);
+    printf("err_info.op_ins_count: %ld \n", err_info.op_ins_count);
+    printf("err_info.op_ins_ts: %ld \n", err_info.op_ins_ts);
+    printf("err_info.op_exec_ts: %ld \n", err_info.op_exec_ts);
+    printf("err_info.op_exec_time: %ld \n", err_info.op_exec_time); 
+    printf("err_info.err_stack_id: %ld \n", err_info.err_stack_id); 
+
+
+    free(dset_data);
 
     printf("Close async dataset \n");
     status = H5Dclose_async(dataset_id, es_id);
@@ -323,6 +357,106 @@ void bench_variable()
     }
 
     save_to_json(arr3, "test_hdf5-c.json", "hdf5-c-read", iteration);
+}
+
+void bench_variable_nczarr()
+{
+    int iteration = 100;
+    double arr3[iteration];
+
+    for (int i = 0; i < iteration; i++)
+    {
+        int status, ncid, varid, grpid, retval;
+        int some_size = 134217728;
+        float *data_in = calloc(some_size, sizeof(float));
+
+        struct timespec start, end;
+
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        if ((retval = nc_open("file:///c-stuff/data/datasets/test_dataset.zarr#mode=nczarr,file", NC_WRITE, &ncid)))
+        {
+            printf("failure to open file ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_inq_varid(grpid, "/X", &varid)))
+        {
+            printf("failure finding variable id ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_get_var(ncid, varid, data_in)))
+        {
+            printf("failure reading variable ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_close(ncid)))
+            ERR(retval);
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double elapsed = end.tv_sec - start.tv_sec;
+        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+        arr3[i] = elapsed;
+
+        for (int i = 0; i < some_size; i++)
+        {
+            // printf("float: %f \n", data_in[i]);
+        }
+    }
+
+    save_to_json(arr3, "test_nczarr.json", "nczarr-read", iteration);
+}
+
+void bench_variable_netcdf4()
+{
+    int iteration = 100;
+    double arr3[iteration];
+
+    for (int i = 0; i < iteration; i++)
+    {
+        int status, ncid, varid, grpid, retval;
+        int some_size = 134217728;
+        float *data_in = calloc(some_size, sizeof(float));
+
+        struct timespec start, end;
+
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        if ((retval = nc_open("data/datasets/test_dataset.nc", NC_WRITE, &ncid)))
+        {
+            printf("failure to open file ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_inq_varid(ncid, "X", &varid)))
+        {
+            printf("failure finding variable id ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_get_var(ncid, varid, data_in)))
+        {
+            printf("failure reading variable ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_close(ncid)))
+            ERR(retval);
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double elapsed = end.tv_sec - start.tv_sec;
+        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+        arr3[i] = elapsed;
+
+        for (int i = 0; i < some_size; i++)
+        {
+            // printf("float: %f \n", data_in[i]);
+        }
+    }
+
+    save_to_json(arr3, "test_netcdf4.json", "netcdf4-read", iteration);
 }
 
 void bench_variable_subfiling(int argc, char **argv)
@@ -414,7 +548,6 @@ void bench_variable_async(int argc, char **argv)
 
     create_hdf5_async(argc, argv, false);
 
-
     printf("Start bench for hdf5 with async \n");
     for (int i = 0; i < iteration; i++)
     {
@@ -473,9 +606,12 @@ int main(int argc, char **argv)
     }
     */
 
+    //printf("Bench nczarr \n");
+    //bench_variable_netcdf4();
+
     printf("Bench hdf5 variable async \n");
     create_hdf5_async(argc, argv, false);
-    //bench_variable_async(argc, argv);
+    //  bench_variable_async(argc, argv);
 
     MPI_Finalize();
     return 0;
