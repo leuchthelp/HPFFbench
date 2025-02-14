@@ -1,4 +1,4 @@
-# Prepare you system
+# Prepare your system
 #sudo apt update
 #sudo apt upgrade
 
@@ -22,7 +22,6 @@ spack install lmod
 spack install python@3.11.9 
 spack install openmpi
 spack install hdf5+threadsafe+mpi+subfiling
-# spack install hdf5-vol-async
 spack install netcdf-c build_system=cmake
 spack install py-pip
 spack install py-netcdf4
@@ -30,6 +29,7 @@ spack install py-h5py
 spack install py-mpi4py
 spack install py-numpy
 spack install py-rich
+spack install hdf5-vol-async
 
 # Add to end of home/user/.bashrc via nano .bashrc from with home/user directory
 #. ~/spack/share/spack/setup-env.sh

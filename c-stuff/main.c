@@ -144,6 +144,8 @@ void create_hdf5_subfiling(int argc, char **argv)
      * on the original FAPL
      */
     H5Pset_fapl_subfiling(fapl_id, &subf_config);
+
+    // H5Pset_alignment(fapl_id, 0, 1048576);
     /*
      * Create a new Subfiling-based HDF5 file
      */
@@ -202,6 +204,92 @@ void create_hdf5_subfiling(int argc, char **argv)
     H5Fclose(file_id);
 }
 
+void create_hdf5_async(int argc, char **argv, bool with_chunking)
+{
+    hid_t plist_id, file_id, dataspace_id, dataset_id; /* file identifier */
+    herr_t status;
+    hsize_t dims[1];
+    hsize_t cdims[1];
+    herr_t es_id;
+
+    int mpi_thread_required = MPI_THREAD_MULTIPLE;
+    int mpi_thread_provided = 0;
+    /* Initialize MPI with threading support */
+    MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+
+    es_id = H5EScreate();
+
+    /* Create a new file using default properties. */
+    printf("Create file \n");
+    file_id = H5Fcreate_async("data/datasets/test_dataset_hdf5-c.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT, es_id);
+
+    // setup dimensions
+    int some_size = 134217728;
+    printf("size: %d \n", some_size);
+
+    dims[0] = some_size;
+    dataspace_id = H5Screate_simple(1, dims, NULL);
+
+    plist_id = H5Pcreate(H5P_DATASET_CREATE);
+
+    if (with_chunking)
+    {
+        // setup chunking
+        cdims[0] = 512;
+        status = H5Pset_chunk(plist_id, 1, cdims);
+    }
+
+    // create Dataset
+    printf("Create dataset \n");
+    dataset_id = H5Dcreate_async(file_id, "/X", H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, plist_id, H5P_DEFAULT, es_id);
+
+    // fill buffer
+    float *dset_data = calloc(some_size, sizeof(float));
+
+    if (!dset_data)
+    {
+        fprintf(stderr, "Fatal: unable to allocate array\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int i, j, k;
+
+    printf("Fill with values \n");
+    for (i = 0; i < some_size; i++)
+    {
+
+        float rand_float = (float)rand() / RAND_MAX;
+        // printf("i: %d, j: %d, k: %d, random float: %f \n", i, j, k, rand_float);
+
+        dset_data[i] = (float)rand() / RAND_MAX;
+    }
+
+    printf("Write data to dataset \n");
+    status = H5Dwrite_async(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, dset_data, es_id);
+    printf("status: %d \n", status);
+
+    free(dset_data);
+    printf("Finish writing data to dataset \n");
+
+    /* Terminate access to the file. */
+
+    size_t num_in_progress;
+    hbool_t op_failed;
+    printf("Wait for async answer \n");
+    H5ESwait(es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
+    printf("Finish waiting for async, num in progess: %ld, failed: %d \n", num_in_progress, op_failed);
+
+
+    printf("Close async dataset \n");
+    status = H5Dclose_async(dataset_id, es_id);
+    printf("Close sync dataspace \n");
+    status = H5Sclose(dataspace_id);
+    printf("Close async file \n");
+    status = H5Fclose_async(file_id, es_id);
+
+    status = H5ESclose(es_id);
+}
+
 void bench_variable()
 {
     int iteration = 100;
@@ -218,7 +306,7 @@ void bench_variable()
         int some_size = 134217728;
         float *rbuf = calloc(some_size, sizeof(float));
 
-        file_id = H5Fopen("data/datasets/test_dataset_hdf5-c.h5", H5F_ACC_RDWR, H5P_DEFAULT);
+        file_id = H5Fopen("data/datasets/test_dataset_hdf5-c.h5", H5F_ACC_RDONLY, H5P_DEFAULT);
         dataset_id = H5Dopen2(file_id, "/X", H5P_DEFAULT);
 
         status = H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rbuf);
@@ -270,7 +358,7 @@ void bench_variable_subfiling(int argc, char **argv)
          * Set Subfiling configuration to use a 1MiB
          * stripe size.
          */
-        subf_config.shared_cfg.stripe_size = 1048576;
+        // subf_config.shared_cfg.stripe_size = 1048576;
 
         int size;
         MPI_Comm_size(comm, &size);
@@ -293,12 +381,14 @@ void bench_variable_subfiling(int argc, char **argv)
          */
         H5Pset_fapl_subfiling(fapl_id, &subf_config);
 
+        H5Pset_alignment(fapl_id, 0, 1048576);
+
         hid_t file_id, dataset_id;
         herr_t status;
         int some_size = 134217728;
         float *rbuf = calloc(some_size, sizeof(float));
 
-        file_id = H5Fopen("data/datasets/test_dataset_subfiling.h5", H5F_ACC_RDWR, fapl_id);
+        file_id = H5Fopen("data/datasets/test_dataset_subfiling.h5", H5F_ACC_RDONLY, fapl_id);
         dataset_id = H5Dopen2(file_id, "/X", H5P_DEFAULT);
 
         status = H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rbuf);
@@ -317,19 +407,75 @@ void bench_variable_subfiling(int argc, char **argv)
     save_to_json(arr3, "test_hdf5_subfiling.json", "hdf5-subfiling-read", iteration);
 }
 
+void bench_variable_async(int argc, char **argv)
+{
+    int iteration = 100;
+    double arr3[iteration];
+
+    create_hdf5_async(argc, argv, false);
+
+
+    printf("Start bench for hdf5 with async \n");
+    for (int i = 0; i < iteration; i++)
+    {
+        struct timespec start, end;
+
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        hid_t file_id, dataset_id;
+        herr_t status;
+        herr_t es_id;
+        int some_size = 134217728;
+        float *rbuf = calloc(some_size, sizeof(float));
+
+        es_id = H5EScreate();
+
+        file_id = H5Fopen_async("data/datasets/test_dataset_hdf5-c.h5", H5F_ACC_RDONLY, H5P_DEFAULT, es_id);
+        dataset_id = H5Dopen_async(file_id, "/X", H5P_DEFAULT, es_id);
+
+        status = H5Dread_async(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, rbuf, es_id);
+
+        status = H5Dclose_async(dataset_id, es_id);
+        status = H5Fclose_async(file_id, es_id);
+
+        size_t num_in_progress;
+        hbool_t op_failed;
+
+        H5ESwait(es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
+
+        status = H5ESclose(es_id);
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double elapsed = end.tv_sec - start.tv_sec;
+        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+        arr3[i] = elapsed;
+
+        free(rbuf);
+    }
+
+    save_to_json(arr3, "test_hdf5-c_async.json", "hdf5-c-async-read", iteration);
+}
+
 int main(int argc, char **argv)
-{   
+{
+
+    /*
     bench_variable_subfiling(argc, argv);
 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if (rank == 0)
-    {   
+    {
         printf("Create hdf5 file \n");
         create_hdf5(false);
         printf("Bench hdf5 variable \n");
         bench_variable();
     }
+    */
+
+    printf("Bench hdf5 variable async \n");
+    create_hdf5_async(argc, argv, false);
+    //bench_variable_async(argc, argv);
 
     MPI_Finalize();
     return 0;
