@@ -364,67 +364,18 @@ void bench_variable_nczarr()
     int iteration = 100;
     double arr3[iteration];
 
+    printf("Start iterating \n");
     for (int i = 0; i < iteration; i++)
     {
-        int status, ncid, varid, grpid, retval;
+        int ncid, varid, grpid, retval;
         int some_size = 134217728;
-        float *data_in = calloc(some_size, sizeof(float));
+        float *rbuf = calloc(some_size, sizeof(float));
 
         struct timespec start, end;
 
         clock_gettime(CLOCK_MONOTONIC, &start);
 
-        if ((retval = nc_open("file:///c-stuff/data/datasets/test_dataset.zarr#mode=nczarr,file", NC_WRITE, &ncid)))
-        {
-            printf("failure to open file ");
-            ERR(retval);
-        }
-
-        if ((retval = nc_inq_varid(grpid, "/X", &varid)))
-        {
-            printf("failure finding variable id ");
-            ERR(retval);
-        }
-
-        if ((retval = nc_get_var(ncid, varid, data_in)))
-        {
-            printf("failure reading variable ");
-            ERR(retval);
-        }
-
-        if ((retval = nc_close(ncid)))
-            ERR(retval);
-
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        double elapsed = end.tv_sec - start.tv_sec;
-        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-        arr3[i] = elapsed;
-
-        for (int i = 0; i < some_size; i++)
-        {
-            // printf("float: %f \n", data_in[i]);
-        }
-    }
-
-    save_to_json(arr3, "test_nczarr.json", "nczarr-read", iteration);
-}
-
-void bench_variable_netcdf4()
-{
-    int iteration = 100;
-    double arr3[iteration];
-
-    for (int i = 0; i < iteration; i++)
-    {
-        int status, ncid, varid, grpid, retval;
-        int some_size = 134217728;
-        float *data_in = calloc(some_size, sizeof(float));
-
-        struct timespec start, end;
-
-        clock_gettime(CLOCK_MONOTONIC, &start);
-
-        if ((retval = nc_open("data/datasets/test_dataset.nc", NC_WRITE, &ncid)))
+        if ((retval = nc_open("file:///home/dev/dkrz_dev/c-stuff/data/datasets/test_dataset.zarr#mode=zarr,file,v2", NC_NOWRITE, &ncid)))
         {
             printf("failure to open file ");
             ERR(retval);
@@ -436,7 +387,7 @@ void bench_variable_netcdf4()
             ERR(retval);
         }
 
-        if ((retval = nc_get_var(ncid, varid, data_in)))
+        if ((retval = nc_get_var_float(ncid, varid, rbuf)))
         {
             printf("failure reading variable ");
             ERR(retval);
@@ -454,6 +405,59 @@ void bench_variable_netcdf4()
         {
             // printf("float: %f \n", data_in[i]);
         }
+
+        free(rbuf);
+    }
+
+    save_to_json(arr3, "test_nczarr.json", "nczarr-read", iteration);
+}
+
+void bench_variable_netcdf4()
+{
+    int iteration = 100;
+    double arr3[iteration];
+
+    printf("Start iterating \n");
+    for (int i = 0; i < iteration; i++)
+    {
+        int status, ncid, varid, grpid, retval;
+        int some_size = 134217728;
+        //printf("Setup read buffer \n");
+        float *rbuf = calloc(some_size, sizeof(float));
+        //printf("Finishing setting up read buffer \n");
+
+        struct timespec start, end;
+
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        if ((retval = nc_open("data/datasets/test_dataset.nc", NC_NOWRITE, &ncid)))
+        {
+            printf("failure to open file ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_inq_varid(ncid, "X", &varid)))
+        {
+            printf("failure finding variable id ");
+            ERR(retval);
+        }
+
+        //printf("Read into rbuf \n");
+        if ((retval = nc_get_var_float(ncid, varid, rbuf)))
+        {
+            printf("failure reading variable ");
+            ERR(retval);
+        }
+
+        if ((retval = nc_close(ncid)))
+            ERR(retval);
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double elapsed = end.tv_sec - start.tv_sec;
+        elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+        arr3[i] = elapsed;
+
+        free(rbuf);
     }
 
     save_to_json(arr3, "test_netcdf4.json", "netcdf4-read", iteration);
@@ -543,10 +547,15 @@ void bench_variable_subfiling(int argc, char **argv)
 
 void bench_variable_async(int argc, char **argv)
 {
-    int iteration = 100;
+    int iteration = 1;
     double arr3[iteration];
 
-    create_hdf5_async(argc, argv, false);
+    //create_hdf5_async(argc, argv, false);
+
+    int mpi_thread_required = MPI_THREAD_MULTIPLE;
+    int mpi_thread_provided = 0;
+    /* Initialize MPI with threading support */
+    MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
 
     printf("Start bench for hdf5 with async \n");
     for (int i = 0; i < iteration; i++)
@@ -574,7 +583,9 @@ void bench_variable_async(int argc, char **argv)
         size_t num_in_progress;
         hbool_t op_failed;
 
+        printf("Wait for async answer \n");
         H5ESwait(es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
+        printf("Finish waiting for async, num in progess: %ld, failed: %d, status: %d \n", num_in_progress, op_failed, status);
 
         status = H5ESclose(es_id);
 
@@ -609,10 +620,14 @@ int main(int argc, char **argv)
     //printf("Bench nczarr \n");
     //bench_variable_netcdf4();
 
-    printf("Bench hdf5 variable async \n");
-    create_hdf5_async(argc, argv, false);
-    //  bench_variable_async(argc, argv);
+    // printf("Bench hdf5 variable async \n");
+    // create_hdf5_async(argc, argv, false);
+    // create_hdf5(false);
+    // bench_variable_async(argc, argv);
 
-    MPI_Finalize();
+    //bench_variable_netcdf4();
+    bench_variable_nczarr();
+
+    //MPI_Finalize();
     return 0;
 }
