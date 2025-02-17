@@ -1,3 +1,5 @@
+.idea/
+.vscode/
 func/__pycache__/
 .venv/
 data/datasets/
