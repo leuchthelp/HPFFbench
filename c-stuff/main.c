@@ -312,7 +312,6 @@ void create_hdf5_async(int argc, char **argv, bool with_chunking)
     printf("err_info.err_stack_id: %ld \n", err_info.err_stack_id); 
 
 
-    free(dset_data);
 
     printf("Close async dataset \n");
     status = H5Dclose_async(dataset_id, es_id);
@@ -322,9 +321,11 @@ void create_hdf5_async(int argc, char **argv, bool with_chunking)
     status = H5Fclose_async(file_id, es_id);
 
     status = H5ESclose(es_id);
+
+    free(dset_data);
 }
 
-void bench_variable()
+void bench_variable_hdf5()
 {
     int iteration = 100;
     double arr3[iteration];

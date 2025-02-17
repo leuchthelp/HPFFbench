@@ -290,7 +290,7 @@ class Datastruct:
         
         patterns = {
             "header": self._read_header,
-            "complete": self._read_variable,
+            "variable": self._read_variable,
             "bench_variable": self._bench_variable,
             "bench_complete": self._bench_complete,
         }
