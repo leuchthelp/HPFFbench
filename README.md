@@ -255,19 +255,21 @@ For more information `async` please visit https://hdf5-vol-async.readthedocs.io/
 As Zarr does not have a native C-Implementation and probably never will NetCDF has taken up the torch to create their own Implementation following the Zarr specification in C called NCZarr which is supposed to be cross-compatible with Zarr. 
 
 **supported**
+- serial reading of File
 
 **working on** 
-- serial reading of File
 
 #### Problems
 
-##### serial reading of File
+##### serial reading of File - FIXED
 
 Zarr file is created using Python using Zarr v3.0.1. In this version for some reason a field `Filters` is being set to an empty `tuple`. When no filters are provided it is supposed to be set to `None`. An issue for a potential bug has been created with the zarr-developers. 
 
 You can follow the issue here: https://github.com/zarr-developers/zarr-python/issues/2842
 
 Fix for now would be to set `Filters` to some arbitrary matching filter but has still to be implemented and tested
+
+Bug has been fix and was backported https://github.com/zarr-developers/zarr-python/issues/2842 (20.02.2025)
 
 ### NetCDF4 v4.9.2
 
@@ -293,13 +295,14 @@ Fix for now would be to set `Filters` to some arbitrary matching filter but has 
 ### HDF5-VOL-ASYNC v1.7
 
 **supported**
+- serial creation / reading of File using `async` - debugging
+- lopping reading `async` so I can benchmark
 
 **working on** 
-- serial creation / reading of File using `async` - debugging
 
 #### Problems
 
-##### serial creation / reading of File using `async` - debugging
+##### serial creation / reading of File using `async` - debugging - FIXED
 
 When creating or reading a HDF5 file using `async` operation failures occur during the `async-wait` period when waiting for the async calls to finish. The function from HDF5 `H5ESwait` to perform the waiting process is designed to stop waiting and continue once a singular failed is detected.  
 
@@ -309,6 +312,23 @@ Sadly the functions provided by HDF to help debug operation failures lack any re
 
 Current process is to perform manual debugging to reverse engineer the error handling.
 
+Manual debugging is unsuccessful in determining the root cause further assistance has been requested @ https://forum.hdfgroup.org/t/vol-async-debugging-async-operation-failures/13055/11 
+
+It has been observed that there is some run to run variance where the async operations "magically" run without any failures.
+
+It seems the issue was actually much much stupider than I initially thought. I just assumed `H5ESwait()` would overwrite `num_in_progress` and `op_failed` in either event of `H5ESwait()` executing successfully or unsuccessfully. 
+
+This is not the case. `H5ESwait()` does not set `num_in_progress` or `op_failed` to something like `0` or `False` to indicate no failures have happened, it just leaves them to their default values. As I had not initialized the values, whatever random value was printed and interpreted, causing me to suspect an operation failure. This is also why there sometimes would be `0` failures, when the random value in memory happened to be `0`.
+
+Anyway thanks, I will go cry in a corner now for not having realized this earlier.
+
+##### lopping reading `async` so I can benchmark - FIXED
+
+`creation` needs to be done by just one rank similarly to `closing` the event-set as otherwise the other ranks cant access it anymore. Will have to implement waiting for rank `0` for creation and rank `0` waiting for all other ranks for `closing`
+
+Turns out the issue was the Event-Set-ID going up by 1. This seeminly causes the `H5ESwait()` and `H5ESclose()` to stop working as they raised an `invalid or unknown ID` error. This was fixed by just moving the creation of the Event-Set-ID outside of the loop so only 1 Set will ever be created and closed, fixing the issue entirely. 
+
+Though it has been overserved that there still might be deadlocks happening when increasing mpi `n>1`.
 
 ## Additional Information
 
