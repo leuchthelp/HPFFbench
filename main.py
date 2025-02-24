@@ -5,6 +5,10 @@ import pandas as pd
 import shutil
 from mpi4py import MPI
 
+from ctypes import *
+
+cfunc = CDLL("/home/dev/dkrz_dev/c-stuff/a.out")
+
 def create_ds(form, parallel=False):
     ds_zarr = ds.Datastruct()
     ds_hdf5 = ds.Datastruct()
@@ -156,8 +160,8 @@ def bench_complete(setup, df):
     
     
     df.to_json("data/plotting/plotting_bench_complete.json")
-    
-
+          
+        
 def main():
     
     setup = {
@@ -186,7 +190,13 @@ def main():
     #bench_complete(setup, pd.DataFrame())
     
     #create_ds(setup["run01"], parallel=False)
-    create_ds(setup["run01"], parallel=True)
+    #create_ds(setup["run01"], parallel=True)
+    
+    ds_tmp = ds.Datastruct()
+    ds_tmp.read("bench_hdf5_c", iterations=10)
+    
+    print(ds_tmp.log)
+    
 
 if __name__=="__main__":
     main()

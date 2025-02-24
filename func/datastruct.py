@@ -4,6 +4,9 @@ import func.dev_logging as logger
 import multiprocessing as mp
 import time
 from mpi4py import MPI
+from ctypes import *
+
+cfunc = CDLL("/home/dev/dkrz_dev/c-stuff/a.out")
 
 class bcolors:
     HEADER = '\033[95m'
@@ -144,7 +147,7 @@ class Datastruct:
         return self
 
     
-    def _read_header(self, variable, iterations):
+    def __read_header(self, variable, iterations):
         
         if type(variable) == str:
             match self.engine:
@@ -169,7 +172,7 @@ class Datastruct:
                     print(self.dataset)
       
                     
-    def _read_variable(self, variable, iterations):
+    def __read_variable(self, variable, iterations):
         match self.engine:
             case "zarr":
                 return self.dataset[variable][:]
@@ -181,7 +184,7 @@ class Datastruct:
                 return self.dataset.variables[variable][:] 
  
                 
-    def _bench_variable(self, variable, iterations):
+    def __bench_variable(self, variable, iterations):
         bench = []
          
         match self.engine:
@@ -221,7 +224,7 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
  
   
-    def _bench_complete(self, variable, iterations):
+    def __bench_complete(self, variable, iterations):
         bench = []
          
         match self.engine:
@@ -270,11 +273,11 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
  
  
-    def _bench_sinus(self, variable, iterations):
+    def __bench_sinus(self, variable, iterations):
         pass
    
     
-    def _bench_calc_max(self, variable, iterations):
+    def __bench_calc_max(self, variable, iterations):
         match self.engine:
             case "zarr":
                 self.dataset[variable]
@@ -286,13 +289,36 @@ class Datastruct:
                 self.dataset.variables[variable]
         
     
+    def __bench_hdf5_c(self, variable, iterations):
+        bench = []
+        
+        for i in range(iterations):
+            start = time.monotonic()
+            cfunc.py_bench_variable_hdf5()
+            bench.append(time.monotonic() - start)
+        
+        self.log = bench
+        
+    def __bench_netcdf_c(self, variable, iterations):
+         pass
+        
+    def __bench_nczarr(self, variable, iterations):
+         pass
+        
+    def __bench_async(self, variable, iterations):
+         pass
+        
+    def __bench_subfiling(self, variable, iterations):
+         pass
+    
     def read(self, pattern, variable=None, iterations=None, logging=False):
         
         patterns = {
-            "header": self._read_header,
-            "variable": self._read_variable,
-            "bench_variable": self._bench_variable,
-            "bench_complete": self._bench_complete,
+            "header": self.__read_header,
+            "variable": self.__read_variable,
+            "bench_variable": self.__bench_variable,
+            "bench_complete": self.__bench_complete,
+            "bench_hdf5_c": self.__bench_hdf5_c,
         }
         
         if logging:

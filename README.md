@@ -261,7 +261,7 @@ As Zarr does not have a native C-Implementation and probably never will NetCDF h
 
 #### Problems
 
-##### serial reading of File - FIXED
+##### serial reading of File - FIXED (20.02.2025)
 
 Zarr file is created using Python using Zarr v3.0.1. In this version for some reason a field `Filters` is being set to an empty `tuple`. When no filters are provided it is supposed to be set to `None`. An issue for a potential bug has been created with the zarr-developers. 
 
@@ -277,6 +277,7 @@ Bug has been fix and was backported https://github.com/zarr-developers/zarr-pyth
 - serial reading of File
 
 **working on** 
+- integrate c function calls in `Datastruct.py`
   
 #### Problems
 
@@ -289,6 +290,7 @@ Bug has been fix and was backported https://github.com/zarr-developers/zarr-pyth
 
 **working on** 
 - scaling HDF5 with `subfiling` to better evaluated use-case
+- integrate c function calls in `Datastruct.py`
 
 #### Problems
 
@@ -299,10 +301,11 @@ Bug has been fix and was backported https://github.com/zarr-developers/zarr-pyth
 - lopping reading `async` so I can benchmark
 
 **working on** 
+- integrate c function calls in `Datastruct.py`
 
 #### Problems
 
-##### serial creation / reading of File using `async` - debugging - FIXED
+##### serial creation / reading of File using `async` - debugging - FIXED (20.02.2025)
 
 When creating or reading a HDF5 file using `async` operation failures occur during the `async-wait` period when waiting for the async calls to finish. The function from HDF5 `H5ESwait` to perform the waiting process is designed to stop waiting and continue once a singular failed is detected.  
 
@@ -322,7 +325,7 @@ This is not the case. `H5ESwait()` does not set `num_in_progress` or `op_failed`
 
 Anyway thanks, I will go cry in a corner now for not having realized this earlier.
 
-##### lopping reading `async` so I can benchmark - FIXED
+##### lopping reading `async` so I can benchmark - FIXED (20.02.2025)
 
 `creation` needs to be done by just one rank similarly to `closing` the event-set as otherwise the other ranks cant access it anymore. Will have to implement waiting for rank `0` for creation and rank `0` waiting for all other ranks for `closing`
 
