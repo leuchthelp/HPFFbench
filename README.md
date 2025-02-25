@@ -317,12 +317,6 @@ Current process is to perform manual debugging to reverse engineer the error han
 
 Manual debugging is unsuccessful in determining the root cause further assistance has been requested @ https://forum.hdfgroup.org/t/vol-async-debugging-async-operation-failures/13055/11 
 
-It has been observed that there is some run to run variance where the async operations "magically" run without any failures.
-
-It seems the issue was actually much much stupider than I initially thought. I just assumed `H5ESwait()` would overwrite `num_in_progress` and `op_failed` in either event of `H5ESwait()` executing successfully or unsuccessfully. 
-
-This is not the case. `H5ESwait()` does not set `num_in_progress` or `op_failed` to something like `0` or `False` to indicate no failures have happened, it just leaves them to their default values. As I had not initialized the values, whatever random value was printed and interpreted, causing me to suspect an operation failure. This is also why there sometimes would be `0` failures, when the random value in memory happened to be `0`.
-
 Anyway thanks, I will go cry in a corner now for not having realized this earlier.
 
 ##### lopping reading `async` so I can benchmark - FIXED (20.02.2025)
