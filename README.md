@@ -329,10 +329,6 @@ Anyway thanks, I will go cry in a corner now for not having realized this earlie
 
 `creation` needs to be done by just one rank similarly to `closing` the event-set as otherwise the other ranks cant access it anymore. Will have to implement waiting for rank `0` for creation and rank `0` waiting for all other ranks for `closing`
 
-Turns out the issue was the Event-Set-ID going up by 1. This seeminly causes the `H5ESwait()` and `H5ESclose()` to stop working as they raised an `invalid or unknown ID` error. This was fixed by just moving the creation of the Event-Set-ID outside of the loop so only 1 Set will ever be created and closed, fixing the issue entirely. 
-
-Though it has been overserved that there still might be deadlocks happening when increasing mpi `n>1`.
-
 ## Additional Information
 
 This section provides additional information, knowledge and examples gather during the time working on the project. 

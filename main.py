@@ -102,6 +102,30 @@ def bench_variable(setup, df, variable):
         
         index +=1
         
+    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c.json")
+    df_hdf5_c = tmp["hdf5-c-read"].tolist()
+    
+    tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-134217728-134217728", "run":7, "engine": "hdf5-c", "filesize per chunk": "1024.0 MB"})
+    df = pd.concat([df, tmp], ignore_index=True) 
+    
+    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5_subfiling.json")
+    df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
+    
+    tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-134217728-134217728", "run":7, "engine": "hdf5-subfiling", "filesize per chunk": "1024.0 MB"})
+    df = pd.concat([df, tmp], ignore_index=True) 
+    
+    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_async.json")
+    df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
+    
+    tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-134217728-134217728", "run":7, "engine": "hdf5-async", "filesize per chunk": "1024.0 MB"})
+    df = pd.concat([df, tmp], ignore_index=True) 
+    
+    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_netcdf4.json")
+    df_netcdf4_c = tmp["netcdf4-read"].tolist()
+    
+    tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-134217728-134217728", "run":7, "engine": "netcdf4-c", "filesize per chunk": "1024.0 MB"})
+    df = pd.concat([df, tmp], ignore_index=True) 
+        
     df.to_json("data/plotting/plotting_bench_variable.json")
     
 
@@ -239,6 +263,8 @@ def main():
     
     #create_ds(setup["run01"], parallel=False)
     #create_ds(setup["run01"], parallel=True)
+    
+    bench_variable(setup, pd.DataFrame(), variable="X")
     
     
     
