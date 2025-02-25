@@ -3,11 +3,8 @@ from func.datastruct import bcolors as color
 import os
 import pandas as pd
 import shutil
+
 from mpi4py import MPI
-
-from ctypes import *
-
-cfunc = CDLL("/home/dev/dkrz_dev/c-stuff/a.out")
 
 def create_ds(form, parallel=False):
     ds_zarr = ds.Datastruct()
@@ -160,7 +157,58 @@ def bench_complete(setup, df):
     
     
     df.to_json("data/plotting/plotting_bench_complete.json")
-          
+
+
+def bench_subfiling(df):
+    
+    
+    variable = ["X"]
+    shape = [134217728]
+    chunks = [134217728]
+    size_chunks = []
+    
+    index = 1
+    
+    for i in range(len(chunks)):    
+            tmp = calc_chunksize(chunks=chunks)
+            size_chunks.append(tmp)
+    
+    print(f"{color.OKBLUE}bench zarr for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
+    ds_tmp = ds.Datastruct()
+    ds_tmp.engine = "subfiling_hdf5-c"
+    ds_tmp.read("bench_subfiling_c", iterations=10) 
+    
+    tmp = pd.DataFrame(data={"time taken": ds_tmp.log, "format": f"{ds_tmp.engine}-{shape}-{chunks}", "run":index, "engine": ds_tmp.engine})
+    df = pd.concat([df, tmp], ignore_index=True) 
+    
+    
+    df.to_json("data/plotting/plotting_bench_subfiling-c.json") 
+ 
+ 
+def bench_async(df):
+    
+    variable = ["X"]
+    shape = [134217728]
+    chunks = [134217728]
+    size_chunks = []
+    
+    index = 1
+    
+    for i in range(len(chunks)):    
+            tmp = calc_chunksize(chunks=chunks[i])
+            size_chunks.append(tmp)
+    
+    print(f"{color.OKBLUE}bench zarr for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
+    ds_tmp = ds.Datastruct()
+    ds_tmp.engine = "async_hdf5-c"
+    ds_tmp.read("bench_async_c", iterations=10) 
+    
+    tmp = pd.DataFrame(data={"time taken": ds_tmp.log, "format": f"{ds_tmp.engine}-{shape}-{chunks}", "run":index, "engine": ds_tmp.engine})
+    df = pd.concat([df, tmp], ignore_index=True) 
+    
+    
+    df.to_json("data/plotting/plotting_bench_async-c.json") 
+ 
         
 def main():
     
@@ -192,10 +240,7 @@ def main():
     #create_ds(setup["run01"], parallel=False)
     #create_ds(setup["run01"], parallel=True)
     
-    ds_tmp = ds.Datastruct()
-    ds_tmp.read("bench_hdf5_c", iterations=10)
     
-    print(ds_tmp.log)
     
 
 if __name__=="__main__":

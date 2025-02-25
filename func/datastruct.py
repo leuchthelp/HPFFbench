@@ -6,7 +6,7 @@ import time
 from mpi4py import MPI
 from ctypes import *
 
-cfunc = CDLL("/home/dev/dkrz_dev/c-stuff/a.out")
+cfunc = CDLL("./c-stuff/shared.out")
 
 class bcolors:
     HEADER = '\033[95m'
@@ -299,17 +299,50 @@ class Datastruct:
         
         self.log = bench
         
+        
     def __bench_netcdf_c(self, variable, iterations):
-         pass
+        bench = []
+        
+        for i in range(iterations):
+            start = time.monotonic()
+            cfunc.py_bench_variable_netcdf4()
+            bench.append(time.monotonic() - start)
+        
+        self.log = bench
+        
         
     def __bench_nczarr(self, variable, iterations):
-         pass
+        bench = []
         
-    def __bench_async(self, variable, iterations):
-         pass
+        for i in range(iterations):
+            start = time.monotonic()
+            cfunc.py_bench_variable_nczarr()
+            bench.append(time.monotonic() - start)
         
+        self.log = bench
+        
+    
     def __bench_subfiling(self, variable, iterations):
-         pass
+        bench = []
+        
+        for i in range(iterations):
+            start = time.monotonic()
+            cfunc.py_bench_variable_subfiling()
+            bench.append(time.monotonic() - start)
+        
+        self.log = bench    
+    
+        
+    def __bench_async(self, variable, iterations):    
+        bench = []
+        
+        for i in range(iterations):
+            start = time.monotonic()
+            cfunc.py_bench_variable_async()
+            bench.append(time.monotonic() - start)
+        
+        self.log = bench
+    
     
     def read(self, pattern, variable=None, iterations=None, logging=False):
         
@@ -319,6 +352,10 @@ class Datastruct:
             "bench_variable": self.__bench_variable,
             "bench_complete": self.__bench_complete,
             "bench_hdf5_c": self.__bench_hdf5_c,
+            "bench_netcdf4-c": self.__bench_netcdf_c,
+            #"bench_nczarr": self.__bench_nczarr,
+            #"bench_async_c": self.__bench_async,
+            #"bench_subfiling_c": self.__bench_subfiling,
         }
         
         if logging:
