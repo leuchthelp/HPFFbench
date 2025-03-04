@@ -63,7 +63,7 @@ def calc_chunksize(chunks):
     return (res, size)
 
 
-def bench_variable(setup, df, variable):
+def bench_variable(setup, df, variable, add_c = False):
     index = 0
     
     for run in setup.values():
@@ -101,30 +101,31 @@ def bench_variable(setup, df, variable):
         df = pd.concat([df, tmp], ignore_index=True)
         
         index +=1
+
+    if add_c:
+        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c.json")
+        df_hdf5_c = tmp["hdf5-c-read"].tolist()
         
-    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c.json")
-    df_hdf5_c = tmp["hdf5-c-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-134217728-134217728", "run":7, "engine": "hdf5-c", "filesize per chunk": "1024.0 MB"})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5_subfiling.json")
-    df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-134217728-134217728", "run":7, "engine": "hdf5-subfiling", "filesize per chunk": "1024.0 MB"})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_async.json")
-    df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-134217728-134217728", "run":7, "engine": "hdf5-async", "filesize per chunk": "1024.0 MB"})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_netcdf4.json")
-    df_netcdf4_c = tmp["netcdf4-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-134217728-134217728", "run":7, "engine": "netcdf4-c", "filesize per chunk": "1024.0 MB"})
-    df = pd.concat([df, tmp], ignore_index=True) 
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-402653184-402653184", "run":7, "engine": "hdf5-c", "filesize per chunk": "3072.0 MB"})
+        df = pd.concat([df, tmp], ignore_index=True) 
+        
+        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5_subfiling.json")
+        df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
+        
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-134217728-134217728", "run":7, "engine": "hdf5-subfiling", "filesize per chunk": "1024.0 MB"})
+        df = pd.concat([df, tmp], ignore_index=True) 
+        
+        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_async.json")
+        df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
+        
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-134217728-134217728", "run":7, "engine": "hdf5-async", "filesize per chunk": "1024.0 MB"})
+        df = pd.concat([df, tmp], ignore_index=True) 
+        
+        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_netcdf4.json")
+        df_netcdf4_c = tmp["netcdf4-read"].tolist()
+        
+        tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-134217728-134217728", "run":7, "engine": "netcdf4-c", "filesize per chunk": "1024.0 MB"})
+        df = pd.concat([df, tmp], ignore_index=True)  
         
     df.to_json("data/plotting/plotting_bench_variable.json")
     
@@ -181,35 +182,6 @@ def bench_complete(setup, df):
     
     
     df.to_json("data/plotting/plotting_bench_complete.json")
-
-
-def bench_subfiling(df):
-    
-    
-    variable = ["X"]
-    shape = [134217728]
-    chunks = [134217728]
-    size_chunks = []
-    
-    index = 1
-    
-    for i in range(len(chunks)):    
-            tmp = calc_chunksize(chunks=chunks)
-            size_chunks.append(tmp)
-    
-    print(f"{color.OKBLUE}bench zarr for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-    ds_tmp = ds.Datastruct()
-    ds_tmp.engine = "subfiling_hdf5-c"
-    ds_tmp.read("bench_subfiling_c", iterations=10) 
-    
-    tmp = pd.DataFrame(data={"time taken": ds_tmp.log, "format": f"{ds_tmp.engine}-{shape}-{chunks}", "run":index, "engine": ds_tmp.engine})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    
-    df.to_json("data/plotting/plotting_bench_subfiling-c.json") 
- 
- 
-def bench_async(df):
     
     variable = ["X"]
     shape = [134217728]
@@ -236,15 +208,17 @@ def bench_async(df):
         
 def main():
     
+    faktor = 3
+    
     setup = {
-            "run01": {"X": ([512, 512, 512], [512, 512, 1]), "Y": ([10, 10], [2, 2])},
-            "run02": {"X": ([512, 512, 512], [512, 512, 8]), "Y": ([10, 10], [2, 2])},
-            "run03": {"X": ([512, 512, 512], [512, 512, 16]), "Y": ([10, 10], [2, 2])},
-            "run04": {"X": ([512, 512, 512], [512, 512, 32]), "Y": ([10, 10], [2, 2])},
-            "run05": {"X": ([512, 512, 512], [512, 512, 64]), "Y": ([10, 10], [2, 2])},
-            "run06": {"X": ([512, 512, 512], [512, 512, 128]), "Y": ([10, 10], [2, 2])},
-            "run07": {"X": ([512, 512, 512], [512, 512, 256]), "Y": ([10, 10], [2, 2])},
-            "run08": {"X": ([512, 512, 512], [512, 512, 512]), "Y": ([10, 10], [2, 2])},
+            #"run02": {"X": ([faktor * 134217728], [faktor * 33554432])},
+            #"run03": {"X": ([faktor * 134217728], [faktor * 67108864])},
+            #"run04": {"X": ([faktor * 134217728], [faktor * 134217728])},
+            
+            
+            "run06": {"X": ([faktor * 512, 512, 512], [faktor * 512, 512, 128])},
+            "run07": {"X": ([faktor * 512, 512, 512], [faktor * 512, 512, 256])},
+            "run08": {"X": ([faktor * 512, 512, 512], [faktor * 512, 512, 512])},
             
             #"run11": {"X": ([512, 512, 512], [512, 1, 1])},
             #"run12": {"X": ([512, 512, 512], [512, 8, 8])},
@@ -264,7 +238,7 @@ def main():
     #create_ds(setup["run01"], parallel=False)
     #create_ds(setup["run01"], parallel=True)
     
-    bench_variable(setup, pd.DataFrame(), variable="X")
+    bench_variable(setup, pd.DataFrame(), variable="X", add_c=True)
     
     
     

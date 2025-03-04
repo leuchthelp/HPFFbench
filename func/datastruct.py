@@ -186,7 +186,7 @@ class Datastruct:
                 
     def __bench_variable(self, variable, iterations):
         bench = []
-         
+        
         match self.engine:
             case "zarr":
                 
