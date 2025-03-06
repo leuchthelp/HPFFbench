@@ -297,11 +297,11 @@ Bug has been fix and was backported https://github.com/zarr-developers/zarr-pyth
 ### HDF5-VOL-ASYNC v1.7
 
 **supported**
-- serial creation / reading of File using `async` - debugging
 - lopping reading `async` so I can benchmark
 
 **working on** 
 - integrate c function calls in `Datastruct.py`
+- serial creation / reading of File using `async` - debugging
 
 #### Problems
 
@@ -322,6 +322,10 @@ Anyway thanks, I will go cry in a corner now for not having realized this earlie
 ##### lopping reading `async` so I can benchmark - FIXED (20.02.2025)
 
 `creation` needs to be done by just one rank similarly to `closing` the event-set as otherwise the other ranks cant access it anymore. Will have to implement waiting for rank `0` for creation and rank `0` waiting for all other ranks for `closing`
+
+##### serial creation / reading of File using `async` - debugging
+
+On the menu again as there seems to be some run to run variance in it. I sadly have no clue why, working with async has been quite stressful as it seems I have been the first to work with it and have questions about it in the last 5 year when looking at the forum. https://forum.hdfgroup.org/t/how-exactly-is-async-i-o-available-in-hdf5/13089/7
 
 ## Additional Information
 
