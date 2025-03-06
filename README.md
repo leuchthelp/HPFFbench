@@ -327,6 +327,34 @@ Anyway thanks, I will go cry in a corner now for not having realized this earlie
 
 On the menu again as there seems to be some run to run variance in it. I sadly have no clue why, working with async has been quite stressful as it seems I have been the first to work with it and have questions about it in the last 5 year when looking at the forum. https://forum.hdfgroup.org/t/how-exactly-is-async-i-o-available-in-hdf5/13089/7
 
+Error can observed at seemingly random iterations. There might be runs that pass without issue or there are runs that fail in the first couple iterations. It is seemingly caused by `H5ESwait()` checking which events in the event set need to waited on causing it to access an area outside of mem. But then there can also me tens of rounds not exhibiting this error at all.
+
+```
+Wait for async answer 
+[leucht:49896] *** Process received signal ***
+[leucht:49896] Signal: Segmentation fault (11)
+[leucht:49896] Signal code: Address not mapped (1)
+[leucht:49896] Failing at address: 0x1d0
+[leucht:49896] [ 0] /lib/x86_64-linux-gnu/libc.so.6(+0x42520)[0x7efd5486b520]
+[leucht:49896] [ 1] /home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-vol-async-1.7-vbevlbxizecl24eswhgtycejo4lbfvft/lib/libh5async.so(get_n_running_task_in_queue_obj+0x118)[0x7efd537c8758]
+[leucht:49896] [ 2] /home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-vol-async-1.7-vbevlbxizecl24eswhgtycejo4lbfvft/lib/libh5async.so(+0x2306a)[0x7efd537e206a]
+[leucht:49896] [ 3] /home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib/libhdf5.so.310(H5VL_request_wait+0x40)[0x7efd54db41b0]
+[leucht:49896] [ 4] /home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib/libhdf5.so.310(+0x12ac9f)[0x7efd54b82c9f]
+[leucht:49896] [ 5] /home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib/libhdf5.so.310(H5ES__list_iterate+0x31)[0x7efd54b83b41]
+[leucht:49896] [ 6] /home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib/libhdf5.so.310(H5ES__wait+0x54)[0x7efd54b83904]
+[leucht:49896] [ 7] /home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib/libhdf5.so.310(H5ESwait+0xc9)[0x7efd54b815a9]
+[leucht:49896] [ 8] ./a.out(+0x508f)[0x55b54ea8a08f]
+[leucht:49896] [ 9] ./a.out(+0x5ad7)[0x55b54ea8aad7]
+[leucht:49896] [10] /lib/x86_64-linux-gnu/libc.so.6(+0x29d90)[0x7efd54852d90]
+[leucht:49896] [11] /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x80)[0x7efd54852e40]
+[leucht:49896] [12] ./a.out(+0x28c5)[0x55b54ea878c5]
+[leucht:49896] *** End of error message ***
+--------------------------------------------------------------------------
+prterun noticed that process rank 0 with PID 49896 on node leucht exited on
+signal 11 (Segmentation fault).
+--------------------------------------------------------------------------
+```
+
 ## Additional Information
 
 This section provides additional information, knowledge and examples gather during the time working on the project. 
