@@ -329,6 +329,8 @@ On the menu again as there seems to be some run to run variance in it. I sadly h
 
 Error can observed at seemingly random iterations. There might be runs that pass without issue or there are runs that fail in the first couple iterations. It is seemingly caused by `H5ESwait()` checking which events in the event set need to waited on causing it to access an area outside of mem. But then there can also me tens of rounds not exhibiting this error at all.
 
+This can also lead to a deadlock caused by `[ASYNC VOL ERROR] get_n_running_task_in_queue_obj with ABT_mutex_lock`
+
 ```
 Wait for async answer 
 [leucht:49896] *** Process received signal ***
