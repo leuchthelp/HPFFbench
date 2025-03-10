@@ -29,6 +29,7 @@ def create_ds(form, parallel=False):
         else:
             print(f"{color.WARNING}The file does not exist{color.ENDC}")
 
+    print(f"{color.WARNING}Creating zarr{color.ENDC}")
     ds_zarr.create(path="data/datasets/test_dataset.zarr", form=form, engine="zarr", parallel=parallel)
     print(f"{color.WARNING}Creating hdf5{color.ENDC}")
     ds_hdf5.create(path="data/datasets/test_dataset.h5", form=form, engine="hdf5", parallel=parallel)
@@ -42,7 +43,7 @@ def show_header(ds_tmp):
     
     print(f"{color.OKCYAN}check variable header with format: {ds_tmp.engine}{color.ENDC}")
     ds_tmp.read(pattern="header", variable="X")
-    
+
 
 def calc_chunksize(chunks):
     
@@ -72,7 +73,10 @@ def bench_variable(setup, df, variable, iterations):
         shape = run[variable][0]
         chunks = run[variable][1]
         
-        size_chunks = calc_chunksize(chunks=chunks)
+        if len(chunks) != 0:
+            size_chunks = calc_chunksize(chunks=chunks)
+        else:
+            size_chunks = calc_chunksize(chunks=shape)
         
         print(f"{color.WARNING}create Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
         create_ds(form=run)
@@ -101,9 +105,58 @@ def bench_variable(setup, df, variable, iterations):
         tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-        index +=1
+        filesize = shape[0]
+        c_chunks = []
+        c_filesize = calc_chunksize(chunks=shape)
+
+        # hdf-c
+        p = subprocess.Popen(f"./a.out -b 1 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        p.wait()
         
-    df.to_json("data/plotting/plotting_bench_variable.json")
+        tmp= pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c.json")
+        df_hdf5_c = tmp["hdf5-c-read"].tolist()
+        
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        df = pd.concat([df, tmp], ignore_index=True) 
+
+        # hdf-c-parallel
+        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        p.wait()
+        
+        tmp= pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_parallel.json")
+        df_hdf5_c_parallel = tmp["hdf5-c-read-parallel"].tolist()
+
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_c_parallel, "format": f"hdf5-c-parallel{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c-parallel", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        df = pd.concat([df, tmp], ignore_index=True) 
+
+        # hdf5-c-async
+        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        p.wait()
+        
+        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_async.json")
+        df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
+
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-async", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        df = pd.concat([df, tmp], ignore_index=True)
+
+        #hdf5-c-subfiling
+        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        p.wait()
+
+        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5_subfiling.json")
+        df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
+
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-subfiling", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        df = pd.concat([df, tmp], ignore_index=True) 
+
+        #tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_netcdf4.json")
+        #df_netcdf4_c = tmp["netcdf4-read"].tolist()
+
+        #tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{filesize}", "run":index, "engine": "netcdf4-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        #df = pd.concat([df, tmp], ignore_index=True)  
+        
+        index +=1
+        df.to_json("data/plotting/plotting_bench_variable.json")
     
 
 def bench_complete(setup, df):
@@ -184,18 +237,15 @@ def bench_complete(setup, df):
         
 def main():
     
-    faktor = 1
-    size = 134217728
     iterations = 10
     variable = "X"
-    mpi_rank = 4
-    
-    filesize = size * faktor
     
     setup = {
-            "run04": {"X": ([filesize], [faktor * 134217728])},
-            "run03": {"X": ([filesize], [faktor * 67108864])},
-            "run02": {"X": ([filesize], [faktor * 33554432])},
+            "run01": {"X": ([134217728], [])},
+            "run02": {"X": ([268435456], [])},
+            "run03": {"X": ([402653184], [])},
+            "run04": {"X": ([536870912], [])},
+            "run05": {"X": ([671088640], [])},
             
             
             #"run06": {"X": ([faktor * 512, 512, 512], [faktor * 512, 512, 128])},
@@ -212,57 +262,7 @@ def main():
             #"run18": {"X": ([512, 512, 512], [512, 512, 512]), "Y": ([10, 10], [2, 2])}, 
             }
     
-    #bench_variable(setup, pd.DataFrame(), "X")
-    
-    #bench_variable(setup, pd.DataFrame(), variable="X")
-    #bench_complete(setup, pd.DataFrame())
-    
-    #create_ds(setup["run01"], parallel=False)
-    #create_ds(setup["run01"], parallel=True)
-    
-    # hdf-c
-    subprocess.run(f"./a.out -b 1 -i {iterations} -f {faktor} -s {filesize}", shell=True, check=True)
-    
-    # hdf-c-parallel
-    subprocess.run(f"mpiexec -n {mpi_rank} ./a.out -b 4 -i {iterations} -f {faktor} -s {filesize}", shell=True, check=True)
-    
-    # hdf5-c-async
-    subprocess.run(f"mpiexec -n {mpi_rank} ./a.out -b 5 -i {iterations} -f {faktor} -s {filesize}", shell=True, check=True)
-    
-    #hdf5-c-subfiling
-    subprocess.run(f"mpiexec -n {mpi_rank} ./a.out -b 6 -i {iterations} -f {faktor} -s {filesize}", shell=True, check=True)
-    
-    df = pd.DataFrame()
-    
-    bench_variable(setup, df, variable=variable, iterations=iterations)
-    
-    size_chunks = calc_chunksize(filesize)
-    
-    tmp= pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c.json")
-    df_hdf5_c = tmp["hdf5-c-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-{filesize}-{filesize}", "run":1, "engine": "hdf5-c", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5_subfiling.json")
-    df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-{filesize}-{filesize}", "run":1, "engine": "hdf5-subfiling", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_async.json")
-    df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-{filesize}-{filesize}", "run":1, "engine": "hdf5-async", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_netcdf4.json")
-    df_netcdf4_c = tmp["netcdf4-read"].tolist()
-    
-    tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{filesize}", "run":1, "engine": "netcdf4-c", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
-    df = pd.concat([df, tmp], ignore_index=True)  
-
-    df.to_json("data/plotting/plotting_bench_variable.json")
+    bench_variable(setup, pd.DataFrame(), variable=variable, iterations=iterations)
     
     
 

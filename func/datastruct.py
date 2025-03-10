@@ -55,8 +55,12 @@ class Datastruct:
                     for variable, element in form.items():
                         shape = element[0]
                         chunks = element[1]
-
-                        x = root.create_array(name=variable, shape=shape, chunks=chunks, dtype=dtype)
+                        
+                        if len(chunks) != 0:
+                            x = root.create_array(name=variable, shape=shape, chunks=chunks, dtype=dtype)
+                        else: 
+                            x = root.create_array(name=variable, shape=shape, dtype=dtype)
+                        
                         x[:] = np.random.random_sample(shape)
 
                     self.dataset = root
@@ -74,11 +78,14 @@ class Datastruct:
                     case False:
                         root = h5py.File(path, "w-")
 
-                for variable, element in form.items():
+                for variable, element in form.items():      
                     shape = element[0]
                     chunks = element[1]
                     
-                    x = root.create_dataset(variable, shape=shape,chunks=tuple(chunks), dtype=dtype)
+                    if len(chunks) != 0: 
+                        x = root.create_dataset(variable, shape=shape, chunks=tuple(chunks), dtype=dtype)
+                    else:
+                        x = root.create_dataset(variable, shape=shape, dtype=dtype)
                     
                     if MPI.COMM_WORLD.rank == 0 or parallel == False:
                         x[:] = np.random.random_sample(shape)
@@ -112,8 +119,11 @@ class Datastruct:
                         root.createDimension(f"{used}", size)
                         dimensions.append(f"{used}")
                         used += 1
-                        
-                    x = root.createVariable(variable, dtype, dimensions, chunksizes=chunks)
+                    
+                    if len(chunks) != 0: 
+                        x = root.createVariable(variable, dtype, dimensions, chunksizes=chunks)
+                    else: 
+                        x = root.createVariable(variable, dtype, dimensions)
                     
                     if MPI.COMM_WORLD.rank == 0 or parallel == False:
                         x[:] = np.random.random_sample(shape)
@@ -288,62 +298,7 @@ class Datastruct:
             case "netcdf4":
                 self.dataset.variables[variable]
         
-    
-    def __bench_hdf5_c(self, variable, iterations):
-        bench = []
-        
-        for i in range(iterations):
-            start = time.monotonic()
-            cfunc.py_bench_variable_hdf5()
-            bench.append(time.monotonic() - start)
-        
-        self.log = bench
-        
-        
-    def __bench_netcdf_c(self, variable, iterations):
-        bench = []
-        
-        for i in range(iterations):
-            start = time.monotonic()
-            cfunc.py_bench_variable_netcdf4()
-            bench.append(time.monotonic() - start)
-        
-        self.log = bench
-        
-        
-    def __bench_nczarr(self, variable, iterations):
-        bench = []
-        
-        for i in range(iterations):
-            start = time.monotonic()
-            cfunc.py_bench_variable_nczarr()
-            bench.append(time.monotonic() - start)
-        
-        self.log = bench
-        
-    
-    def __bench_subfiling(self, variable, iterations):
-        bench = []
-        
-        for i in range(iterations):
-            start = time.monotonic()
-            cfunc.py_bench_variable_subfiling()
-            bench.append(time.monotonic() - start)
-        
-        self.log = bench    
-    
-        
-    def __bench_async(self, variable, iterations):    
-        bench = []
-        
-        for i in range(iterations):
-            start = time.monotonic()
-            cfunc.py_bench_variable_async()
-            bench.append(time.monotonic() - start)
-        
-        self.log = bench
-    
-    
+      
     def read(self, pattern, variable=None, iterations=None, logging=False):
         
         patterns = {
@@ -351,11 +306,6 @@ class Datastruct:
             "variable": self.__read_variable,
             "bench_variable": self.__bench_variable,
             "bench_complete": self.__bench_complete,
-            "bench_hdf5_c": self.__bench_hdf5_c,
-            "bench_netcdf4-c": self.__bench_netcdf_c,
-            #"bench_nczarr": self.__bench_nczarr,
-            #"bench_async_c": self.__bench_async,
-            #"bench_subfiling_c": self.__bench_subfiling,
         }
         
         if logging:

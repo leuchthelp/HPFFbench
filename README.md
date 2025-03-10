@@ -357,6 +357,8 @@ signal 11 (Segmentation fault).
 --------------------------------------------------------------------------
 ```
 
+Issue might be related to `hdf5-vol-async version 1.7`. Unclear if it can be reproduced using `develop` version but causes significant performance regression. 
+
 ## Additional Information
 
 This section provides additional information, knowledge and examples gather during the time working on the project. 
