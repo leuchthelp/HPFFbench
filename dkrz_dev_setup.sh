@@ -11,18 +11,24 @@ git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~
 . spack/share/spack/setup-env.sh
 . $SPACK_ROOT/share/spack/setup-env.sh
 
+echo remove gcc@11.4.0 compiler if present and rebuild with spack
+echo simple sanity check to ensure matching compiler is correctly installed and available
 spack compiler remove gcc@11.4.0
-
-spack install gcc@11.4.0
-spack compiler add "$(spack location -i gcc@11.4.0)"
 
 # Activate creation of module files via spack
 spack config add "modules:default:enable:[tcl]"
+
+spack install gcc@11.4.0
+spack compiler add "$(spack location -i gcc@11.4.0)"
 
 # Install and setup "module" and add to local shell
 spack install lmod %gcc@11.4.0
 . $(spack location -i lmod)/lmod/lmod/init/bash
 . $SPACK_ROOT/share/spack/setup-env.sh
+
+# additionals for my own comfort
+spack install git %gcc@11.4.0
+spack install nano %gcc@11.4.0
 
 spack install python@3.11.9 %gcc@11.4.0
 spack install openmpi %gcc@11.4.0
@@ -40,7 +46,7 @@ spack install hdf5-vol-async@develop ^argobots@main %gcc@11.4.0
 #. ~/spack/share/spack/setup-env.sh
 #. $SPACK_ROOT/share/spack/setup-env.sh
 #. $(spack location -i lmod)/lmod/lmod/init/bash
-# module load hdf5 netcdf-c py-mpi4py openmpi python py-netcdf4 py-h5py py-rich py-numpy 
+# module load hdf5 netcdf-c py-mpi4py openmpi python py-netcdf4 py-h5py py-rich py-numpy gcc git nano
 # module load hdf5-vol-async/develop
 
 # Create and enter python virtualenv and install zarr v3.0.1 as this doesnt exist in spack yet
