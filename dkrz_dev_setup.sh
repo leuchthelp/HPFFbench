@@ -29,7 +29,7 @@ spack install py-h5py
 spack install py-mpi4py
 spack install py-numpy
 spack install py-rich
-spack install hdf5-vol-async
+spack install hdf5-vol-async@develop ^argobots@main
 
 # Add to end of home/user/.bashrc via nano .bashrc from with home/user directory
 #. ~/spack/share/spack/setup-env.sh
