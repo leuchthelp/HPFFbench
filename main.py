@@ -93,6 +93,7 @@ def bench_variable(setup, df, variable, iterations):
         ds_netcdf4 = ds.Datastruct()
         ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
         ds_netcdf4.read("bench_variable", variable=variable, iterations=iterations)
+        ds_netcdf4.dataset.close()
         
         tmp = pd.DataFrame(data={"time taken": ds_netcdf4.log, "format": f"{ds_netcdf4.engine}-{shape}-{chunks}", "run":index, "engine": ds_netcdf4.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df= pd.concat([df, tmp], ignore_index=True)
@@ -101,6 +102,7 @@ def bench_variable(setup, df, variable, iterations):
         ds_hdf5 = ds.Datastruct()
         ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5")
         ds_hdf5.read("bench_variable", variable=variable, iterations=iterations)
+        ds_hdf5.dataset.close()
 
         tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
@@ -108,52 +110,56 @@ def bench_variable(setup, df, variable, iterations):
         filesize = shape[0]
         c_chunks = []
         c_filesize = calc_chunksize(chunks=shape)
+        
+        
+        # netcd-c
+        p = subprocess.Popen(f"./a.out -b 2 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+        p.wait()
+        tmp = pd.read_json("./c-stuff/test_netcdf4.json")
+        df_netcdf4_c = tmp["netcdf4-read"].tolist()
+
+        tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{filesize}", "run":index, "engine": "netcdf4-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        df = pd.concat([df, tmp], ignore_index=True)  
 
         # hdf-c
-        p = subprocess.Popen(f"./a.out -b 1 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        p = subprocess.Popen(f"./a.out -b 1 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
-        tmp= pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c.json")
+        tmp= pd.read_json("./c-stuff/test_hdf5-c.json")
         df_hdf5_c = tmp["hdf5-c-read"].tolist()
         
         tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True) 
 
         # hdf-c-parallel
-        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
-        tmp= pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_parallel.json")
+        tmp= pd.read_json("./c-stuff/test_hdf5-c_parallel.json")
         df_hdf5_c_parallel = tmp["hdf5-c-read-parallel"].tolist()
 
         tmp = pd.DataFrame(data={"time taken": df_hdf5_c_parallel, "format": f"hdf5-c-parallel{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c-parallel", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True) 
 
         # hdf5-c-async
-        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
-        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5-c_async.json")
+        tmp = pd.read_json("./c-stuff/test_hdf5-c_async.json")
         df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
 
         tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-async", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
 
-        #hdf5-c-subfiling
-        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="/home/dev/dkrz_dev/c-stuff")
+        # hdf5-c-subfiling
+        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
 
-        tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_hdf5_subfiling.json")
+        tmp = pd.read_json("./c-stuff/test_hdf5_subfiling.json")
         df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
 
         tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-subfiling", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True) 
-
-        #tmp = pd.read_json("/home/dev/dkrz_dev/c-stuff/test_netcdf4.json")
-        #df_netcdf4_c = tmp["netcdf4-read"].tolist()
-
-        #tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{filesize}", "run":index, "engine": "netcdf4-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
-        #df = pd.concat([df, tmp], ignore_index=True)  
         
         index +=1
         df.to_json("data/plotting/plotting_bench_variable.json")
