@@ -11,6 +11,8 @@ git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~
 . spack/share/spack/setup-env.sh
 . $SPACK_ROOT/share/spack/setup-env.sh
 
+spack compiler remove gcc@11.4.0
+
 spack install gcc@11.4.0
 spack compiler add "$(spack location -i gcc@11.4.0)"
 
