@@ -7,7 +7,7 @@
 #sudo apt install bzip2 ca-certificates g++ gcc gfortran git gzip lsb-release patch python3 tar unzip xz-utils zstd
 
 # Install spack and add to local shell
-git clone --depth=2 --branch=releases/v0.23.1 https://github.com/spack/spack.git ~/spack
+git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~/spack
 . spack/share/spack/setup-env.sh
 . $SPACK_ROOT/share/spack/setup-env.sh
 
