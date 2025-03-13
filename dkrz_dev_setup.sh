@@ -27,33 +27,33 @@ spack install --fresh lmod %gcc@11.4.0
 . $SPACK_ROOT/share/spack/setup-env.sh
 
 # additionals for my own comfort
-spack install --fresh git %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0 
+spack install --fresh git %gcc@11.4.0
 module load git
-spack install --fresh nano %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0 
+spack install --fresh nano %gcc@11.4.0 
 
-spack install --fresh python@3.11.9 %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh python@3.11.9 %gcc@11.4.0
 module load python
-spack install --fresh openmpi %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh openmpi %gcc@11.4.0
 module load openmpi
-spack install --fresh hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0
 module load hdf5
-spack install --fresh netcdf-c build_system=cmake %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install netcdf-c build_system=cmake %gcc@11.4.0
 module load netcdf-c
-spack install --fresh py-pip %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install py-pip %gcc@11.4.0
 module load py-pip
-spack install --fresh py-netcdf4 %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install py-netcdf4 %gcc@11.4.0
 module load py-netcdf4
-spack install --fresh py-h5py %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install py-h5py %gcc@11.4.0
 module load py-h5py
-spack install --fresh py-mpi4py %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install py-mpi4py %gcc@11.4.0
 module load py-mpi4py
-spack install --fresh py-numpy %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install py-numpy %gcc@11.4.0
 module load py-numpy
-spack install --fresh py-rich %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install py-rich %gcc@11.4.0
 module load py-rich
-spack install --fresh argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh argobots@main %gcc@11.4.0
 module load argobots
-spack install --fresh hdf5-vol-async@develop %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install hdf5-vol-async@develop %gcc@11.4.0
 module load hdf5-vol-async
 
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
