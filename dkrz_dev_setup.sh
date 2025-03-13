@@ -18,7 +18,7 @@ spack compiler remove gcc@11.4.0
 # Activate creation of module files via spack
 spack config add "modules:default:enable:[tcl]"
 
-spack install gcc@11.4.0
+spack install --fresh gcc@11.4.0
 spack compiler add "$(spack location -i gcc@11.4.0)"
 
 # Install and setup "module" and add to local shell
@@ -27,33 +27,33 @@ spack install lmod %gcc@11.4.0
 . $SPACK_ROOT/share/spack/setup-env.sh
 
 # additionals for my own comfort
-spack install git %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0 
+spack install --fresh git %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0 
 module load git
-spack install nano %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0 
+spack install --fresh nano %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0 
 
-spack install python@3.11.9 %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh python@3.11.9 %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load python
-spack install openmpi %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh openmpi %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load openmpi
-spack install hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load hdf5
-spack install netcdf-c build_system=cmake %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh netcdf-c build_system=cmake %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load netcdf-c
-spack install py-pip %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh py-pip %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load py-pip
-spack install py-netcdf4 %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh py-netcdf4 %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load py-netcdf4
-spack install py-h5py %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh py-h5py %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load py-h5py
-spack install py-mpi4py %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh py-mpi4py %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load py-mpi4py
-spack install py-numpy %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh py-numpy %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load py-numpy
-spack install py-rich %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh py-rich %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load py-rich
-spack install argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load argobots
-spack install hdf5-vol-async@develop %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
+spack install --fresh hdf5-vol-async@develop %gcc@11.4.0 ^hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0 ^argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0 %gcc@11.4.0
 module load hdf5-vol-async
 
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
