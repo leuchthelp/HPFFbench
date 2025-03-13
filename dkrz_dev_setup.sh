@@ -36,7 +36,7 @@ spack install nano %gcc@11.4.0
 spack install python@3.11.9 %gcc@11.4.0
 spack install openmpi %gcc@11.4.0
 spack install hdf5+threadsafe+mpi+subfiling %gcc@11.4.0
-spack install netcdf-c build_system=cmake %gcc@11.4.0
+spack install netcdf-c build_system=cmake %gcc@11.4.0 ^hdf5+threadsafe+mpi+subfiling
 spack install py-pip %gcc@11.4.0
 spack install py-netcdf4 %gcc@11.4.0 ^hdf5+threadsafe+mpi+subfiling
 spack install py-h5py %gcc@11.4.0 ^hdf5+threadsafe+mpi+subfiling
@@ -44,8 +44,9 @@ spack install py-mpi4py %gcc@11.4.0
 spack install py-numpy %gcc@11.4.0
 spack install py-rich %gcc@11.4.0
 spack install argobots@main %gcc@11.4.0
-spack install hdf5-vol-async@develop %gcc@11.4.0 ^argobots@main
+spack install hdf5-vol-async@develop %gcc@11.4.0 ^argobots@main ^hdf5+threadsafe+mpi+subfiling
 
+spack compiler add gcc@8.5.0
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
 #. ~/spack/share/spack/setup-env.sh
 #. $SPACK_ROOT/share/spack/setup-env.sh
