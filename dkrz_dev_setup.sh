@@ -21,32 +21,28 @@ spack config add "modules:default:enable:[tcl]"
 spack install gcc@11.4.0
 spack compiler add "$(spack location -i gcc@11.4.0)"
 
-echo removing compiler to only use gcc@11.4.0 - only works for levante
-spack compiler remove gcc@8.5.0
-
 # Install and setup "module" and add to local shell
 spack install lmod %gcc@11.4.0
 . $(spack location -i lmod)/lmod/lmod/init/bash
 . $SPACK_ROOT/share/spack/setup-env.sh
 
 # additionals for my own comfort
-spack install git %gcc@11.4.0
-spack install nano %gcc@11.4.0
+spack install git %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install nano %gcc@11.4.0 ^gcc-runtime@11.4.0
 
-spack install python@3.11.9 %gcc@11.4.0
-spack install openmpi %gcc@11.4.0
-spack install hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0
-spack install netcdf-c build_system=cmake %gcc@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0
-spack install py-pip %gcc@11.4.0
-spack install py-netcdf4 %gcc@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0
-spack install py-h5py %gcc@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0
-spack install py-mpi4py %gcc@11.4.0
-spack install py-numpy %gcc@11.4.0
-spack install py-rich %gcc@11.4.0
-spack install argobots@main %gcc@11.4.0
-spack install hdf5-vol-async@develop %gcc@11.4.0 ^argobots@main %gcc@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0
+spack install python@3.11.9 %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install openmpi %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install netcdf-c build_system=cmake %gcc@11.4.0 ^gcc-runtime@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install py-pip %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install py-netcdf4 %gcc@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install py-h5py %gcc@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install py-mpi4py %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install py-numpy %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install py-rich %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0
+spack install hdf5-vol-async@develop %gcc@11.4.0 ^gcc-runtime@11.4.0 ^argobots@main %gcc@11.4.0 ^gcc-runtime@11.4.0 ^hdf5@1.14.0+threadsafe+mpi+subfiling %gcc@11.4.0 ^gcc-runtime@11.4.0
 
-spack compiler add gcc@8.5.0
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
 #. ~/spack/share/spack/setup-env.sh
 #. $SPACK_ROOT/share/spack/setup-env.sh
