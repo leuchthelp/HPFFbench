@@ -21,6 +21,9 @@ spack config add "modules:default:enable:[tcl]"
 spack install gcc@11.4.0
 spack compiler add "$(spack location -i gcc@11.4.0)"
 
+echo removing compiler to only use gcc@11.4.0 - only works for levante
+spack compiler remove gcc@8.5.0
+
 # Install and setup "module" and add to local shell
 spack install lmod %gcc@11.4.0
 . $(spack location -i lmod)/lmod/lmod/init/bash
@@ -35,18 +38,19 @@ spack install openmpi %gcc@11.4.0
 spack install hdf5+threadsafe+mpi+subfiling %gcc@11.4.0
 spack install netcdf-c build_system=cmake %gcc@11.4.0
 spack install py-pip %gcc@11.4.0
-spack install py-netcdf4 %gcc@11.4.0
-spack install py-h5py %gcc@11.4.0
+spack install py-netcdf4 %gcc@11.4.0 ^hdf5+threadsafe+mpi+subfiling
+spack install py-h5py %gcc@11.4.0 ^hdf5+threadsafe+mpi+subfiling
 spack install py-mpi4py %gcc@11.4.0
 spack install py-numpy %gcc@11.4.0
 spack install py-rich %gcc@11.4.0
-spack install hdf5-vol-async@develop %gcc@11.4.0 ^argobots@main %gcc@11.4.0
+spack install argobots@main %gcc@11.4.0
+spack install hdf5-vol-async@develop %gcc@11.4.0 ^argobots@main
 
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
 #. ~/spack/share/spack/setup-env.sh
 #. $SPACK_ROOT/share/spack/setup-env.sh
 #. $(spack location -i lmod)/lmod/lmod/init/bash
-# module load hdf5 netcdf-c py-mpi4py openmpi python py-netcdf4 py-h5py py-rich py-numpy gcc git nano
+# module load hdf5 netcdf-c py-mpi4py openmpi python py-netcdf4 py-h5py py-rich py-numpy git nano
 # module load hdf5-vol-async/develop
 
 # Create and enter python virtualenv and install zarr v3.0.1 as this doesnt exist in spack yet
