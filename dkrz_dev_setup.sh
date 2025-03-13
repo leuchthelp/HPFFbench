@@ -22,7 +22,7 @@ spack install --fresh gcc@11.4.0
 spack compiler add "$(spack location -i gcc@11.4.0)"
 
 # Install and setup "module" and add to local shell
-spack install lmod %gcc@11.4.0
+spack install --fresh lmod %gcc@11.4.0
 . $(spack location -i lmod)/lmod/lmod/init/bash
 . $SPACK_ROOT/share/spack/setup-env.sh
 
