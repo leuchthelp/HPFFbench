@@ -35,7 +35,7 @@ spack install --fresh python@3.11.9 %gcc@11.4.0
 module load python
 spack install --fresh openmpi %gcc@11.4.0
 module load openmpi
-spack install --fresh hdf5@1.14.5+threadsafe+mpi+subfiling %gcc@11.4.0
+spack install --fresh hdf5@1.14.5~cxx~fortran~hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools %gcc@11.4.0
 module load hdf5
 spack install netcdf-c build_system=cmake %gcc@11.4.0
 module load netcdf-c
@@ -53,7 +53,7 @@ spack install py-rich %gcc@11.4.0
 module load py-rich
 spack install --fresh argobots@main %gcc@11.4.0
 module load argobots
-spack install hdf5-vol-async@develop %gcc@11.4.0
+spack install --reuse hdf5-vol-async@develop %gcc@11.4.0
 module load hdf5-vol-async
 
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
