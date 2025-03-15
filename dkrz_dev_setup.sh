@@ -13,12 +13,12 @@ git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~
 
 echo remove gcc@11.4.0 compiler if present and rebuild with spack
 echo simple sanity check to ensure matching compiler is correctly installed and available
-spack compiler remove gcc@11.4.0
+#spack compiler remove gcc@11.4.0
 
 # Activate creation of module files via spack
 spack config add "modules:default:enable:[tcl]"
 
-spack install --fresh gcc@11.4.0 %gcc@11.4.0
+#spack install --fresh gcc@11.4.0
 spack compiler add "$(spack location -i gcc@11.4.0)"
 
 # Install and setup "module" and add to local shell
