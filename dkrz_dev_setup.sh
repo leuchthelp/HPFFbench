@@ -61,7 +61,7 @@ module load py-rich
 #. ~/spack/share/spack/setup-env.sh
 #. $SPACK_ROOT/share/spack/setup-env.sh
 #. $(spack location -i lmod)/lmod/lmod/init/bash
-# module load hdf5 netcdf-c py-mpi4py openmpi python py-netcdf4 py-h5py py-rich py-numpy git nano gcc/11.4.0
+# module load hdf5 netcdf-c py-mpi4py openmpi python py-pip py-netcdf4 py-h5py py-rich py-numpy git nano gcc/11.4.0
 # module load hdf5-vol-async/develop
 
 # Create and enter python virtualenv and install zarr v3.0.1 as this doesnt exist in spack yet
