@@ -21,7 +21,7 @@ spack config add "modules:default:enable:[tcl]"
 #spack install --fresh gcc@11.4.0
 
 # change this for you compiler of choice, has to be done for compatibility with levant.dkrz.de
-spack compiler add "$(spack location -i gcc@11.2.0%gcc11.2.0)"
+spack compiler add "$(spack location -i gcc@11.2.0%gcc@11.2.0)"
 
 spack compilers
 
