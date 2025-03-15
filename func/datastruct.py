@@ -1,6 +1,6 @@
 import netCDF4, zarr, h5py
 import numpy as np
-import func.dev_logging as logger
+#import func.dev_logging as logger
 import multiprocessing as mp
 import time
 from mpi4py import MPI
@@ -308,22 +308,22 @@ class Datastruct:
             "bench_complete": self.__bench_complete,
         }
         
-        if logging:
-            proc = mp.Process(target=logger.run_logging, args=(f'{pattern}_{self.engine}_test.txt',))
-            proc.start()
-            print(f"pid: {proc.pid}")
-            
-            # give logger time to start up and get ready
-            print(f"{bcolors.WARNING} take some time to set up logger{bcolors.ENDC}")
-            time.sleep(3)
+        #if logging:
+        #    proc = mp.Process(target=logger.run_logging, args=(f'{pattern}_{self.engine}_test.txt',))
+        #    proc.start()
+        #    print(f"pid: {proc.pid}")
+        #    
+        #    # give logger time to start up and get ready
+        #    print(f"{bcolors.WARNING} take some time to set up logger{bcolors.ENDC}")
+        #    time.sleep(3)
               
         
         res = patterns[pattern](variable=variable, iterations=iterations)
         
-        if logging:
-            proc.kill()
-            proc.join()
-            proc.close()
-            pass
+        #if logging:
+        #    proc.kill()
+        #    proc.join()
+        #    proc.close()
+        #    pass
                 
         return res
