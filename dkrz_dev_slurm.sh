@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=compute
-#SBATCH --account=k203191
+#SBATCH --account=ku0598
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=6
 #SBATCH --time=01:00:00
