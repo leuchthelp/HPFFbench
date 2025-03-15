@@ -18,7 +18,7 @@ spack compiler remove gcc@11.4.0
 # Activate creation of module files via spack
 spack config add "modules:default:enable:[tcl]"
 
-spack install --fresh gcc@11.4.0
+spack install --fresh gcc@11.4.0 %gcc@11.4.0
 spack compiler add "$(spack location -i gcc@11.4.0)"
 
 # Install and setup "module" and add to local shell
