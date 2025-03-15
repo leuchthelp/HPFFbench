@@ -65,7 +65,7 @@ def calc_chunksize(chunks):
     return (res, size)
 
 
-def bench_variable(setup, df, variable, iterations):
+def bench_variable(setup, df, variable, iterations, mpi_ranks):
     index = 0
     
     for run in setup.values():
@@ -132,7 +132,7 @@ def bench_variable(setup, df, variable, iterations):
         df = pd.concat([df, tmp], ignore_index=True) 
 
         # hdf-c-parallel
-        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+        p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
         tmp= pd.read_json("./c-stuff/test_hdf5-c_parallel.json")
@@ -142,7 +142,7 @@ def bench_variable(setup, df, variable, iterations):
         df = pd.concat([df, tmp], ignore_index=True) 
 
         # hdf5-c-async
-        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+        p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
         tmp = pd.read_json("./c-stuff/test_hdf5-c_async.json")
@@ -152,7 +152,7 @@ def bench_variable(setup, df, variable, iterations):
         df = pd.concat([df, tmp], ignore_index=True)
 
         # hdf5-c-subfiling
-        p = subprocess.Popen(f"mpiexec -n 4 ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+        p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
 
         tmp = pd.read_json("./c-stuff/test_hdf5_subfiling.json")
@@ -245,6 +245,7 @@ def main():
     
     iterations = 10
     variable = "X"
+    mpi_ranks = 4
     
     setup = {
             "run01": {"X": ([1 * 134217728], [])},
@@ -282,7 +283,7 @@ def main():
             #"run18": {"X": ([512, 512, 512], [512, 512, 512]), "Y": ([10, 10], [2, 2])}, 
             }
     
-    bench_variable(setup, pd.DataFrame(), variable=variable, iterations=iterations)
+    bench_variable(setup, pd.DataFrame(), variable=variable, iterations=iterations, mpi_ranks=mpi_ranks)
     
     
 
