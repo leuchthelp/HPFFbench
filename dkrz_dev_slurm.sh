@@ -3,11 +3,13 @@
 #SBATCH --account=ku0598
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
+#SBACTH --mem=0
 #SBATCH --time=08:00:00
 #SBATCH --output=log.%j.txt
 #SBATCH --error=log.%j.err
 
+
 # Begin of section with executable commands
 set -e
 ls -l
-srun python main.py
+srun --cpu_bind=cores --distribution=block:cyclic python main.py
