@@ -17,17 +17,17 @@ def create_ds(form, parallel=False):
         if os.path.exists("data/datasets/test_dataset.zarr"):
             shutil.rmtree("data/datasets/test_dataset.zarr")
         else:
-            print(f"{color.WARNING}The file does not exist{color.ENDC}")
+            print(f"{color.OKCYAN}The file does not exist{color.ENDC}")
             
         if os.path.exists("data/datasets/test_dataset.nc"):
             os.remove("data/datasets/test_dataset.nc")
         else:
-            print(f"{color.WARNING}The file does not exist{color.ENDC}")
+            print(f"{color.OKCYAN}The file does not exist{color.ENDC}")
             
         if os.path.exists("data/datasets/test_dataset.h5"):
             os.remove("data/datasets/test_dataset.h5")
         else:
-            print(f"{color.WARNING}The file does not exist{color.ENDC}")
+            print(f"{color.OKCYAN}The file does not exist{color.ENDC}")
 
     print(f"{color.WARNING}Creating zarr{color.ENDC}")
     ds_zarr.create(path="data/datasets/test_dataset.zarr", form=form, engine="zarr", parallel=parallel)
@@ -89,6 +89,10 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": ds_zarr.log, "format": f"{ds_zarr.engine}-{shape}-{chunks}", "run":index, "engine": ds_zarr.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
+        if MPI.COMM_WORLD.rank == 0:
+            if os.path.exists("data/datasets/test_dataset.zarr"):
+                shutil.rmtree("data/datasets/test_dataset.zarr")
+        
         print(f"{color.OKBLUE}bench netcdf4 with shape: {shape} and chunks: {chunks}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
         ds_netcdf4 = ds.Datastruct()
         ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
@@ -107,6 +111,10 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
+        if MPI.COMM_WORLD.rank == 0:
+            if os.path.exists("data/datasets/test_dataset.h5"):
+                os.remove("data/datasets/test_dataset.h5")
+        
         filesize = shape[0]
         c_chunks = []
         c_filesize = calc_chunksize(chunks=shape)
@@ -119,7 +127,11 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         df_netcdf4_c = tmp["netcdf4-read"].tolist()
 
         tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{filesize}", "run":index, "engine": "netcdf4-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
-        df = pd.concat([df, tmp], ignore_index=True)  
+        df = pd.concat([df, tmp], ignore_index=True)
+        
+        if MPI.COMM_WORLD.rank == 0:
+            if os.path.exists("data/datasets/test_dataset.nc"):
+                os.remove("data/datasets/test_dataset.nc")
 
         # hdf-c
         p = subprocess.Popen(f"./a.out -b 1 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
@@ -130,6 +142,10 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         
         tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True) 
+        
+        if MPI.COMM_WORLD.rank == 0:
+            if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
+                os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5")
 
         # hdf-c-parallel
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
@@ -139,7 +155,11 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         df_hdf5_c_parallel = tmp["hdf5-c-read-parallel"].tolist()
 
         tmp = pd.DataFrame(data={"time taken": df_hdf5_c_parallel, "format": f"hdf5-c-parallel{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c-parallel", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
-        df = pd.concat([df, tmp], ignore_index=True) 
+        df = pd.concat([df, tmp], ignore_index=True)
+        
+        if MPI.COMM_WORLD.rank == 0:
+            if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
+                os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5") 
 
         # hdf5-c-async
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
@@ -150,6 +170,10 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
 
         tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-async", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
+        
+        if MPI.COMM_WORLD.rank == 0:
+            if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5"):
+                os.remove("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5")
 
         # hdf5-c-subfiling
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
