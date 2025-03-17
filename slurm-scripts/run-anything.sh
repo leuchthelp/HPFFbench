@@ -9,8 +9,8 @@
 #SBATCH --cpu-freq=High
 #SBATCH --distribution=block:cyclic
 #SBATCH --time=08:00:00
-#SBATCH --output=log-%j/log.%j.txt
-#SBATCH --error=log-%j/log.%j.err
+#SBATCH --output=log/log-%j/log.%j.txt
+#SBATCH --error=log/log-%j/log.%j.err
 
 
 # Begin of section with executable commands
