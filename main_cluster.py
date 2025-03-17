@@ -219,6 +219,7 @@ def runner_hdf5_c_async(df, shape, chunks, variable, iterations, total_filesize,
     call = f"mpiexec -n  {mpi_ranks} ./a.out -c 5 -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
+    print(p.returncode)
     
     ## run benchmark on hdf5-vol-async C file
     print(f"{color.OKBLUE}bench hdf5-c async with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
@@ -226,6 +227,7 @@ def runner_hdf5_c_async(df, shape, chunks, variable, iterations, total_filesize,
     call = f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
+    print(p.returncode)
     
     tmp = pd.read_json("./c-stuff/data/results/test_hdf5-c_async.json")
     df_hdf5_async = tmp["hdf5-c-async-read"].tolist()

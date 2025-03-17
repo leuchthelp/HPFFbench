@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --wait
+#SBATCH --priority=TOP
 #SBATCH --partition=compute
 #SBATCH --account=ku0598
 #SBATCH --constraint="[cell02]"
