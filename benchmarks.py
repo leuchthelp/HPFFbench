@@ -1,10 +1,7 @@
-import func.datastruct as ds
 from func.datastruct import bcolors as color
 from mpi4py import MPI
-import json
-import shutil
-import os
-import argparse
+import func.datastruct as ds
+import os, shutil, json, argparse
 
 def create_ds(form, parallel=False):
     ds_zarr = ds.Datastruct()

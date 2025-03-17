@@ -1,9 +1,8 @@
-import netCDF4, zarr, h5py
-import numpy as np
-#import func.dev_logging as logger
-import multiprocessing as mp
-import time
 from mpi4py import MPI
+import netCDF4, zarr, h5py, time
+import numpy as np
+import multiprocessing as mp
+#import func.dev_logging as logger
 
 class bcolors:
     HEADER = '\033[95m'

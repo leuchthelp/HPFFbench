@@ -1,8 +1,12 @@
 from func.datastruct import bcolors as color
-import func.datastruct as ds
 import pandas as pd
-import os, shutil, subprocess, json
+import os, shutil, subprocess, json, time
     
+
+def delete_json(path):
+     if os.path.exists(path):
+            os.remove(path)
+        
     
 def show_header(ds_tmp):
     print(f"{color.OKGREEN}check header with format: {ds_tmp.engine}{color.ENDC}")
@@ -40,8 +44,15 @@ def runner_zarr(df, shape, chunks, variable, iterations, total_filesize, size_ch
     ## run benchmark on zarr python file
     print(f"{color.OKBLUE}bench zarr with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     
-    p = subprocess.Popen(f"python benchmarks.py -b 1 -v {variable} -i {iterations}".split())
+    #path  ="data/results/test-zarr-python.json"
+    #delete_json(path)
+    
+    call = f"python benchmarks.py -b 1 -v {variable} -i {iterations}"
+    p = subprocess.Popen(["sbatch", "slurm-scripts/run-anything.sh" , call])
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
     
     times = pd.read_json("data/results/test-zarr-python.json")[0].tolist()
     tmp = pd.DataFrame(data={"time taken": times, "format": f"zarr-python-{shape}-{chunks}", "run":index, "engine": "zarr-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
@@ -58,8 +69,15 @@ def runner_netcdf4(df, shape, chunks, variable, iterations, total_filesize, size
     ## run benchmark on netcdf4 python file
     print(f"{color.OKBLUE}bench netcdf4 with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     
-    p = subprocess.Popen(f"python benchmarks.py -b 2 -v {variable} -i {iterations}".split())
+    #path  ="data/results/test-netcdf4-python.json"
+    #delete_json(path)
+    
+    call = f"python benchmarks.py -b 2 -v {variable} -i {iterations}"
+    p = subprocess.Popen(["sbatch", "slurm-scripts/run-anything.sh" , call])
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
     
     times = pd.read_json("data/results/test-netcdf4-python.json")[0].tolist()
     tmp = pd.DataFrame(data={"time taken": times, "format": f"netcdf4-python-{shape}-{chunks}", "run":index, "engine": "netcdf4-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
@@ -75,8 +93,15 @@ def runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_ch
     ## run benchmark on hdf5 python file
     print(f"{color.OKBLUE}bench hdf5 with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     
-    p = subprocess.Popen(f"python benchmarks.py -b 3 -v {variable} -i {iterations}".split())
+    #path  ="data/results/test-hdf5-python.json"
+    #delete_json(path)
+         
+    call = f"python benchmarks.py -b 3 -v {variable} -i {iterations}"
+    p = subprocess.Popen(["sbatch", "slurm-scripts/run-anything.sh" , call])
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
     
     times = pd.read_json("data/results/test-hdf5-python.json")[0].tolist()
     tmp = pd.DataFrame(data={"time taken": times, "format": f"hdf5-python-{shape}-{chunks}", "run":index, "engine": "hdf5-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
@@ -96,8 +121,17 @@ def runner_netcdf4_c(df, shape, chunks, variable, iterations, total_filesize, si
     ## create netcdf4 C file - current not needed as file created by python benchmark is used
     
     ## run benchmark on netcdf4 C file
-    p = subprocess.Popen(f"./a.out -b 2 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+    
+    #path  ="c-stuff/data/results/test_netcdf4.json"
+    #delete_json(path)
+    
+    call = f"./a.out -b 2 -i {iterations} -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
+    
     tmp = pd.read_json("./c-stuff/data/results/test_netcdf4.json")
     df_netcdf4_c = tmp["netcdf4-read"].tolist()
     
@@ -116,12 +150,21 @@ def runner_hdf5_c(df, shape, chunks, variable, iterations, total_filesize, size_
     filesize = shape[0]
 
     ## create hdf5 C file
-    p = subprocess.Popen(f"./a.out -c 1 -s {filesize}".split(), cwd="./c-stuff")
+    call = f"./a.out -c 1 -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
 
     ## run benchmark on hdf5 C file
-    p = subprocess.Popen(f"./a.out -b 1 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+    
+    #path  ="c-stuff/data/results/test_hdf5-c.json"
+    #delete_json(path)
+    
+    call = f"./a.out -b 1 -i {iterations} -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
 
     tmp= pd.read_json("./c-stuff/data/results/test_hdf5-c.json")
     df_hdf5_c = tmp["hdf5-c-read"].tolist()
@@ -141,12 +184,22 @@ def runner_hdf5_c_parallel(df, shape, chunks, variable, iterations, total_filesi
     filesize = shape[0]
     
     ## create hdf5 C file parallel 
-    p = subprocess.Popen(f"mpiexec -n  {mpi_ranks} ./a.out -c 4 -s {filesize}".split(), cwd="./c-stuff")
+    call = f"mpiexec -n  {mpi_ranks} ./a.out -c 4 -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
+
     
     ## run benchmark on hdf5 C file parallel
-    p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+    
+    #path  ="c-stuff/data/results/test_hdf5-c_parallel.json"
+    #delete_json(path)
+    
+    call = f"mpiexec -n {mpi_ranks} ./a.out -b 4 -i {iterations} -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
     
     tmp= pd.read_json("./c-stuff/data/results/test_hdf5-c_parallel.json")
     df_hdf5_c_parallel = tmp["hdf5-c-read-parallel"].tolist()
@@ -166,12 +219,21 @@ def runner_hdf5_c_async(df, shape, chunks, variable, iterations, total_filesize,
     filesize = shape[0]
     
     ## create hdf5-vol-async C file 
-    p = subprocess.Popen(f"mpiexec -n  {mpi_ranks} ./a.out -c 5 -s {filesize}".split(), cwd="./c-stuff")
+    call = f"mpiexec -n  {mpi_ranks} ./a.out -c 5 -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
     
     ## run benchmark on hdf5-vol-async C file
-    p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+    
+    #path  ="c-stuff/data/results/test_hdf5-c_async.json"
+    #delete_json(path)
+    
+    call = f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
     
     tmp = pd.read_json("./c-stuff/data/results/test_hdf5-c_async.json")
     df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
@@ -191,12 +253,21 @@ def runner_hdf5_c_subfiling(df, shape, chunks, variable, iterations, total_files
     filesize = shape[0]
     
     ## create hdf5-subfiling C file 
-    p = subprocess.Popen(f"mpiexec -n  {mpi_ranks} ./a.out -c 6 -s {filesize}".split(), cwd="./c-stuff")
+    call = f"mpiexec -n  {mpi_ranks} ./a.out -c 6 -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
     
     ## run benchmark on hdf5-subfiling C file
-    p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
+    
+    #path  ="c-stuff/data/results/test_hdf5-c_subfiling.json"
+    #delete_json(path)
+    
+    call = f"mpiexec -n {mpi_ranks} ./a.out -b 6 -i {iterations} -s {filesize}"
+    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
+    
+    #while not os.path.exists(path):
+    #    time.sleep(wait_time)
     
     tmp = pd.read_json("./c-stuff/data/results/test_hdf5_subfiling.json")
     df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
@@ -207,7 +278,7 @@ def runner_hdf5_c_subfiling(df, shape, chunks, variable, iterations, total_files
     ## delete hdf5-subfiling C file - current not possible due to the unique structure of subfiling 
     
     return df
-    
+
 
 def bench_variable(setup, df, variable, iterations, mpi_ranks):
     index = 0
@@ -224,11 +295,13 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
             size_chunks = calc_chunksize(chunks=chunks)
         
         print(f"{color.WARNING}create Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        
         with open("data/tmp/run_config.json", "w") as f:
             json.dump(run, f)
         
         ## create Zarr, NetCDF4 and HDF5 file sequentially 
-        p = subprocess.Popen(f"python benchmarks.py -c".split())
+        call = "python benchmarks.py -c"
+        p = subprocess.Popen(["sbatch", "slurm-scripts/run-anything.sh" , call])
         p.wait()
         
         df = runner_zarr(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index)
@@ -239,7 +312,6 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         
         
         # setup metadata for c-runs
-        filesize = shape[0]
         size_chunks = [None, None]
         total_filesize = calc_chunksize(chunks=shape)
         
@@ -253,63 +325,11 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         
         df = runner_hdf5_c_subfiling(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks)
         
+        
         index +=1
         df.to_json("data/plotting/plotting_bench_variable.json")
-    
 
-def bench_complete(setup, df):
-    index = 0
-    
-    for run in setup.values():
-        
-        variable = []
-        shape = []
-        chunks = []
-        size_chunks = []
-                
-        for key in run.keys():
-            variable.append(key)
-            shape.append(run[key][0])
-            chunks.append(run[key][1])
-            
-        for i in range(len(chunks)):    
-            tmp = calc_chunksize(chunks=chunks[i])
-            size_chunks.append(tmp)
-            
-    
-        print(f"{color.WARNING}create Datasets for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        #create_ds(form=run)
-        
-        print(f"{color.OKBLUE}bench zarr for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr")
-        ds_zarr.read("bench_complete", variable=variable, iterations=10)
-        
-        tmp = pd.DataFrame(data={"time taken": ds_zarr.log, "format": f"{ds_zarr.engine}-{shape}-{chunks}", "run":index, "engine": ds_zarr.engine})
-        df = pd.concat([df, tmp], ignore_index=True)
-        
-        print(f"{color.OKBLUE}bench netcdf4 for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        ds_netcdf4 = ds.Datastruct()
-        ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
-        ds_netcdf4.read("bench_complete", variable=variable, iterations=10)
-        
-        tmp = pd.DataFrame(data={"time taken": ds_netcdf4.log, "format": f"{ds_netcdf4.engine}-{shape}-{chunks}", "run":index, "engine": ds_netcdf4.engine})
-        df= pd.concat([df, tmp], ignore_index=True)
-        
-        
-        print(f"{color.OKBLUE}bench hdf5 for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        ds_hdf5 = ds.Datastruct()
-        ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5")
-        ds_hdf5.read("bench_complete", variable=variable, iterations=10)
-
-        tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine})
-        df = pd.concat([df, tmp], ignore_index=True)
-        
-        index +=1
-    
-    
-    df.to_json("data/plotting/plotting_bench_complete.json")
- 
+wait_time = 5
         
 def main():
     
