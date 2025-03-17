@@ -12,3 +12,4 @@ data/datasets/
 data/loggings/
 c-stuff/data/datasets/
 c-stuff/out/
+slurm-scripts/test.sh

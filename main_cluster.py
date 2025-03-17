@@ -118,19 +118,17 @@ def runner_netcdf4_c(df, shape, chunks, variable, iterations, total_filesize, si
     # netcd-c
     filesize = shape[0]
     
+    print(f"{color.WARNING}create netcdf4-c Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     ## create netcdf4 C file - current not needed as file created by python benchmark is used
     
     ## run benchmark on netcdf4 C file
-    
-    #path  ="c-stuff/data/results/test_netcdf4.json"
-    #delete_json(path)
+    print(f"{color.OKBLUE}bench netcdf-c with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     
     call = f"./a.out -b 2 -i {iterations} -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
     
-    #while not os.path.exists(path):
-    #    time.sleep(wait_time)
+    print(p.returncode)
     
     tmp = pd.read_json("./c-stuff/data/results/test_netcdf4.json")
     df_netcdf4_c = tmp["netcdf4-read"].tolist()
@@ -149,22 +147,22 @@ def runner_hdf5_c(df, shape, chunks, variable, iterations, total_filesize, size_
     # hdf-c
     filesize = shape[0]
 
+    print(f"{color.WARNING}create hdf5-c Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     ## create hdf5 C file
     call = f"./a.out -c 1 -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
+    
+    print(p.returncode)
 
     ## run benchmark on hdf5 C file
-    
-    #path  ="c-stuff/data/results/test_hdf5-c.json"
-    #delete_json(path)
+    print(f"{color.OKBLUE}bench hdf5-c with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     
     call = f"./a.out -b 1 -i {iterations} -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
     
-    #while not os.path.exists(path):
-    #    time.sleep(wait_time)
+    print(p.returncode)
 
     tmp= pd.read_json("./c-stuff/data/results/test_hdf5-c.json")
     df_hdf5_c = tmp["hdf5-c-read"].tolist()
@@ -183,23 +181,21 @@ def runner_hdf5_c_parallel(df, shape, chunks, variable, iterations, total_filesi
     # hdf-c-parallel
     filesize = shape[0]
     
+    print(f"{color.WARNING}create hdf5-c parallel Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     ## create hdf5 C file parallel 
     call = f"mpiexec -n  {mpi_ranks} ./a.out -c 4 -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
+    print(p.returncode)
 
     
     ## run benchmark on hdf5 C file parallel
-    
-    #path  ="c-stuff/data/results/test_hdf5-c_parallel.json"
-    #delete_json(path)
+    print(f"{color.OKBLUE}bench hdf5-c parallel with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     
     call = f"mpiexec -n {mpi_ranks} ./a.out -b 4 -i {iterations} -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
-    
-    #while not os.path.exists(path):
-    #    time.sleep(wait_time)
+    print(p.returncode)
     
     tmp= pd.read_json("./c-stuff/data/results/test_hdf5-c_parallel.json")
     df_hdf5_c_parallel = tmp["hdf5-c-read-parallel"].tolist()
@@ -218,22 +214,18 @@ def runner_hdf5_c_async(df, shape, chunks, variable, iterations, total_filesize,
     # hdf5-c-async
     filesize = shape[0]
     
+    print(f"{color.WARNING}create hdf5-c async Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     ## create hdf5-vol-async C file 
     call = f"mpiexec -n  {mpi_ranks} ./a.out -c 5 -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
     
     ## run benchmark on hdf5-vol-async C file
-    
-    #path  ="c-stuff/data/results/test_hdf5-c_async.json"
-    #delete_json(path)
-    
+    print(f"{color.OKBLUE}bench hdf5-c async with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+       
     call = f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
-    
-    #while not os.path.exists(path):
-    #    time.sleep(wait_time)
     
     tmp = pd.read_json("./c-stuff/data/results/test_hdf5-c_async.json")
     df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
@@ -253,21 +245,19 @@ def runner_hdf5_c_subfiling(df, shape, chunks, variable, iterations, total_files
     filesize = shape[0]
     
     ## create hdf5-subfiling C file 
+    print(f"{color.WARNING}create hdf5-c subfiling Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     call = f"mpiexec -n  {mpi_ranks} ./a.out -c 6 -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
     p.wait()
+    print(p.returncode)
     
     ## run benchmark on hdf5-subfiling C file
-    
-    #path  ="c-stuff/data/results/test_hdf5-c_subfiling.json"
-    #delete_json(path)
+    print(f"{color.OKBLUE}bench hdf5-c parallel with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     
     call = f"mpiexec -n {mpi_ranks} ./a.out -b 6 -i {iterations} -s {filesize}"
     p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call],  cwd="./c-stuff")
     p.wait()
-    
-    #while not os.path.exists(path):
-    #    time.sleep(wait_time)
+    print(p.returncode)
     
     tmp = pd.read_json("./c-stuff/data/results/test_hdf5_subfiling.json")
     df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
