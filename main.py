@@ -86,10 +86,11 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         with open("data/tmp/run_config.json", "w") as f:
             json.dump(run, f)
         
+        ## create Zarr, NetCDF4 and HDF5 file sequentially 
         p = subprocess.Popen(f"python benchmarks.py -c".split())
         p.wait()
         
-        # zarr python
+        ## run benchmark on zarr python file
         print(f"{color.OKBLUE}bench zarr with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
         
         p = subprocess.Popen(f"python benchmarks.py -b 1 -v {variable}".split())
@@ -99,10 +100,11 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": times, "format": f"zarr-python-{shape}-{chunks}", "run":index, "engine": "zarr-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
+        ## delete zarr python file
         if os.path.exists("data/datasets/test_dataset.zarr"):
             shutil.rmtree("data/datasets/test_dataset.zarr")
         
-        # netcdf python
+        ## run benchmark on netcdf4 python file
         print(f"{color.OKBLUE}bench netcdf4 with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
         
         p = subprocess.Popen(f"python benchmarks.py -b 2 -v {variable}".split())
@@ -112,7 +114,9 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": times, "format": f"netcdf4-python-{shape}-{chunks}", "run":index, "engine": "netcdf4-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df= pd.concat([df, tmp], ignore_index=True)
         
-        # hdf5 python
+        ## delete netcdf4 python file - current still need for a later c run of netcdf4
+        
+        ## run benchmark on hdf5 python file
         print(f"{color.OKBLUE}bench hdf5 with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
              
         p = subprocess.Popen(f"python benchmarks.py -b 3 -v {variable}".split())
@@ -122,6 +126,7 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": times, "format": f"hdf5-python-{shape}-{chunks}", "run":index, "engine": "hdf5-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
+         ## delete hdf5 python file
         if os.path.exists("data/datasets/test_dataset.h5"):
             os.remove("data/datasets/test_dataset.h5")
         
@@ -133,6 +138,10 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         
         
         # netcd-c
+        
+        ## create netcdf4 C file - current not needed as file created by python benchmark is used
+        
+        ## run benchmark on netcdf4 C file
         p = subprocess.Popen(f"./a.out -b 2 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         tmp = pd.read_json("./c-stuff/data/results/test_netcdf4.json")
@@ -141,11 +150,19 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{c_chunks}", "run":index, "engine": "netcdf4-c", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-
+        ## delete netcdf4 file
         if os.path.exists("data/datasets/test_dataset.nc"):
             os.remove("data/datasets/test_dataset.nc")
 
+
+
         # hdf-c
+        
+        ## create hdf5 C file
+        p = subprocess.Popen(f"./a.out -c 1 -s {filesize}".split(), cwd="./c-stuff")
+        p.wait()
+        
+        ## run benchmark on hdf5 C file
         p = subprocess.Popen(f"./a.out -b 1 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
@@ -155,11 +172,19 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True) 
         
-
+        ## delete hdf5 C file
         if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
             os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5")
 
+
+
         # hdf-c-parallel
+        
+        ## create hdf5 C file parallel 
+        p = subprocess.Popen(f"mpiexec -n  {mpi_ranks} ./a.out -c 4 -s {filesize}".split(), cwd="./c-stuff")
+        p.wait()
+        
+        ## run benchmark on hdf5 C file parallel
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
@@ -169,11 +194,19 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": df_hdf5_c_parallel, "format": f"hdf5-c-parallel{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c-parallel", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-
+        ## delete hdf5 C file parallel
         if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
             os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5") 
 
+
+
         # hdf5-c-async
+        
+        ## create hdf5-vol-async C file 
+        p = subprocess.Popen(f"mpiexec -n  {mpi_ranks} ./a.out -c 5 -s {filesize}".split(), cwd="./c-stuff")
+        p.wait()
+        
+        ## run benchmark on hdf5-vol-async C file
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
@@ -183,11 +216,19 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-async", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-
+        ## delete hdf5-vol-async file C parallel
         if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5"):
             os.remove("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5")
 
+
+
         # hdf5-c-subfiling
+        
+        ## create hdf5-subfiling C file 
+        p = subprocess.Popen(f"mpiexec -n  {mpi_ranks} ./a.out -c 6 -s {filesize}".split(), cwd="./c-stuff")
+        p.wait()
+        
+        ## run benchmark on hdf5-subfiling C file
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
 
@@ -195,7 +236,9 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
 
         tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-subfiling", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
-        df = pd.concat([df, tmp], ignore_index=True) 
+        df = pd.concat([df, tmp], ignore_index=True)
+        
+        ## delete hdf5-subfiling C file - current not possible due to the unique structure of subfiling 
         
         index +=1
         df.to_json("data/plotting/plotting_bench_variable.json")
@@ -257,7 +300,7 @@ def bench_complete(setup, df):
         
 def main():
     
-    iterations = 10
+    iterations = 5
     variable = "X"
     mpi_ranks = 4
     
@@ -265,22 +308,22 @@ def main():
             "run01": {"X": ([1 * 134217728], [])},
             "run02": {"X": ([2 * 134217728], [])},
             "run03": {"X": ([3 * 134217728], [])},
-            #"run04": {"X": ([4 * 134217728], [])},
-            #"run05": {"X": ([5 * 134217728], [])},
-            #"run06": {"X": ([6 * 134217728], [])},
-            #"run07": {"X": ([7 * 134217728], [])},
-            #"run08": {"X": ([8 * 134217728], [])},
-            #"run09": {"X": ([9 * 134217728], [])},
-            #"run10": {"X": ([10 * 134217728], [])},
-            #"run11": {"X": ([20 * 134217728], [])},
-            #"run12": {"X": ([30 * 134217728], [])},
-            #"run13": {"X": ([40 * 134217728], [])},
-            #"run14": {"X": ([50 * 134217728], [])},
-            #"run15": {"X": ([60 * 134217728], [])},
-            #"run16": {"X": ([70 * 134217728], [])},
-            #"run17": {"X": ([80 * 134217728], [])},
-            #"run18": {"X": ([90 * 134217728], [])},
-            #"run19": {"X": ([100 * 134217728], [])},
+            "run04": {"X": ([4 * 134217728], [])},
+            "run05": {"X": ([5 * 134217728], [])},
+            "run06": {"X": ([6 * 134217728], [])},
+            "run07": {"X": ([7 * 134217728], [])},
+            "run08": {"X": ([8 * 134217728], [])},
+            "run09": {"X": ([9 * 134217728], [])},
+            "run10": {"X": ([10 * 134217728], [])},
+            "run11": {"X": ([20 * 134217728], [])},
+            "run12": {"X": ([30 * 134217728], [])},
+            "run13": {"X": ([40 * 134217728], [])},
+            "run14": {"X": ([50 * 134217728], [])},
+            "run15": {"X": ([60 * 134217728], [])},
+            "run16": {"X": ([70 * 134217728], [])},
+            "run17": {"X": ([80 * 134217728], [])},
+            "run18": {"X": ([90 * 134217728], [])},
+            "run19": {"X": ([100 * 134217728], [])},
             
             
             #"run06": {"X": ([faktor * 512, 512, 512], [faktor * 512, 512, 128])},
