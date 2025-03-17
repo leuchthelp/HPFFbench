@@ -1,3 +1,9 @@
+.out
+.h5
+.nc
+.zarr
+.config
+.Zone.Identifier
 .idea/
 .vscode/
 func/__pycache__/

@@ -4,8 +4,7 @@ import os
 import pandas as pd
 import shutil
 import subprocess
-
-from mpi4py import MPI
+import json
 
 def create_ds(form, parallel=False):
     ds_zarr = ds.Datastruct()
@@ -13,7 +12,7 @@ def create_ds(form, parallel=False):
     ds_netcdf4 = ds.Datastruct()
     #new.create(path="data/test_dataset.zarr", shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
     
-    if parallel is False or MPI.COMM_WORLD.rank == 0:
+    if parallel is False:
         if os.path.exists("data/datasets/test_dataset.zarr"):
             shutil.rmtree("data/datasets/test_dataset.zarr")
         else:
@@ -61,6 +60,10 @@ def calc_chunksize(chunks):
     if res > 1024:
         res /= 1024
         size = "MB"
+        
+    if res > 1:
+        res /= 1024
+        size = "GB"
 
     return (res, size)
 
@@ -73,116 +76,125 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         shape = run[variable][0]
         chunks = run[variable][1]
         
+        total_filesize = calc_chunksize(chunks=shape)
+        
+        size_chunks = [None, None]
         if len(chunks) != 0:
             size_chunks = calc_chunksize(chunks=chunks)
-        else:
-            size_chunks = calc_chunksize(chunks=shape)
         
-        print(f"{color.WARNING}create Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
-        create_ds(form=run)
+        print(f"{color.WARNING}create Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        with open("data/tmp/run_config.json", "w") as f:
+            json.dump(run, f)
         
-        print(f"{color.OKBLUE}bench zarr with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
-        ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr")
-        ds_zarr.read("bench_variable", variable=variable, iterations=iterations)
+        p = subprocess.Popen(f"python benchmarks.py -c".split())
+        p.wait()
         
-        tmp = pd.DataFrame(data={"time taken": ds_zarr.log, "format": f"{ds_zarr.engine}-{shape}-{chunks}", "run":index, "engine": ds_zarr.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+        # zarr python
+        print(f"{color.OKBLUE}bench zarr with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        
+        p = subprocess.Popen(f"python benchmarks.py -b 1 -v {variable}".split())
+        p.wait()
+        
+        times = pd.read_json("data/results/test-zarr-python.json")[0].tolist()
+        tmp = pd.DataFrame(data={"time taken": times, "format": f"zarr-python-{shape}-{chunks}", "run":index, "engine": "zarr-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-        if MPI.COMM_WORLD.rank == 0:
-            if os.path.exists("data/datasets/test_dataset.zarr"):
-                shutil.rmtree("data/datasets/test_dataset.zarr")
+        if os.path.exists("data/datasets/test_dataset.zarr"):
+            shutil.rmtree("data/datasets/test_dataset.zarr")
         
-        print(f"{color.OKBLUE}bench netcdf4 with shape: {shape} and chunks: {chunks}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
-        ds_netcdf4 = ds.Datastruct()
-        ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
-        ds_netcdf4.read("bench_variable", variable=variable, iterations=iterations)
-        ds_netcdf4.dataset.close()
+        # netcdf python
+        print(f"{color.OKBLUE}bench netcdf4 with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
         
-        tmp = pd.DataFrame(data={"time taken": ds_netcdf4.log, "format": f"{ds_netcdf4.engine}-{shape}-{chunks}", "run":index, "engine": ds_netcdf4.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+        p = subprocess.Popen(f"python benchmarks.py -b 2 -v {variable}".split())
+        p.wait()
+        
+        times = pd.read_json("data/results/test-netcdf4-python.json")[0].tolist()
+        tmp = pd.DataFrame(data={"time taken": times, "format": f"netcdf4-python-{shape}-{chunks}", "run":index, "engine": "netcdf4-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df= pd.concat([df, tmp], ignore_index=True)
         
-        print(f"{color.OKBLUE}bench hdf5 with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
-        ds_hdf5 = ds.Datastruct()
-        ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5")
-        ds_hdf5.read("bench_variable", variable=variable, iterations=iterations)
-        ds_hdf5.dataset.close()
+        # hdf5 python
+        print(f"{color.OKBLUE}bench hdf5 with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+             
+        p = subprocess.Popen(f"python benchmarks.py -b 3 -v {variable}".split())
+        p.wait()
 
-        tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine, "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+        times = pd.read_json("data/results/test-hdf5-python.json")[0].tolist()
+        tmp = pd.DataFrame(data={"time taken": times, "format": f"hdf5-python-{shape}-{chunks}", "run":index, "engine": "hdf5-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-        if MPI.COMM_WORLD.rank == 0:
-            if os.path.exists("data/datasets/test_dataset.h5"):
-                os.remove("data/datasets/test_dataset.h5")
+        if os.path.exists("data/datasets/test_dataset.h5"):
+            os.remove("data/datasets/test_dataset.h5")
         
+        
+        # setup metadata for c-runs
         filesize = shape[0]
-        c_chunks = []
+        c_chunks = [None, None]
         c_filesize = calc_chunksize(chunks=shape)
         
         
         # netcd-c
         p = subprocess.Popen(f"./a.out -b 2 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
-        tmp = pd.read_json("./c-stuff/test_netcdf4.json")
+        tmp = pd.read_json("./c-stuff/data/results/test_netcdf4.json")
         df_netcdf4_c = tmp["netcdf4-read"].tolist()
 
-        tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{filesize}", "run":index, "engine": "netcdf4-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        tmp = pd.DataFrame(data={"time taken": df_netcdf4_c, "format": f"netcdf4-c-{filesize}-{c_chunks}", "run":index, "engine": "netcdf4-c", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-        if MPI.COMM_WORLD.rank == 0:
-            if os.path.exists("data/datasets/test_dataset.nc"):
-                os.remove("data/datasets/test_dataset.nc")
+
+        if os.path.exists("data/datasets/test_dataset.nc"):
+            os.remove("data/datasets/test_dataset.nc")
 
         # hdf-c
         p = subprocess.Popen(f"./a.out -b 1 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
-        tmp= pd.read_json("./c-stuff/test_hdf5-c.json")
+        tmp= pd.read_json("./c-stuff/data/results/test_hdf5-c.json")
         df_hdf5_c = tmp["hdf5-c-read"].tolist()
         
-        tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_c, "format": f"hdf5-c-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True) 
         
-        if MPI.COMM_WORLD.rank == 0:
-            if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
-                os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5")
+
+        if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
+            os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5")
 
         # hdf-c-parallel
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 4 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
-        tmp= pd.read_json("./c-stuff/test_hdf5-c_parallel.json")
+        tmp= pd.read_json("./c-stuff/data/results/test_hdf5-c_parallel.json")
         df_hdf5_c_parallel = tmp["hdf5-c-read-parallel"].tolist()
 
-        tmp = pd.DataFrame(data={"time taken": df_hdf5_c_parallel, "format": f"hdf5-c-parallel{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c-parallel", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_c_parallel, "format": f"hdf5-c-parallel{filesize}-{c_chunks}", "run":index, "engine": "hdf5-c-parallel", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-        if MPI.COMM_WORLD.rank == 0:
-            if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
-                os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5") 
+
+        if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c.h5"):
+            os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5") 
 
         # hdf5-c-async
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 5 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
         
-        tmp = pd.read_json("./c-stuff/test_hdf5-c_async.json")
+        tmp = pd.read_json("./c-stuff/data/results/test_hdf5-c_async.json")
         df_hdf5_async = tmp["hdf5-c-async-read"].tolist()
 
-        tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-async", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_async, "format": f"hdf5-async-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-async", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True)
         
-        if MPI.COMM_WORLD.rank == 0:
-            if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5"):
-                os.remove("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5")
+
+        if os.path.exists("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5"):
+            os.remove("c-stuff/data/datasets/test_dataset_hdf5-c_async.h5")
 
         # hdf5-c-subfiling
         p = subprocess.Popen(f"mpiexec -n {mpi_ranks} ./a.out -b 6 -i {iterations} -s {filesize}".split(), cwd="./c-stuff")
         p.wait()
 
-        tmp = pd.read_json("./c-stuff/test_hdf5_subfiling.json")
+        tmp = pd.read_json("./c-stuff/data/results/test_hdf5_subfiling.json")
         df_hdf5_subfiling = tmp["hdf5-subfiling-read"].tolist()
 
-        tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-subfiling", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
+        tmp = pd.DataFrame(data={"time taken": df_hdf5_subfiling, "format": f"hdf5-subfiling-{filesize}-{c_chunks}", "run":index, "engine": "hdf5-subfiling", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{c_filesize[0]} {c_filesize[1]}"})
         df = pd.concat([df, tmp], ignore_index=True) 
         
         index +=1
@@ -241,28 +253,6 @@ def bench_complete(setup, df):
     
     
     df.to_json("data/plotting/plotting_bench_complete.json")
-    
-    variable = ["X"]
-    shape = [134217728]
-    chunks = [134217728]
-    size_chunks = []
-    
-    index = 1
-    
-    for i in range(len(chunks)):    
-            tmp = calc_chunksize(chunks=chunks[i])
-            size_chunks.append(tmp)
-    
-    print(f"{color.OKBLUE}bench zarr for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-    ds_tmp = ds.Datastruct()
-    ds_tmp.engine = "async_hdf5-c"
-    ds_tmp.read("bench_async_c", iterations=10) 
-    
-    tmp = pd.DataFrame(data={"time taken": ds_tmp.log, "format": f"{ds_tmp.engine}-{shape}-{chunks}", "run":index, "engine": ds_tmp.engine})
-    df = pd.concat([df, tmp], ignore_index=True) 
-    
-    
-    df.to_json("data/plotting/plotting_bench_async-c.json") 
  
         
 def main():
@@ -275,22 +265,22 @@ def main():
             "run01": {"X": ([1 * 134217728], [])},
             "run02": {"X": ([2 * 134217728], [])},
             "run03": {"X": ([3 * 134217728], [])},
-            "run04": {"X": ([4 * 134217728], [])},
-            "run05": {"X": ([5 * 134217728], [])},
-            "run06": {"X": ([6 * 134217728], [])},
-            "run07": {"X": ([7 * 134217728], [])},
-            "run08": {"X": ([8 * 134217728], [])},
-            "run09": {"X": ([9 * 134217728], [])},
-            "run10": {"X": ([10 * 134217728], [])},
-            "run11": {"X": ([20 * 134217728], [])},
-            "run12": {"X": ([30 * 134217728], [])},
-            "run13": {"X": ([40 * 134217728], [])},
-            "run14": {"X": ([50 * 134217728], [])},
-            "run15": {"X": ([60 * 134217728], [])},
-            "run16": {"X": ([70 * 134217728], [])},
-            "run17": {"X": ([80 * 134217728], [])},
-            "run18": {"X": ([90 * 134217728], [])},
-            "run19": {"X": ([100 * 134217728], [])},
+            #"run04": {"X": ([4 * 134217728], [])},
+            #"run05": {"X": ([5 * 134217728], [])},
+            #"run06": {"X": ([6 * 134217728], [])},
+            #"run07": {"X": ([7 * 134217728], [])},
+            #"run08": {"X": ([8 * 134217728], [])},
+            #"run09": {"X": ([9 * 134217728], [])},
+            #"run10": {"X": ([10 * 134217728], [])},
+            #"run11": {"X": ([20 * 134217728], [])},
+            #"run12": {"X": ([30 * 134217728], [])},
+            #"run13": {"X": ([40 * 134217728], [])},
+            #"run14": {"X": ([50 * 134217728], [])},
+            #"run15": {"X": ([60 * 134217728], [])},
+            #"run16": {"X": ([70 * 134217728], [])},
+            #"run17": {"X": ([80 * 134217728], [])},
+            #"run18": {"X": ([90 * 134217728], [])},
+            #"run19": {"X": ([100 * 134217728], [])},
             
             
             #"run06": {"X": ([faktor * 512, 512, 512], [faktor * 512, 512, 128])},

@@ -12,4 +12,4 @@
 # Begin of section with executable commands
 set -e
 ls -l
-srun --cpu_bind=cores --distribution=block:cyclic python main.py
+srun --cpu_bind=cores --cpu-freq=High --distribution=block:cyclic python main.py

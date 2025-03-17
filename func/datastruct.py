@@ -4,9 +4,6 @@ import numpy as np
 import multiprocessing as mp
 import time
 from mpi4py import MPI
-from ctypes import *
-
-cfunc = CDLL("./c-stuff/shared.out")
 
 class bcolors:
     HEADER = '\033[95m'
@@ -213,9 +210,7 @@ class Datastruct:
                 
                 for i in range(iterations):
                     print(f"i: {i} for variable: {variable}")
-                    #arr = np.zeros((512, 512, 512))
                     start = time.monotonic()
-                    #rself.dataset[variable].read_direct(arr)
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
                 
