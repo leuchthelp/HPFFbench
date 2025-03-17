@@ -7,7 +7,6 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=0
 #SBATCH --cpu-freq=High
-#SBATCH --cpu_bind=cores
 #SBATCH --distribution=block:cyclic
 #SBATCH --time=08:00:00
 #SBATCH --output=log.%j.txt
