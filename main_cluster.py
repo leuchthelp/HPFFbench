@@ -1,6 +1,7 @@
 from func.datastruct import bcolors as color
 import pandas as pd
-import os, shutil, subprocess, json, time
+import mpi4py as MPI
+import os, shutil, subprocess, json
     
 
 def delete_json(path):
@@ -315,7 +316,6 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         index +=1
         df.to_json("data/plotting/plotting_bench_variable.json")
 
-wait_time = 5
         
 def main():
     

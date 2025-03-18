@@ -33,7 +33,7 @@ if [ "$mpi_enabled" = "$w" ]; then
     
     export OMPI_MCA_io="romio321"          # basic optimisation of I/O
     export UCX_TLS="shm,rc_mlx5,rc_x,self" # for jobs using LESS than 150 nodes
-    export UCX_TLS="shm,dc_mlx5,dc_x,self" # for jobs using MORE than 150 nodes
+    #export UCX_TLS="shm,dc_mlx5,dc_x,self" # for jobs using MORE than 150 nodes
     export UCX_UNIFIED_MODE="y"            
     
     export OMPI_MCA_coll_tuned_use_dynamic_rules="true"
