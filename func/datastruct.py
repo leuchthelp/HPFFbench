@@ -197,7 +197,7 @@ class Datastruct:
             case "zarr":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
@@ -208,7 +208,7 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
@@ -219,7 +219,7 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
