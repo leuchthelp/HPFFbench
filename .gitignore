@@ -3,7 +3,7 @@
 *.nc
 *.zarr
 *.config
-*.Zone.Identifier
+*.Identifier
 .idea/
 .vscode/
 func/__pycache__/

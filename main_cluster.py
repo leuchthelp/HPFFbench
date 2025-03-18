@@ -149,11 +149,6 @@ def runner_hdf5_c(df, shape, chunks, variable, iterations, total_filesize, size_
 
     print(f"{color.WARNING}create hdf5-c Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     ## create hdf5 C file
-    call = f"./a.out -c 1 -s {filesize}"
-    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
-    p.wait()
-    
-    print(p.returncode)
 
     ## run benchmark on hdf5 C file
     print(f"{color.OKBLUE}bench hdf5-c with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
@@ -183,10 +178,6 @@ def runner_hdf5_c_parallel(df, shape, chunks, variable, iterations, total_filesi
     
     print(f"{color.WARNING}create hdf5-c parallel Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     ## create hdf5 C file parallel 
-    call = f"mpiexec -n  {mpi_ranks} ./a.out -c 4 -s {filesize}"
-    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
-    p.wait()
-    print(p.returncode)
 
     
     ## run benchmark on hdf5 C file parallel
@@ -216,10 +207,6 @@ def runner_hdf5_c_async(df, shape, chunks, variable, iterations, total_filesize,
     
     print(f"{color.WARNING}create hdf5-c async Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
     ## create hdf5-vol-async C file 
-    call = f"mpiexec -n  {mpi_ranks} ./a.out -c 5 -s {filesize}"
-    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
-    p.wait()
-    print(p.returncode)
     
     ## run benchmark on hdf5-vol-async C file
     print(f"{color.OKBLUE}bench hdf5-c async with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
@@ -248,10 +235,6 @@ def runner_hdf5_c_subfiling(df, shape, chunks, variable, iterations, total_files
     
     ## create hdf5-subfiling C file 
     print(f"{color.WARNING}create hdf5-c subfiling Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
-    call = f"mpiexec -n  {mpi_ranks} ./a.out -c 6 -s {filesize}"
-    p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call], cwd="./c-stuff")
-    p.wait()
-    print(p.returncode)
     
     ## run benchmark on hdf5-subfiling C file
     print(f"{color.OKBLUE}bench hdf5-c parallel with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
@@ -286,7 +269,7 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         if len(chunks) != 0:
             size_chunks = calc_chunksize(chunks=chunks)
         
-        print(f"{color.WARNING}create Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        print(f"{color.WARNING}create python Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
         
         with open("data/tmp/run_config.json", "w") as f:
             json.dump(run, f)
@@ -304,8 +287,19 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         
         
         # setup metadata for c-runs
+        filesize = shape[0]
         size_chunks = [None, None]
         total_filesize = calc_chunksize(chunks=shape)
+        
+        print(f"{color.WARNING}create c Datasets for variable: {variable} with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+        
+        call_create_hdf5 = f"./a.out -c 1 -s {filesize}"
+        call_create_hdf5_parallel = f"mpiexec -n  {mpi_ranks} ./a.out -c 4 -s {filesize}"
+        call_create_hdf5_async = f"mpiexec -n  {mpi_ranks} ./a.out -c 5 -s {filesize}"
+        call_create_hdf5_subfiling = f"mpiexec -n  {mpi_ranks} ./a.out -c 6 -s {filesize}"
+        p = subprocess.Popen(["sbatch", "../slurm-scripts/run-anything.sh" , call_create_hdf5, "False", call_create_hdf5_parallel, call_create_hdf5_async, call_create_hdf5_subfiling], cwd="./c-stuff")
+        p.wait()
+        print(p.returncode)
         
         df = runner_netcdf4_c(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index)
         

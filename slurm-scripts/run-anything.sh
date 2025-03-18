@@ -18,6 +18,8 @@
 set -e
 ls -l
 
+$1
+
 mpi_enabled=$2
 w=true
 
@@ -39,4 +41,9 @@ if [ "$mpi_enabled" = "$w" ]; then
 
 fi
 
-$1
+
+$3
+
+$4
+
+$5
