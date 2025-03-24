@@ -63,7 +63,7 @@ module load py-rich
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
 #. ~/spack/share/spack/setup-env.sh
 #. $SPACK_ROOT/share/spack/setup-env.sh
-#. $(spack location -i lmod)/lmod/lmod/init/bash
+#. $(spack location -i lmod)/lmod/lmod/init/profile
 # module load hdf5 netcdf-c py-mpi4py openmpi python py-pip py-netcdf4 py-h5py py-rich py-numpy git nano gcc
 # module load hdf5-vol-async/develop
 
