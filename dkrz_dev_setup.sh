@@ -6,13 +6,17 @@
 #sudo apt update
 #sudo apt install bzip2 ca-certificates g++ gcc gfortran git gzip lsb-release patch python3 tar unzip xz-utils zstd
 
-compiler=apple-clang
+compiler=gcc@11.4.0
 
 # Install spack and add to local shell
 git clone --depth=2 --branch=releases/v0.23 https://github.com/spack/spack.git ~/spack
+
+export SPACK_ROOT=/home/dev/spack
 . spack/share/spack/setup-env.sh
 . $SPACK_ROOT/share/spack/setup-env.sh
 
+
+spack compiler find
 #echo remove gcc@11.4.0 compiler if present and rebuild with spack
 #echo simple sanity check to ensure matching compiler is correctly installed and available
 #spack compiler remove gcc@11.4.0
