@@ -125,9 +125,9 @@ def runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_ch
     tmp = pd.DataFrame(data={"time taken": times, "format": f"hdf5-python-{shape}-{chunks}", "run":index, "engine": "hdf5-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
     df = pd.concat([df, tmp], ignore_index=True)
     
-     ## delete hdf5 python file
-    if os.path.exists("data/datasets/test_dataset.h5"):
-        os.remove("data/datasets/test_dataset.h5")
+    ## delete hdf5 python file
+    #if os.path.exists("data/datasets/test_dataset.h5"):
+    #    os.remove("data/datasets/test_dataset.h5")
         
     return df
 
@@ -323,6 +323,18 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         
         df = runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index)
         
+        df = runner_netcdf4_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks)
+        
+        df = runner_hdf5_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks)
+        
+        
+        ## delete zarr python file
+        if os.path.exists("data/datasets/test_dataset.zarr"):
+            shutil.rmtree("data/datasets/test_dataset.zarr")
+        
+        ## delete hdf5 python file
+        if os.path.exists("data/datasets/test_dataset.h5"):
+            os.remove("data/datasets/test_dataset.h5")
         
         # setup metadata for c-runs
         filesize = shape[0]
