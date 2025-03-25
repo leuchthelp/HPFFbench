@@ -75,6 +75,25 @@ def bench_netcdf4(iterations, variable=None):
         json.dump(ds_netcdf4.log, f)
 
 
+def bench_parallel_netcdf4(iterations, variable=None):
+    
+    if variable == None:
+        variable = []
+        with open("data/tmp/run_config.json") as json_file:
+            tmp = json.load(json_file)
+
+            for keys in tmp.keys():
+                variable.append(keys)
+ 
+    ds_netcdf4 = ds.Datastruct()
+    ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc", parallel=True)
+    ds_netcdf4.read("bench_complete_parallel", variable=variable, iterations=iterations)
+    ds_netcdf4.dataset.close()
+    
+    with open("data/results/test-netcdf4-python-parallel.json", "w") as f:
+        json.dump(ds_netcdf4.log, f)
+
+
 def bench_hdf5(iterations, variable=None):
     
     if variable == None:
@@ -91,6 +110,25 @@ def bench_hdf5(iterations, variable=None):
     ds_hdf5.dataset.close()
     
     with open("data/results/test-hdf5-python.json", "w") as f:
+        json.dump(ds_hdf5.log, f)
+ 
+ 
+def bench_parallel_hdf5(iterations, variable=None):
+    
+    if variable == None:
+        variable = []
+        with open("data/tmp/run_config.json") as json_file:
+            tmp = json.load(json_file)  
+
+            for keys in tmp.keys():
+                variable.append(keys)  
+        
+    ds_hdf5 = ds.Datastruct()
+    ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5", parallel=True)
+    ds_hdf5.read("bench_complete_parallel", variable=variable, iterations=iterations)
+    ds_hdf5.dataset.close()
+    
+    with open("data/results/test-hdf5-python-parallel.json", "w") as f:
         json.dump(ds_hdf5.log, f)
  
  
@@ -115,6 +153,12 @@ def main():
             bench_netcdf4(args.iterations, args.variable)
         case 3:
             bench_hdf5(args.iterations, args.variable)
+        case 4:
+            print("parallel zarr not implemented")
+        case 5:
+            bench_parallel_netcdf4(args.iterations, args.variable)
+        case 6: 
+            bench_parallel_hdf5(args.iterations, args.variable)
         case -1:
             
             if args.create:

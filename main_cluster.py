@@ -89,6 +89,23 @@ def runner_netcdf4(df, shape, chunks, variable, iterations, total_filesize, size
     return df
 
 
+def runner_netcdf4_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks):
+    ## run benchmark on netcdf4 python file
+    print(f"{color.OKBLUE}bench netcdf4 parallel with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+    
+    call = f"mpiexec -n {mpi_ranks} python benchmarks.py -b 5 -v {variable} -i {iterations}"
+    p = subprocess.Popen(["sbatch", "slurm-scripts/run-anything.sh" , call])
+    p.wait()
+    
+    times = pd.read_json("data/results/test-netcdf4-python-parallel.json")[0].tolist()
+    tmp = pd.DataFrame(data={"time taken": times, "format": f"netcdf4-python-parallel-{shape}-{chunks}", "run":index, "engine": "netcdf4-python-parallel", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+    df= pd.concat([df, tmp], ignore_index=True)
+    
+    ## delete netcdf4 python file - current still need for a later c run of netcdf4
+    
+    return df
+
+
 def runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index):
 
     ## run benchmark on hdf5 python file
@@ -111,6 +128,26 @@ def runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_ch
      ## delete hdf5 python file
     if os.path.exists("data/datasets/test_dataset.h5"):
         os.remove("data/datasets/test_dataset.h5")
+        
+    return df
+
+
+def runner_hdf5_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks):
+
+    ## run benchmark on hdf5 python file
+    print(f"{color.OKBLUE}bench hdf5 parallel with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+    
+    call = f"mpiexec -n {mpi_ranks} python benchmarks.py -b 6 -v {variable} -i {iterations}"
+    p = subprocess.Popen(["sbatch", "slurm-scripts/run-anything.sh" , call])
+    p.wait()
+    
+    times = pd.read_json("data/results/test-hdf5-python-parallel.json")[0].tolist()
+    tmp = pd.DataFrame(data={"time taken": times, "format": f"hdf5-python-parallel-{shape}-{chunks}", "run":index, "engine": "hdf5-python-parallel", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+    df = pd.concat([df, tmp], ignore_index=True)
+    
+    ## delete hdf5 python file
+    #if os.path.exists("data/datasets/test_dataset.h5"):
+    #    os.remove("data/datasets/test_dataset.h5")
         
     return df
 
@@ -171,7 +208,7 @@ def runner_hdf5_c(df, shape, chunks, variable, iterations, total_filesize, size_
         os.remove("c-stuff/data/datasets/test_dataset_hdf5-c.h5")
         
     return df
-  
+ 
     
 def runner_hdf5_c_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks):
     # hdf-c-parallel

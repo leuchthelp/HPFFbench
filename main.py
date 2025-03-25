@@ -49,8 +49,8 @@ def runner_zarr(df, shape, chunks, variable, iterations, total_filesize, size_ch
     df = pd.concat([df, tmp], ignore_index=True)
     
     ## delete zarr python file
-    if os.path.exists("data/datasets/test_dataset.zarr"):
-        shutil.rmtree("data/datasets/test_dataset.zarr")
+    #if os.path.exists("data/datasets/test_dataset.zarr"):
+    #    shutil.rmtree("data/datasets/test_dataset.zarr")
         
     return df
 
@@ -71,6 +71,22 @@ def runner_netcdf4(df, shape, chunks, variable, iterations, total_filesize, size
     return df
 
 
+def runner_netcdf4_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks):
+    ## run benchmark on netcdf4 python file
+    print(f"{color.OKBLUE}bench netcdf4 parallel with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk:  {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+    
+    p = subprocess.Popen(f"mpiexec -n {mpi_ranks} python benchmarks.py -b 5 -v {variable} -i {iterations}".split())
+    p.wait()
+    
+    times = pd.read_json("data/results/test-netcdf4-python-parallel.json")[0].tolist()
+    tmp = pd.DataFrame(data={"time taken": times, "format": f"netcdf4-python-parallel-{shape}-{chunks}", "run":index, "engine": "netcdf4-python-parallel", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+    df= pd.concat([df, tmp], ignore_index=True)
+    
+    ## delete netcdf4 python file - current still need for a later c run of netcdf4
+    
+    return df
+
+
 def runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index):
 
     ## run benchmark on hdf5 python file
@@ -83,9 +99,28 @@ def runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_ch
     tmp = pd.DataFrame(data={"time taken": times, "format": f"hdf5-python-{shape}-{chunks}", "run":index, "engine": "hdf5-python", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
     df = pd.concat([df, tmp], ignore_index=True)
     
-     ## delete hdf5 python file
-    if os.path.exists("data/datasets/test_dataset.h5"):
-        os.remove("data/datasets/test_dataset.h5")
+    ## delete hdf5 python file
+    #if os.path.exists("data/datasets/test_dataset.h5"):
+    #    os.remove("data/datasets/test_dataset.h5")
+        
+    return df
+
+
+def runner_hdf5_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks):
+
+    ## run benchmark on hdf5 python file
+    print(f"{color.OKBLUE}bench hdf5 parallel with shape: {shape} and chunks: {chunks}, total filesize: {total_filesize[0]} {total_filesize[1]}, filesize per chunk: {size_chunks[0]} {size_chunks[1]}{color.ENDC}")
+    
+    p = subprocess.Popen(f"mpiexec -n {mpi_ranks} python benchmarks.py -b 6 -v {variable} -i {iterations}".split())
+    p.wait()
+    
+    times = pd.read_json("data/results/test-hdf5-python-parallel.json")[0].tolist()
+    tmp = pd.DataFrame(data={"time taken": times, "format": f"hdf5-python-parallel-{shape}-{chunks}", "run":index, "engine": "hdf5-python-parallel", "total filesize": f"{total_filesize[0]} {total_filesize[1]}", "filesize per chunk": f"{size_chunks[0]} {size_chunks[1]}"})
+    df = pd.concat([df, tmp], ignore_index=True)
+    
+    ## delete hdf5 python file
+    #if os.path.exists("data/datasets/test_dataset.h5"):
+    #    os.remove("data/datasets/test_dataset.h5")
         
     return df
 
@@ -238,9 +273,21 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         
         df = runner_hdf5(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index)
         
+        df = runner_netcdf4_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks)
         
-        # setup metadata for c-runs
-        filesize = shape[0]
+        df = runner_hdf5_parallel(df, shape, chunks, variable, iterations, total_filesize, size_chunks, index, mpi_ranks)
+        
+        
+        ## delete zarr python file
+        if os.path.exists("data/datasets/test_dataset.zarr"):
+            shutil.rmtree("data/datasets/test_dataset.zarr")
+        
+        ## delete hdf5 python file
+        if os.path.exists("data/datasets/test_dataset.h5"):
+            os.remove("data/datasets/test_dataset.h5")
+        
+        
+        # setup metadata for c-run
         size_chunks = [None, None]
         total_filesize = calc_chunksize(chunks=shape)
         
@@ -257,60 +304,6 @@ def bench_variable(setup, df, variable, iterations, mpi_ranks):
         index +=1
         df.to_json("data/plotting/plotting_bench_variable.json")
     
-
-def bench_complete(setup, df):
-    index = 0
-    
-    for run in setup.values():
-        
-        variable = []
-        shape = []
-        chunks = []
-        size_chunks = []
-                
-        for key in run.keys():
-            variable.append(key)
-            shape.append(run[key][0])
-            chunks.append(run[key][1])
-            
-        for i in range(len(chunks)):    
-            tmp = calc_chunksize(chunks=chunks[i])
-            size_chunks.append(tmp)
-            
-    
-        print(f"{color.WARNING}create Datasets for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        #create_ds(form=run)
-        
-        print(f"{color.OKBLUE}bench zarr for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr")
-        ds_zarr.read("bench_complete", variable=variable, iterations=10)
-        
-        tmp = pd.DataFrame(data={"time taken": ds_zarr.log, "format": f"{ds_zarr.engine}-{shape}-{chunks}", "run":index, "engine": ds_zarr.engine})
-        df = pd.concat([df, tmp], ignore_index=True)
-        
-        print(f"{color.OKBLUE}bench netcdf4 for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        ds_netcdf4 = ds.Datastruct()
-        ds_netcdf4.open(mode="r+", engine="netcdf4", path="data/datasets/test_dataset.nc")
-        ds_netcdf4.read("bench_complete", variable=variable, iterations=10)
-        
-        tmp = pd.DataFrame(data={"time taken": ds_netcdf4.log, "format": f"{ds_netcdf4.engine}-{shape}-{chunks}", "run":index, "engine": ds_netcdf4.engine})
-        df= pd.concat([df, tmp], ignore_index=True)
-        
-        
-        print(f"{color.OKBLUE}bench hdf5 for variables: {variable} with shape: {shape} and chunks: {chunks}, filesize per chunk: {size_chunks}{color.ENDC}")
-        ds_hdf5 = ds.Datastruct()
-        ds_hdf5.open(mode="r+", engine="hdf5", path="data/datasets/test_dataset.h5")
-        ds_hdf5.read("bench_complete", variable=variable, iterations=10)
-
-        tmp = pd.DataFrame(data={"time taken": ds_hdf5.log, "format": f"{ds_hdf5.engine}-{shape}-{chunks}", "run":index, "engine": ds_hdf5.engine})
-        df = pd.concat([df, tmp], ignore_index=True)
-        
-        index +=1
-    
-    
-    df.to_json("data/plotting/plotting_bench_complete.json")
- 
         
 def main():
     
@@ -319,14 +312,14 @@ def main():
     mpi_ranks = 4
     
     setup = {
-            #"run01": {"X": ([1 * 134217728], [])},
-            #"run02": {"X": ([2 * 134217728], [])},
-            #"run03": {"X": ([3 * 134217728], [])},
-            #"run04": {"X": ([4 * 134217728], [])},
+            "run01": {"X": ([1 * 134217728], [])},
+            "run02": {"X": ([2 * 134217728], [])},
+            "run03": {"X": ([3 * 134217728], [])},
+            "run04": {"X": ([4 * 134217728], [])},
             "run05": {"X": ([5 * 134217728], [])},
             "run06": {"X": ([6 * 134217728], [])},
             "run07": {"X": ([7 * 134217728], [])},
-            "run08": {"X": ([8 * 134217728], [])},
+            #"run08": {"X": ([8 * 134217728], [])},
             #"run09": {"X": ([9 * 134217728], [])},
             #"run10": {"X": ([10 * 134217728], [])},
             #"run11": {"X": ([20 * 134217728], [])},

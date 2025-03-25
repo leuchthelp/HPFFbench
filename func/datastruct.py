@@ -36,9 +36,7 @@ class Datastruct:
         if type(engine) == str:
             self.engine = engine
             
-        if parallel == True:
-            self.parallel = parallel
-            
+        self.parallel = parallel            
             
         match self.engine:
             case "zarr":
@@ -94,14 +92,8 @@ class Datastruct:
             case "netcdf4":
                 if type(path) == str:
                     self.path = path
-                    
-                
-                match parallel:
-                    case True:
-                        print(f"{bcolors.WARNING}Setting up netcdf4 file{bcolors.ENDC}")
-                        root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=parallel)
-                    case False:
-                        root = netCDF4.Dataset(path, "w", format="NETCDF4")
+
+                root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=parallel)
 
                 root.createGroup("/")
                 used = 0
@@ -131,7 +123,9 @@ class Datastruct:
         return self
         
         
-    def open(self, mode, engine = None | str, path = None | str):
+    def open(self, mode, engine = None | str, path = None | str, parallel=False):
+        
+        self.parallel = parallel
         
         if type(path) == str:
             self.path = path
@@ -144,12 +138,23 @@ class Datastruct:
             
         match self.engine:
             case "zarr":
-                self.dataset = zarr.open(self.path, mode=self.mode ,zarr_version=3)
+                
+                if MPI.COMM_WORLD.rank == 0:
+                    self.dataset = zarr.open(self.path, mode=self.mode ,zarr_version=3)
+                    
+                                        
             case "hdf5":
-                self.dataset = h5py.File(self.path, mode=self.mode)
+                
+                if self.parallel: 
+                    self.dataset = h5py.File(self.path, mode=self.mode, driver="mpio", comm=MPI.COMM_WORLD)
+                else:
+                    self.dataset = h5py.File(self.path, mode=self.mode)
+                   
+                    
             case "netcdf4":    
-                self.dataset = netCDF4.Dataset(self.path, mode=self.mode, format="NETCDF4")
-        
+                self.dataset = netCDF4.Dataset(self.path, mode=self.mode, format="NETCDF4", parallel=self.parallel)
+
+                               
         return self
 
     
@@ -227,6 +232,84 @@ class Datastruct:
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
  
+ 
+    def __bench_variable_parallel(self, variable, iterations):
+        bench = []
+        
+        rank = MPI.COMM_WORLD.rank
+        rsize = MPI.COMM_WORLD.size
+        
+        match self.engine:
+            case "zarr":
+                
+                if rank == 0:
+                    print("currently unsupported")
+                #for i in range(iterations):
+                #    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                #    start = time.monotonic()
+                #    
+                #    total_size = self.dataset[f"{variable}"].shape[0]
+                #    size = int(total_size / rsize)
+                #    
+                #    rstart = rank * size
+                #    rend = rstart + size
+                #    self.dataset[variable][rstart:rend:]
+                #    
+                #    
+                #    bench.append(time.monotonic() - start)
+                
+                self.log = bench
+                #print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+                
+            case "hdf5":
+                
+                for i in range(iterations):
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    
+                    if rank == 0:
+                        start = time.monotonic()
+                    
+                           
+                    total_size = self.dataset[f"{variable}"].shape[0]
+                    size = int(total_size / rsize)
+                    
+                    rstart = rank * size
+                    rend = rstart + size
+                    
+                    #print(f"total_size: {total_size}, size: {size}, start: {start}, end: {end}")
+                    
+                    self.dataset[variable][rstart:rend:]
+                    
+                    if rank == 0:
+                        bench.append(time.monotonic() - start)
+                
+                if rank == 0:
+                    self.log = bench
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+                
+            case "netcdf4":
+                
+                for i in range(iterations):
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    
+                    if rank == 0:
+                        start = time.monotonic()
+                    
+                    total_size = self.dataset[f"{variable}"].shape[0]
+                    size = int(total_size / rsize)
+                    
+                    rstart = rank * size
+                    rend = rstart + size
+                    
+                    self.dataset[variable][rstart:rend:]
+                    
+                    if rank == 0:
+                        bench.append(time.monotonic() - start)
+                
+                if rank == 0:
+                    self.log = bench
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+  
   
     def __bench_complete(self, variable, iterations):
         bench = []
@@ -235,7 +318,7 @@ class Datastruct:
             case "zarr":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
                     start = time.monotonic()
                     
                     for var in variable:
@@ -249,7 +332,7 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
                     #arr = np.zeros((512, 512, 512))
                     start = time.monotonic()
                     
@@ -265,7 +348,7 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
                     start = time.monotonic()
                     
                     for var in variable:
@@ -274,6 +357,86 @@ class Datastruct:
                     bench.append(time.monotonic() - start)
                 
                 self.log = bench
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+ 
+ 
+    def __bench_complete_parallel(self, variable, iterations):
+        bench = []
+        rank = MPI.COMM_WORLD.rank
+        rsize = MPI.COMM_WORLD.size
+         
+        match self.engine:
+            case "zarr":
+                
+                if rank == 0:
+                    print("currently unsupported")
+                
+                #for i in range(iterations):
+                #    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                #    start = time.monotonic()
+                    
+                    #for var in variable:
+                        
+                        #    total_size = self.dataset[f"{var}"].shape[0]
+                        #    size = int(total_size / rsize)
+                        #    
+                        #    rstart = rank * size
+                        #    rend = rstart + size
+                        #    self.dataset[var][rstart:rend:]
+                    
+                #    bench.append(time.monotonic() - start)
+                
+                self.log = bench
+                #print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+                
+            case "hdf5":
+                
+                for i in range(iterations):
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    
+                    if rank == 0:
+                        start = time.monotonic()
+                    
+                    for var in variable:
+                        
+                        total_size = self.dataset[f"{var}"].shape[0]
+                        size = int(total_size / rsize)
+                    
+                        rstart = rank * size
+                        rend = rstart + size
+                    
+                        self.dataset[var][rstart:rend:]
+                    
+                    if rank == 0: 
+                        bench.append(time.monotonic() - start)
+                
+                if rank == 0:
+                    self.log = bench
+                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+                
+            case "netcdf4":
+                
+                for i in range(iterations):
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    
+                    if rank == 0:
+                        start = time.monotonic()
+                    
+                    for var in variable:
+                        
+                        total_size = self.dataset[f"{var}"].shape[0]
+                        size = int(total_size / rsize)
+                    
+                        rstart = rank * size
+                        rend = rstart + size
+                    
+                        self.dataset[var][rstart:rend:]
+                    
+                    if rank == 0:
+                        bench.append(time.monotonic() - start)
+                
+                if rank == 0:
+                    self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
  
  
@@ -300,6 +463,8 @@ class Datastruct:
             "variable": self.__read_variable,
             "bench_variable": self.__bench_variable,
             "bench_complete": self.__bench_complete,
+            "bench_variable_parallel": self.__bench_variable_parallel,
+            "bench_complete_parallel": self.__bench_complete_parallel,
         }
         
         #if logging:
