@@ -90,8 +90,9 @@ def bench_parallel_netcdf4(iterations, variable=None):
     ds_netcdf4.read("bench_complete_parallel", variable=variable, iterations=iterations)
     ds_netcdf4.dataset.close()
     
-    with open("data/results/test-netcdf4-python-parallel.json", "w") as f:
-        json.dump(ds_netcdf4.log, f)
+    if MPI.COMM_WORLD.rank == 0:
+        with open("data/results/test-netcdf4-python-parallel.json", "w") as f:
+            json.dump(ds_netcdf4.log, f)
 
 
 def bench_hdf5(iterations, variable=None):
@@ -128,8 +129,9 @@ def bench_parallel_hdf5(iterations, variable=None):
     ds_hdf5.read("bench_complete_parallel", variable=variable, iterations=iterations)
     ds_hdf5.dataset.close()
     
-    with open("data/results/test-hdf5-python-parallel.json", "w") as f:
-        json.dump(ds_hdf5.log, f)
+    if MPI.COMM_WORLD.rank == 0:
+        with open("data/results/test-hdf5-python-parallel.json", "w") as f:
+            json.dump(ds_hdf5.log, f)
  
  
 def main():

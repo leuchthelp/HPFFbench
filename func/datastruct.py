@@ -257,8 +257,11 @@ class Datastruct:
                 #    
                 #    
                 #    bench.append(time.monotonic() - start)
+                #    MPI.COMM_WORLD.Barrier()
                 
                 self.log = bench
+                
+                #MPI.COMM_WORLD.Barrier()
                 #print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
                 
             case "hdf5":
@@ -282,9 +285,12 @@ class Datastruct:
                     
                     if rank == 0:
                         bench.append(time.monotonic() - start)
+                    MPI.COMM_WORLD.Barrier()
                 
                 if rank == 0:
                     self.log = bench
+                    
+                MPI.COMM_WORLD.Barrier()
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
                 
             case "netcdf4":
@@ -305,9 +311,13 @@ class Datastruct:
                     
                     if rank == 0:
                         bench.append(time.monotonic() - start)
+                        
+                    MPI.COMM_WORLD.Barrier()
                 
                 if rank == 0:
                     self.log = bench
+                    
+                MPI.COMM_WORLD.Barrier()
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
   
   
@@ -385,8 +395,11 @@ class Datastruct:
                         #    self.dataset[var][rstart:rend:]
                     
                 #    bench.append(time.monotonic() - start)
+                # MPI.COMM_WORLD.Barrier()
                 
                 self.log = bench
+                
+                #MPI.COMM_WORLD.Barrier()
                 #print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
                 
             case "hdf5":
@@ -409,9 +422,13 @@ class Datastruct:
                     
                     if rank == 0: 
                         bench.append(time.monotonic() - start)
+                        
+                    MPI.COMM_WORLD.Barrier()
                 
                 if rank == 0:
                     self.log = bench
+                    
+                MPI.COMM_WORLD.Barrier()
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
                 
             case "netcdf4":
@@ -434,9 +451,13 @@ class Datastruct:
                     
                     if rank == 0:
                         bench.append(time.monotonic() - start)
+                        
+                    MPI.COMM_WORLD.Barrier()
                 
                 if rank == 0:
                     self.log = bench
+                    
+                MPI.COMM_WORLD.Barrier()
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
  
  
