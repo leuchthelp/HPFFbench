@@ -279,8 +279,6 @@ class Datastruct:
                     rstart = rank * size
                     rend = rstart + size
                     
-                    #print(f"total_size: {total_size}, size: {size}, start: {start}, end: {end}")
-                    
                     self.dataset[variable][rstart:rend:]
                     
                     if rank == 0:
@@ -300,6 +298,8 @@ class Datastruct:
                     
                     if rank == 0:
                         start = time.monotonic()
+                    
+                    self.dataset[f"{variable}"].set_collective(True)
                     
                     total_size = self.dataset[f"{variable}"].shape[0]
                     size = int(total_size / rsize)
