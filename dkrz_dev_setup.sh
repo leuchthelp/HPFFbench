@@ -49,12 +49,12 @@ spack install netcdf-c@4.9.2 build_system=cmake %$compiler
 module load netcdf-c
 spack install py-pip@23.1.2 %$compiler
 module load py-pip
+spack install py-mpi4py@4.0.1 %$compiler
+module load py-mpi4py
 spack install py-netcdf4@1.7.1 %$compiler
 module load py-netcdf4
 spack install py-h5py@3.12.1 %$compiler
 module load py-h5py
-spack install py-mpi4py@4.0.1 %$compiler
-module load py-mpi4py
 spack install py-rich %$compiler
 module load py-rich
 
