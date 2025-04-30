@@ -4,6 +4,7 @@
 #SBATCH --partition=compute
 #SBATCH --account=ku0598
 #SBATCH --constraint="[cell02]"
+#SBATCH --exclude=l10348
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=0
