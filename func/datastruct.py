@@ -122,6 +122,7 @@ class Datastruct:
         
         
     def open(self, mode, engine = None | str, path = None | str, parallel=False):
+        from mpi4py import MPI
         
         self.parallel = parallel
         
