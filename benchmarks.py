@@ -1,9 +1,10 @@
 from func.datastruct import bcolors as color
-from mpi4py import MPI
 import func.datastruct as ds
 import os, shutil, json, argparse
 
 def create_ds(form, selection, parallel=False):
+    
+    from mpi4py import MPI
     #new.create(path="data/test_dataset.zarr", shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
     match selection:
         case 1:
@@ -87,6 +88,8 @@ def bench_netcdf4(iterations, variable=None):
 
 def bench_parallel_netcdf4(iterations, variable=None):
     
+    from mpi4py import MPI
+    
     if variable == None:
         variable = []
         with open("data/tmp/run_config.json") as json_file:
@@ -125,6 +128,8 @@ def bench_hdf5(iterations, variable=None):
  
  
 def bench_parallel_hdf5(iterations, variable=None):
+    
+    from mpi4py import MPI
     
     if variable == None:
         variable = []

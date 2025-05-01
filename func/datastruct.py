@@ -1,8 +1,5 @@
-from mpi4py import MPI
 import netCDF4, zarr, h5py, time
 import numpy as np
-import multiprocessing as mp
-#import func.dev_logging as logger
 
 class bcolors:
     HEADER = '\033[95m'
@@ -32,7 +29,8 @@ class Datastruct:
         
     
     def create(self, path, form, engine, dtype="f8", parallel=False):
-            
+        from mpi4py import MPI
+
         if type(engine) == str:
             self.engine = engine
             
@@ -202,7 +200,7 @@ class Datastruct:
             case "zarr":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, size: {self.dataset[f"{variable}"].shape[0]}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
@@ -213,7 +211,7 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, size: {self.dataset[f"{variable}"].shape[0]}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
@@ -224,7 +222,7 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, size: {self.dataset[f"{variable}"].shape[0]}")
                     start = time.monotonic()
                     self.dataset[variable][:]
                     bench.append(time.monotonic() - start)
@@ -234,6 +232,8 @@ class Datastruct:
  
  
     def __bench_variable_parallel(self, variable, iterations):
+        from mpi4py import MPI
+        
         bench = []
         
         rank = MPI.COMM_WORLD.rank
@@ -245,7 +245,7 @@ class Datastruct:
                 if rank == 0:
                     print("currently unsupported")
                 #for i in range(iterations):
-                #    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                #    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {self.dataset[f"{variable}"].shape[0]}")
                 #    start = time.monotonic()
                 #    
                 #    total_size = self.dataset[f"{variable}"].shape[0]
@@ -267,7 +267,7 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {self.dataset[f"{variable}"].shape[0]}")
                     
                     if rank == 0:
                         start = time.monotonic()
@@ -294,7 +294,7 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {self.dataset[f"{variable}"].shape[0]}")
                     
                     if rank == 0:
                         start = time.monotonic()
@@ -328,7 +328,7 @@ class Datastruct:
             case "zarr":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, size: {self.dataset[f"{variable}"].shape[0]}")
                     start = time.monotonic()
                     
                     for var in variable:
@@ -342,7 +342,7 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, size: {self.dataset[f"{variable}"].shape[0]}")
                     #arr = np.zeros((512, 512, 512))
                     start = time.monotonic()
                     
@@ -358,7 +358,7 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, size: {self.dataset[f"{variable}"].shape[0]}")
                     start = time.monotonic()
                     
                     for var in variable:
@@ -371,6 +371,8 @@ class Datastruct:
  
  
     def __bench_complete_parallel(self, variable, iterations):
+        from mpi4py import MPI
+        
         bench = []
         rank = MPI.COMM_WORLD.rank
         rsize = MPI.COMM_WORLD.size
@@ -382,7 +384,7 @@ class Datastruct:
                     print("currently unsupported")
                 
                 #for i in range(iterations):
-                #    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                #    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {self.dataset[f"{variable}"].shape[0]}")
                 #    start = time.monotonic()
                     
                     #for var in variable:
@@ -405,7 +407,7 @@ class Datastruct:
             case "hdf5":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {self.dataset[f"{variable}"].shape[0]}")
                     
                     if rank == 0:
                         start = time.monotonic()
@@ -434,7 +436,7 @@ class Datastruct:
             case "netcdf4":
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {self.dataset[f"{variable}"].shape[0]}")
                     
                     if rank == 0:
                         start = time.monotonic()
@@ -487,23 +489,5 @@ class Datastruct:
             "bench_variable_parallel": self.__bench_variable_parallel,
             "bench_complete_parallel": self.__bench_complete_parallel,
         }
-        
-        #if logging:
-        #    proc = mp.Process(target=logger.run_logging, args=(f'{pattern}_{self.engine}_test.txt',))
-        #    proc.start()
-        #    print(f"pid: {proc.pid}")
-        #    
-        #    # give logger time to start up and get ready
-        #    print(f"{bcolors.WARNING} take some time to set up logger{bcolors.ENDC}")
-        #    time.sleep(3)
-              
-        
-        res = patterns[pattern](variable=variable, iterations=iterations)
-        
-        #if logging:
-        #    proc.kill()
-        #    proc.join()
-        #    proc.close()
-        #    pass
                 
-        return res
+        return patterns[pattern](variable=variable, iterations=iterations)
