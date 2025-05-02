@@ -3,7 +3,7 @@
 #SBATCH --partition=compute
 #SBATCH --account=ku0598
 #SBATCH --constraint="[cell02]"
-#SBATCH --nodes=1
+#SBATCH --nodes=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=0
 #SBATCH --cpu-freq=High
