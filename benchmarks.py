@@ -65,7 +65,28 @@ def bench_zarr(iterations, variable=None):
     
     with open("data/results/test-zarr-python.json", "w") as f:
         json.dump(ds_zarr.log, f)
+ 
     
+def bench_parallel_zarr(iterations, variable=None):
+    
+    from mpi4py import MPI
+    
+    if variable == None:
+        variable = []
+        with open("data/tmp/run_config.json") as json_file:
+            tmp = json.load(json_file)
+
+            for keys in tmp.keys():
+                variable.append(keys)
+ 
+    ds_zarr = ds.Datastruct()
+    ds_zarr.open(mode="r+", engine="zarr", path="data/datasets/test_dataset.zarr", parallel=True)
+    ds_zarr.read("bench_complete_parallel", variable=variable, iterations=iterations)
+    
+    if MPI.COMM_WORLD.rank == 0:
+        with open("data/results/test-zarr-python-parallel.json", "w") as f:
+            json.dump(ds_zarr.log, f)
+
 
 def bench_netcdf4(iterations, variable=None):
     
@@ -171,7 +192,7 @@ def main():
         case 3:
             bench_hdf5(args.iterations, args.variable)
         case 4:
-            print("parallel zarr not implemented")
+            bench_parallel_zarr(args.iterations, args.variable)
         case 5:
             bench_parallel_netcdf4(args.iterations, args.variable)
         case 6: 
