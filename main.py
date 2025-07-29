@@ -1,10 +1,10 @@
-from components.python.func.datastruct import bcolors as color
-from components.python.func.dev_utils import calc_chunksize
-from components.python.runners.c.hdf5 import runner_hdf5_c, runner_hdf5_c_parallel, runner_hdf5_c_async, runner_hdf5_c_subfiling
-from components.python.runners.c.netcdf4 import runner_netcdf4_c, runner_netcdf4_c_parallel
-from components.python.runners.python.hdf5 import runner_hdf5, runner_hdf5_parallel
-from components.python.runners.python.netcdf4 import runner_netcdf4, runner_netcdf4_parallel
-from components.python.runners.python.zarr import runner_zarr
+from components.func.datastruct import bcolors as color
+from components.func.dev_utils import calc_chunksize
+from components.runners.c.runner_hdf5 import runner_hdf5_c, runner_hdf5_c_parallel, runner_hdf5_c_async, runner_hdf5_c_subfiling
+from components.runners.c.runner_netcdf4 import runner_netcdf4_c, runner_netcdf4_c_parallel
+from components.runners.python.runner_hdf5 import runner_hdf5, runner_hdf5_parallel
+from components.runners.python.runner_netcdf4 import runner_netcdf4, runner_netcdf4_parallel
+from components.runners.python.runner_zarr import runner_zarr
 import pandas as pd
 import os, shutil, subprocess, json
 

@@ -1,5 +1,8 @@
 from func.datastruct import bcolors as color
 from func import datastruct as ds
+from bm_hdf5 import bench_hdf5, bench_parallel_hdf5
+from bm_netcdf4 import bench_netcdf4, bench_parallel_netcdf4
+from bm_zarr import bench_zarr, bench_parallel_zarr
 import os, shutil, json, argparse
 
 def create_ds(form, selection, parallel=False):
@@ -48,127 +51,6 @@ def create(selection, parallel=False):
     with open("components/python/data/tmp/run_config.json") as json_file:
         create_ds(json.load(json_file), selection, parallel=parallel)       
     
-
-def bench_zarr(iterations, variable=None):
-    
-    if variable == None:
-        variable = []
-        with open("components/python/data/tmp/run_config.json") as json_file:
-            tmp = json.load(json_file) 
-
-            for keys in tmp.keys():
-                variable.append(keys)
-    
-    ds_zarr = ds.Datastruct()
-    ds_zarr.open(mode="r+", engine="zarr", path="components/python/data/datasets/test_dataset.zarr")
-    ds_zarr.read("bench_complete", variable=variable, iterations=iterations)
-    
-    with open("components/python/data/results/test-zarr-python.json", "w") as f:
-        json.dump(ds_zarr.log, f)
- 
-    
-def bench_parallel_zarr(iterations, variable=None):
-    
-    from mpi4py import MPI
-    
-    if variable == None:
-        variable = []
-        with open("components/python/data/tmp/run_config.json") as json_file:
-            tmp = json.load(json_file)
-
-            for keys in tmp.keys():
-                variable.append(keys)
- 
-    ds_zarr = ds.Datastruct()
-    ds_zarr.open(mode="r+", engine="zarr", path="components/python/data/datasets/test_dataset.zarr", parallel=True)
-    ds_zarr.read("bench_complete_parallel", variable=variable, iterations=iterations)
-    
-    if MPI.COMM_WORLD.rank == 0:
-        with open("components/python/data/results/test-zarr-python-parallel.json", "w") as f:
-            json.dump(ds_zarr.log, f)
-
-
-def bench_netcdf4(iterations, variable=None):
-    
-    if variable == None:
-        variable = []
-        with open("components/python/data/tmp/run_config.json") as json_file:
-            tmp = json.load(json_file)
-
-            for keys in tmp.keys():
-                variable.append(keys)
- 
-    ds_netcdf4 = ds.Datastruct()
-    ds_netcdf4.open(mode="r+", engine="netcdf4", path="components/python/data/datasets/test_dataset.nc")
-    ds_netcdf4.read("bench_complete", variable=variable, iterations=iterations)
-    ds_netcdf4.dataset.close()
-    
-    with open("components/python/data/results/test-netcdf4-python.json", "w") as f:
-        json.dump(ds_netcdf4.log, f)
-
-
-def bench_parallel_netcdf4(iterations, variable=None):
-    
-    from mpi4py import MPI
-    
-    if variable == None:
-        variable = []
-        with open("components/python/data/tmp/run_config.json") as json_file:
-            tmp = json.load(json_file)
-
-            for keys in tmp.keys():
-                variable.append(keys)
- 
-    ds_netcdf4 = ds.Datastruct()
-    ds_netcdf4.open(mode="r+", engine="netcdf4", path="components/python/data/datasets/test_dataset.nc", parallel=True)
-    ds_netcdf4.read("bench_complete_parallel", variable=variable, iterations=iterations)
-    ds_netcdf4.dataset.close()
-    
-    if MPI.COMM_WORLD.rank == 0:
-        with open("components/python/data/results/test-netcdf4-python-parallel.json", "w") as f:
-            json.dump(ds_netcdf4.log, f)
-
-
-def bench_hdf5(iterations, variable=None):
-    
-    if variable == None:
-        variable = []
-        with open("components/python/data/tmp/run_config.json") as json_file:
-            tmp = json.load(json_file)  
-
-            for keys in tmp.keys():
-                variable.append(keys)  
-        
-    ds_hdf5 = ds.Datastruct()
-    ds_hdf5.open(mode="r+", engine="hdf5", path="components/python/data/datasets/test_dataset.h5")
-    ds_hdf5.read("bench_complete", variable=variable, iterations=iterations)
-    ds_hdf5.dataset.close()
-    
-    with open("components/python/data/results/test-hdf5-python.json", "w") as f:
-        json.dump(ds_hdf5.log, f)
- 
- 
-def bench_parallel_hdf5(iterations, variable=None):
-    
-    from mpi4py import MPI
-    
-    if variable == None:
-        variable = []
-        with open("components/python/data/tmp/run_config.json") as json_file:
-            tmp = json.load(json_file)  
-
-            for keys in tmp.keys():
-                variable.append(keys)  
-        
-    ds_hdf5 = ds.Datastruct()
-    ds_hdf5.open(mode="r+", engine="hdf5", path="components/python/data/datasets/test_dataset.h5", parallel=True)
-    ds_hdf5.read("bench_complete_parallel", variable=variable, iterations=iterations)
-    ds_hdf5.dataset.close()
-    
-    if MPI.COMM_WORLD.rank == 0:
-        with open("components/python/data/results/test-hdf5-python-parallel.json", "w") as f:
-            json.dump(ds_hdf5.log, f)
- 
  
 def main():
 
