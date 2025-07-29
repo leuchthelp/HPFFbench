@@ -1,3 +1,4 @@
+*.egg-info
 *.out
 *.h5
 *.nc
@@ -5,10 +6,7 @@
 *.config
 *.Identifier
 .idea/
-func/__pycache__/
 .venv/
-data/datasets/
-data/loggings/
 components/c/data/datasets/
 components/c/out/
 components/python/data/datasets/
