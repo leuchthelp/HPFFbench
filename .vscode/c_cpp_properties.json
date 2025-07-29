@@ -1,0 +1,34 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/netcdf-c-4.9.2-d33p7zrrtfu5vssi2b4utilk5jyluzsw/include",
+                "/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/include",
+                "/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/include",
+                "/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-vol-async-1.7-vbevlbxizecl24eswhgtycejo4lbfvft/include"
+            ],
+            "defines": [],
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "compilerPath": "/usr/bin/gcc",
+            "compilerArgs": [
+                "-I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/include ",
+                "-L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib ",
+                "-Wl,-rpath -Wl,/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib ",
+                "-lmpi ",
+                "-I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/netcdf-c-4.9.2-d33p7zrrtfu5vssi2b4utilk5jyluzsw/include ",
+                "-L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/netcdf-c-4.9.2-d33p7zrrtfu5vssi2b4utilk5jyluzsw/lib ",
+                "-lnetcdf ",
+                "-I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-vol-async-1.7-vbevlbxizecl24eswhgtycejo4lbfvft/include",
+                "-L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-vol-async-1.7-vbevlbxizecl24eswhgtycejo4lbfvft/lib",
+                "-I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/include ",
+                "-L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib ",
+                "-lhdf5_hl ",
+                "-lhdf5"
+            ]
+        }
+    ],
+    "version": 4
+}

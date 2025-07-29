@@ -5,11 +5,10 @@
 *.config
 *.Identifier
 .idea/
-.vscode/
 func/__pycache__/
 .venv/
 data/datasets/
 data/loggings/
-c-stuff/data/datasets/
-c-stuff/out/
-slurm-scripts/test.sh
+components/c/data/datasets/
+components/c/out/
+components/python/data/datasets/
