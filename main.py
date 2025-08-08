@@ -5,11 +5,13 @@ from components.runners.c.runner_netcdf4 import runner_netcdf4_c, runner_netcdf4
 from components.runners.python.runner_hdf5 import runner_hdf5, runner_hdf5_parallel
 from components.runners.python.runner_netcdf4 import runner_netcdf4, runner_netcdf4_parallel
 from components.runners.python.runner_zarr import runner_zarr
+from components.handler import Handler
 import pandas as pd
-import os, shutil, subprocess, json
+import os, shutil, subprocess, json, yaml
 
 
-#paths 
+#paths
+path_to_config = "components/handler/"
 
 path_to_c = "components/c"
 path_to_python = "components/python"
@@ -28,6 +30,22 @@ path_c_results = "components/c/data/results"
 path_py_results = "components/python/data/results"
 
 path_plotting = "components/visualize/plotting"
+
+paths = {
+    "path_to_config"    : "components/handler/",
+    "path_to_c"         : "components/c",
+    "path_to_python"    : "components/python",
+    "path_to_visuals"   : "components/visualize",
+    "path_c_benchmark"  : "components/c/benchmarks",
+    "path_py_benchmark" : "components/python/benchmarks",
+    "path_c_datasets"   : "components/c/data/datasets",
+    "path_py_datasets"  : "components/python/data/datasets",
+    "path_c_tmp"        : "components/c/data/tmp",
+    "path_py_tmp"       : "components/python/data/tmp",
+    "path_c_results"    : "components/c/data/results",
+    "path_py_results"   : "components/python/data/results",
+    "path_plotting"     : "components/visualize/plotting",
+}
     
 
 def bench_variable(setup, df, variable, iterations, mpi_ranks):
@@ -236,10 +254,31 @@ def main():
             }
     
     #bench_variable(setup, pd.DataFrame(), variable=variable, iterations=iterations, mpi_ranks=mpi_ranks)
-    bench_python(setup, pd.DataFrame(), variable=variable, iterations=iterations, mpi_ranks=mpi_ranks)
+    #bench_python(setup, pd.DataFrame(), variable=variable, iterations=iterations, mpi_ranks=mpi_ranks)
     #bench_c(setup, pd.DataFrame(), variable=variable, iterations=iterations, mpi_ranks=mpi_ranks)
     
+    tmp = {
+            "run01": {"X": [[1 * 134217728], []]},
+            "run02": {"X": [[2 * 134217728], []]},
+            "run03": {"X": [[3 * 134217728], []]},
+    }
     
+    new_setup = {
+        "formats": ["zarr", "hdf5", "netcdf4"],
+        "languages": ["c", "python"],
+        "paths": paths,
+        "iterations": 5,
+        "runs": tmp,
+        "range": [10, 90], 
+        "stepsize": 5,    
+    }
+    
+    with open(f"{path_to_config}config.yaml", "w") as file:
+        yaml.dump(new_setup, file)
+    
+    handler = Handler(path_to_config=path_to_config)
+    #handler.print_config()
+    #handler.print_uuid()
 
 if __name__=="__main__":
     main()

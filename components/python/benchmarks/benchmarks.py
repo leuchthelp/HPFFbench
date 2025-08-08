@@ -1,9 +1,10 @@
 from func.datastruct import bcolors as color
 from func import datastruct as ds
-from bm_hdf5 import bench_hdf5, bench_parallel_hdf5
-from bm_netcdf4 import bench_netcdf4, bench_parallel_netcdf4
-from bm_zarr import bench_zarr, bench_parallel_zarr
-import os, shutil, json, argparse
+from .bm_hdf5 import bench_hdf5, bench_parallel_hdf5
+from .bm_netcdf4 import bench_netcdf4, bench_parallel_netcdf4
+from .bm_zarr import bench_zarr, bench_parallel_zarr
+from dataclasses import dataclass
+import os, shutil, json, argparse, uuid, yaml
 
 def create_ds(form, selection, parallel=False):
     
@@ -51,6 +52,37 @@ def create(selection, parallel=False):
     with open("components/python/data/tmp/run_config.json") as json_file:
         create_ds(json.load(json_file), selection, parallel=parallel)       
     
+@dataclass
+class Benchmark:
+    
+    def __init__(self, handler_id, path_to_config):
+        
+        # Object config
+        self.handler_id = handler_id
+        self.uuid       = uuid.uuid4
+        self.config     = path_to_config
+        self.dir_path   = str
+        
+        # Benchmark config
+        self.parallel   = bool
+        self.par_backend= str
+        self.language   = str
+        self.format     = str
+        self.range      = list
+        self.stepsize   = int
+        self.iterations = int
+        
+        # Environment config
+        self.checkpoint = yaml
+        self.node       = int
+        self.node_info  = yaml
+        self.logger     = bool
+        
+        
+    
+    
+
+
  
 def main():
 

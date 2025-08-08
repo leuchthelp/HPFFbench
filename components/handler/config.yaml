@@ -1,0 +1,39 @@
+formats:
+- zarr
+- hdf5
+- netcdf4
+iterations: 5
+languages:
+- c
+- python
+paths:
+  path_c_benchmark: components/c/benchmarks
+  path_c_datasets: components/c/data/datasets
+  path_c_results: components/c/data/results
+  path_c_tmp: components/c/data/tmp
+  path_plotting: components/visualize/plotting
+  path_py_benchmark: components/python/benchmarks
+  path_py_datasets: components/python/data/datasets
+  path_py_results: components/python/data/results
+  path_py_tmp: components/python/data/tmp
+  path_to_c: components/c
+  path_to_config: components/handler/
+  path_to_python: components/python
+  path_to_visuals: components/visualize
+range:
+- 10
+- 90
+runs:
+  run01:
+    X:
+    - - 134217728
+    - []
+  run02:
+    X:
+    - - 268435456
+    - []
+  run03:
+    X:
+    - - 402653184
+    - []
+stepsize: 5
