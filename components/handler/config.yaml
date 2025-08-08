@@ -1,3 +1,4 @@
+backend: all
 formats:
 - zarr
 - hdf5

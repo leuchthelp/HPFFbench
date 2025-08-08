@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from func import bcolors
-from python.benchmarks import Benchmark
+from python.benchmarks import BenchmarkManager
 import uuid
 import yaml
 import os.path
@@ -17,23 +17,26 @@ class Handler:
     
     """
     
-    path_to_config: str
+    path_to_config: None | str
     
     
-    def __init__(self, path_to_config: str):
+    def __init__(self, path_to_config: None | str):
         
-        self.__uuid = uuid.uuid4  
+        self.__uuid = uuid.uuid4 
         
         self._load_config(path_to_config)
         self._check_paths()
-            
+        self._check_supported_languages()
+             
              
     def print_config(self):
         print(self.config)
+     
         
     def print_uuid(self):
         print(self.__uuid)
-        
+    
+
     def _load_config(self, path_to_config):
         
         print(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
@@ -60,6 +63,41 @@ class Handler:
         
         print(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
     
-         
-    def _create_benchmark(self):
-        pass
+    
+    def _check_supported_languages(self):      
+        supported = ["c", "python"]
+        
+        for language in self.config["languages"]:     
+            try:
+                assert language in supported
+                
+                print(bcolors.OKBLUE + f"Language: {language} is supported" + bcolors.ENDC)
+                self._check_supported_formats(language=language)
+            except AssertionError:
+                print(bcolors.FAIL + f"Language: {language} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
+    
+    
+    def _check_supported_formats(self, language: str):     
+        supported = ["hdf5", "zarr", "netcdf4"]
+        
+        for format in self.config["formats"]:         
+            try:
+                assert format in supported
+                
+                print(bcolors.OKBLUE + f"Format: {format} is supported." + bcolors.ENDC)
+                self._create_benchmark_manager(language=language, format=format)
+            except AssertionError:
+                print(bcolors.FAIL + f"Format: {format} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
+      
+        
+    def _create_benchmark_manager(self, language: str, format: str):
+        for _, run in self.config["runs"].items():
+            
+            parallel    = False
+            par_backend = None
+            range       = self.config["range"]
+            stepsize    = self.config["stepsize"]
+            iterations  = self.config["iterations"]
+            
+            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations" + bcolors.ENDC)
+            BenchmarkManager(handler_id=str(self.__uuid), run=run, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations)

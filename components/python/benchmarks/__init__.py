@@ -1,1 +1,1 @@
-from .benchmarks import Benchmark
+from .benchmark_manager import BenchmarkManager
