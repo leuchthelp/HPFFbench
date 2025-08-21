@@ -94,9 +94,10 @@ class Handler:
                     try:
                         par_backend = self.config["par_backend"]
                     except KeyError:
-                        raise ValueError(bcolors.FAIL + f"Parallel was set to {parallel} but not parallel backend has been configured within the config.yaml. Please select one of the available backends." + bcolors.ENDC)
+                        raise ValueError(bcolors.FAIL + f"\"parallel \" was set to {parallel} but not parallel backend has been configured within the config.yaml. Please select one of the available backends." + bcolors.ENDC)
             
             except KeyError:
+                print(bcolors.WARNING + f"\"parallel \" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)
                 parallel = False
             
             range       = self.config["range"]

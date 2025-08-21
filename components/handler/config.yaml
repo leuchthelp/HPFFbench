@@ -6,7 +6,6 @@ iterations: 5
 languages:
 - c
 - python
-parallel: false
 paths:
   path_c_benchmark: components/c/benchmarks
   path_c_datasets: components/c/data/datasets
