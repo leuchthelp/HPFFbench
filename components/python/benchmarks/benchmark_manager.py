@@ -2,6 +2,7 @@ from func.datastruct import bcolors
 from dataclasses import dataclass
 import uuid
 import yaml
+import asyncio
 
 @dataclass
 class BenchmarkManager:
@@ -39,3 +40,20 @@ class BenchmarkManager:
         self._node       = int
         self._node_info  = yaml
         self._logger     = bool
+        
+        
+        try:
+            assert self._check_par_backend()
+        except:
+            print(f"Parallel backend {self.par_backend} selected is not supported") 
+        
+        self._run_benchmark()
+    
+    
+    def _check_par_backend(self):
+        pass
+    
+    def _run_benchmark(self):
+        
+        
+        pass

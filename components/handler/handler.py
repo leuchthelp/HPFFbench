@@ -89,6 +89,10 @@ class Handler:
             except AssertionError:
                 print(bcolors.FAIL + f"Format: {format} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
       
+    
+    def _create_benchmark(self, language: str, format: str):
+        self._create_benchmark_manager(language=language, format=format)
+  
         
     def _create_benchmark_manager(self, language: str, format: str):
         for _, run in self.config["runs"].items():
