@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from func import bcolors
+from func.datastruct import bcolors
 from python.benchmarks import BenchmarkManager
 import uuid
 import yaml
@@ -54,11 +54,10 @@ class Handler:
     
     def _check_paths(self):
         print(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
+        failed = False
         for key, path in self.config["paths"].items():
-            try:
-                assert os.path.exists(path)
-            except AssertionError:
-                print(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
+            if not os.path.exists(path): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
+        
         print(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
         
         print(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
@@ -68,37 +67,38 @@ class Handler:
         supported = ["c", "python"]
         
         for language in self.config["languages"]:     
-            try:
-                assert language in supported
-                
-                print(bcolors.OKBLUE + f"Language: {language} is supported" + bcolors.ENDC)
-                self._check_supported_formats(language=language)
-            except AssertionError:
-                print(bcolors.FAIL + f"Language: {language} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
-    
+            if language not in supported: raise ValueError(bcolors.FAIL + f"Language: {language} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
+            
+            print(bcolors.OKBLUE + f"Language: {language} is supported" + bcolors.ENDC)
+            self._check_supported_formats(language=language)
     
     def _check_supported_formats(self, language: str):     
         supported = ["hdf5", "zarr", "netcdf4"]
         
         for format in self.config["formats"]:         
-            try:
-                assert format in supported
+            if format not in supported: raise ValueError(bcolors.FAIL + f"Format: {format} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
                 
-                print(bcolors.OKBLUE + f"Format: {format} is supported." + bcolors.ENDC)
-                self._create_benchmark_manager(language=language, format=format)
-            except AssertionError:
-                print(bcolors.FAIL + f"Format: {format} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
-      
-    
-    def _create_benchmark(self, language: str, format: str):
-        self._create_benchmark_manager(language=language, format=format)
-  
+            print(bcolors.OKBLUE + f"Format: {format} is supported." + bcolors.ENDC)
+            self._create_benchmark_manager(language=language, format=format)
+
         
     def _create_benchmark_manager(self, language: str, format: str):
         for _, run in self.config["runs"].items():
             
-            parallel    = False
+            parallel = False
             par_backend = None
+            try:
+                parallel = self.config["parallel"]
+                
+                if parallel is True: 
+                    try:
+                        par_backend = self.config["par_backend"]
+                    except KeyError:
+                        raise ValueError(bcolors.FAIL + f"Parallel was set to {parallel} but not parallel backend has been configured within the config.yaml. Please select one of the available backends." + bcolors.ENDC)
+            
+            except KeyError:
+                parallel = False
+            
             range       = self.config["range"]
             stepsize    = self.config["stepsize"]
             iterations  = self.config["iterations"]

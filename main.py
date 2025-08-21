@@ -270,8 +270,7 @@ def main():
         "iterations": 5,
         "runs": tmp,
         "range": [10, 90], 
-        "stepsize": 5,  
-        "backend": "all",  
+        "stepsize": 5,
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:
