@@ -6,6 +6,8 @@ iterations: 5
 languages:
 - c
 - python
+par_backend: All
+parallel: Both
 paths:
   path_c_benchmark: components/c/benchmarks
   path_c_datasets: components/c/data/datasets
@@ -16,6 +18,7 @@ paths:
   path_py_datasets: components/python/data/datasets
   path_py_results: components/python/data/results
   path_py_tmp: components/python/data/tmp
+  path_to_benchmarks: components/benchmarks
   path_to_c: components/c
   path_to_config: components/handler/
   path_to_python: components/python

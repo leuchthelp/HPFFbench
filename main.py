@@ -32,6 +32,7 @@ path_py_results = "components/python/data/results"
 path_plotting = "components/visualize/plotting"
 
 paths = {
+    "path_to_benchmarks": "components/benchmarks",
     "path_to_config"    : "components/handler/",
     "path_to_c"         : "components/c",
     "path_to_python"    : "components/python",
@@ -271,11 +272,13 @@ def main():
         "runs": tmp,
         "range": [10, 90], 
         "stepsize": 5,
+        "parallel": "Both",
+        "par_backend": "All"
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:
         yaml.dump(new_setup, file)
-    
+        
     handler = Handler(path_to_config=path_to_config)
     #handler.print_config()
     #handler.print_uuid()

@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from func.datastruct import bcolors
 from python.benchmarks import BenchmarkManager
+from pathlib import Path
 import uuid
 import yaml
 import os.path
+import asyncio
+
 
 @dataclass
 class Handler:
@@ -22,10 +25,14 @@ class Handler:
     
     def __init__(self, path_to_config: None | str):
         
-        self.__uuid = uuid.uuid4 
+        self.__uuid = uuid.uuid4
+        self.__benchmarks = list 
         
         self._load_config(path_to_config)
         self._check_paths()
+        
+        determined_cap = self._determine_capabilities()
+        requested_cap = self._requested_capabilities()
         
         parallel = False
         try:
@@ -36,7 +43,7 @@ class Handler:
             print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
         
-        self._create_benchmark(parallel=parallel)
+        #self._create_benchmark(parallel=parallel)
              
              
     def print_config(self):
@@ -72,6 +79,30 @@ class Handler:
         print(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
     
     
+    def _determine_capabilities(self):
+        root = Path(self.config["paths"]["path_to_benchmarks"])
+        
+        determined = []
+        
+        for path in root.rglob("*"):
+            
+            if not path.is_dir():
+                s = str(path).replace(f"{str(root)}/", "")
+                features = s.rsplit("/", 1)[0].split("/")
+                determined.append(features)    
+                
+        return determined
+        
+    
+    def _requested_capabilities(self):
+        requested = []
+        
+        par_backend = self.config["par_backend"]
+        
+        
+        return requested
+    
+    
     def _create_benchmark(self, parallel: str | bool):
         
         if parallel == "Both":
@@ -100,12 +131,7 @@ class Handler:
     
      
     def _check_supported_languages(self, parallel: bool):  
-        supported = None
-            
-        if parallel is False: 
-            supported = ["c", "python"] 
-        else:
-            supported = ["c", "python"]
+        supported = ["c", "python"]
         
         for language in self.config["languages"]:     
             if language not in supported: raise ValueError(bcolors.FAIL + f"Language: {language} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
@@ -115,12 +141,7 @@ class Handler:
        
     
     def _check_supported_formats(self, language: str, parallel: bool):   
-        supported = None
-        
-        if  parallel is False:
-            supported = ["hdf5", "zarr", "netcdf4"]
-        else:
-            supported = ["hdf5", "zarr", "netcdf4"]
+        supported = ["hdf5", "zarr", "netcdf4"]
         
         for format in self.config["formats"]:         
             if format not in supported: raise ValueError(bcolors.FAIL + f"Format: {format} not currently supported. If you want to help extend support please visit ..." + bcolors.ENDC)
