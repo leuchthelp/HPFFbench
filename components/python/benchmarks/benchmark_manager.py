@@ -40,18 +40,9 @@ class BenchmarkManager:
         self._node       = int
         self._node_info  = yaml
         self._profiler   = bool
-        
-
-        if parallel:
-            if self._check_par_backend(): raise ValueError(bcolors.FAIL + f"Parallel backend {self.par_backend} selected is not supported" + bcolors.ENDC)
 
         self._run_benchmark()
     
-    
-    def _check_par_backend(self) -> bool:
-        
-        print(f"Something went wrong while trying to check of parallel backende {self.par_backend}")
-        return True
     
     def _run_benchmark(self):
         
