@@ -266,22 +266,20 @@ def main():
     
     new_setup = {
         "formats": ["zarr", "hdf5", "netcdf4"],
-        "languages": ["c", "python"],
+        "languages": ["c", "py"],
         "paths": paths,
         "iterations": 5,
         "runs": tmp,
         "range": [10, 90], 
         "stepsize": 5,
-        "parallel": "Both",
-        "par_backend": "All"
+        "parallel": False,
+        "par_backend": "MPI",
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:
         yaml.dump(new_setup, file)
         
     handler = Handler(path_to_config=path_to_config)
-    #handler.print_config()
-    #handler.print_uuid()
 
 if __name__=="__main__":
     main()
