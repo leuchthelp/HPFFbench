@@ -5,7 +5,9 @@ from pathlib import Path
 import itertools
 import uuid
 import yaml
+import hashlib
 import asyncio
+import threading
 
 
 @dataclass
@@ -25,8 +27,9 @@ class Handler:
     
     def __init__(self, path_to_config: None | str):
         
-        self.__uuid = uuid.uuid4
+        self.__hash = None
         self.__benchmarks = list 
+        self.loop = asyncio.get_event_loop()
         
         self._load_config(path_to_config)
         self._check_paths()
@@ -41,13 +44,15 @@ class Handler:
         except KeyError:
             print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
-
+        tasks = None
         if parallel == "Both":
-            self._compare_capabilities(parallel=False, determined_cap=determined_cap)
-            self._compare_capabilities(parallel=True, determined_cap=determined_cap)
+            tasks = self._create_benchmark(parallel=False, determined_cap=determined_cap)
+            tasks.extend(self._create_benchmark(parallel=True, determined_cap=determined_cap))
         else:
-            self._compare_capabilities(parallel=parallel, determined_cap=determined_cap)
-             
+            tasks = self._create_benchmark(parallel=parallel, determined_cap=determined_cap)
+        
+        self.loop.run_until_complete(self._run_benchmark(tasks=tasks))
+        
              
     def print_config(self):
         print(self.config)
@@ -63,7 +68,9 @@ class Handler:
         try:
             file = open(f"{path_to_config}config.yaml", "r")
             self.config = yaml.safe_load(stream=file)
+            self.__hash = hashlib.sha256(str(path_to_config).encode()).hexdigest()
             print(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
+            
         except FileNotFoundError as e:
             print(bcolors.FAIL + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}" + bcolors.ENDC)
         except OSError as e:
@@ -118,19 +125,24 @@ class Handler:
 
         return determined
         
+
+    async def _run_benchmark(self, tasks: list):
+        await asyncio.gather(*tasks)
     
-    def _compare_capabilities(self, parallel: str | bool, determined_cap: list):
+    
+    def _create_benchmark(self, parallel: str | bool, determined_cap: list) -> list:
         requested_cap = self._requested_capabilities(parallel=parallel)
         
+        tasks = []
         for requested in [*requested_cap]: 
-            #print(f"requested: {dict(requested)}")
-            #print(f"determined: {determined_cap}")
             requested = dict(requested)
             for determined in determined_cap:
                 if requested == determined[0]:
                     print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
-                    self._create_benchmark_manager(requested=requested, bm_config=determined[1])
-    
+                    tasks.append(self.loop.create_task(self._create_benchmark_manager(requested=requested, bm_config=determined[1])))
+               
+        return tasks
+
     
     def _requested_capabilities(self, parallel: bool):
         requested   = None
@@ -158,22 +170,23 @@ class Handler:
         return requested
         
                                              
-    def _create_benchmark_manager(self, requested: dict, bm_config: dict):
-        for _, run in self.config["runs"].items():
+    async def _create_benchmark_manager(self, requested: dict, bm_config: dict):
+        for _, run_config in self.config["runs"].items():
             
             parallel    = requested["parallel"]
             par_backend = requested["par_backend"]
             language    = requested["language"]
             format      = requested["format"]
-            use_path        = self.config["paths"]["path_to_tmp"] 
+            use_path    = self.config["paths"]["path_to_tmp"] 
             range       = self.config["range"]
             stepsize    = self.config["stepsize"]
             iterations  = self.config["iterations"]
                     
-            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
-            BenchmarkManager(handler_id=str(self.__uuid), run=run, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations, use_path=use_path, bm_config=bm_config)              
+            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
+            bm = BenchmarkManager(handler_id=str(self.__hash), run_config=run_config, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations, use_path=use_path, bm_config=bm_config)              
+            bm.run()
             
-    
+            
     def _check_mpi(self):
         from mpi4py import MPI
     
