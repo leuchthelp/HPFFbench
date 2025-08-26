@@ -5,7 +5,6 @@ from pathlib import Path
 import itertools
 import uuid
 import yaml
-import os.path
 import asyncio
 
 
@@ -76,7 +75,7 @@ class Handler:
     def _check_paths(self):
         print(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
         for key, path in self.config["paths"].items():
-            if not os.path.exists(path): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
+            if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
         
         print(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
         
@@ -114,13 +113,8 @@ class Handler:
                         tmp.append(("format", current["format"]))
                     except KeyError as e:
                         raise e
-                    
-                    try:
-                        src = current["source"]
-                    except KeyError as e:
-                        raise e
                                         
-                    determined.append((dict(tmp), src))   
+                    determined.append((dict(tmp), current))   
 
         return determined
         
@@ -135,7 +129,7 @@ class Handler:
             for determined in determined_cap:
                 if requested == determined[0]:
                     print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
-                    self._create_benchmark_manager(requested=requested, src=determined[1])
+                    self._create_benchmark_manager(requested=requested, bm_config=determined[1])
     
     
     def _requested_capabilities(self, parallel: bool):
@@ -164,19 +158,20 @@ class Handler:
         return requested
         
                                              
-    def _create_benchmark_manager(self, requested: dict, src: str):
+    def _create_benchmark_manager(self, requested: dict, bm_config: dict):
         for _, run in self.config["runs"].items():
             
             parallel    = requested["parallel"]
             par_backend = requested["par_backend"]
             language    = requested["language"]
             format      = requested["format"]
+            use_path        = self.config["paths"]["path_to_tmp"] 
             range       = self.config["range"]
             stepsize    = self.config["stepsize"]
             iterations  = self.config["iterations"]
                     
-            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations" + bcolors.ENDC)
-            BenchmarkManager(handler_id=str(self.__uuid), run=run, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations, src=src)              
+            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
+            BenchmarkManager(handler_id=str(self.__uuid), run=run, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations, use_path=use_path, bm_config=bm_config)              
             
     
     def _check_mpi(self):

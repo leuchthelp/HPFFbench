@@ -32,20 +32,11 @@ path_py_results = "components/python/data/results"
 path_plotting = "components/visualize/plotting"
 
 paths = {
-    "path_to_benchmarks": "components/benchmarks",
-    "path_to_config"    : "components/handler/",
-    "path_to_c"         : "components/c",
-    "path_to_python"    : "components/python",
-    "path_to_visuals"   : "components/visualize",
-    "path_c_benchmark"  : "components/c/benchmarks",
-    "path_py_benchmark" : "components/python/benchmarks",
-    "path_c_datasets"   : "components/c/data/datasets",
-    "path_py_datasets"  : "components/python/data/datasets",
-    "path_c_tmp"        : "components/c/data/tmp",
-    "path_py_tmp"       : "components/python/data/tmp",
-    "path_c_results"    : "components/c/data/results",
-    "path_py_results"   : "components/python/data/results",
-    "path_plotting"     : "components/visualize/plotting",
+    "path_to_benchmarks" : "components/benchmarks",
+    "path_to_tmp"        : "components/tmp",
+    "path_to_config"     : "components/handler/",
+    "path_to_visuals"    : "components/visualize",
+    "path_plotting"      : "components/visualize/plotting",
 }
     
 

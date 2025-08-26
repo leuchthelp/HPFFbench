@@ -1,7 +1,10 @@
 from func.datastruct import bcolors
 from dataclasses import dataclass
-import uuid
+from pathlib import Path
+import shutil
+import time
 import yaml
+import hashlib
 import asyncio
 
 @dataclass
@@ -18,12 +21,16 @@ class BenchmarkManager:
     
     handler_id: str
     
-    def __init__(self, handler_id: str, run: dict, parallel: bool, par_backend: None | str, language: str, format: str, range: list, stepsize: int, iterations: int, src: str):
+    def __init__(self, handler_id: str, run: dict, parallel: bool, par_backend: None | str, language: str, format: str, range: list, stepsize: int, iterations: int, use_path: str, bm_config: dict):
         
         # Object config
         self.handler_id = handler_id
-        self.uuid       = uuid.uuid4
-        self.dir_path   = str(self.uuid)
+        
+        hash_str = str(run) + str(bm_config)
+        self.hash       = hashlib.sha256(hash_str.encode()).hexdigest()
+        
+        self.use_path    = use_path
+        self.dir_path    = Path(f"{self.use_path}/{str(self.hash)}")
         
         # Benchmark config
         self.run        = run
@@ -36,25 +43,21 @@ class BenchmarkManager:
         self.iterations = iterations
         
         # Source code
-        self.src = src
+        self.src = bm_config["source"]
         
         # Environment config
         self._checkpoint = yaml
         self._node       = int
         self._node_info  = yaml
         self._profiler   = bool
-
         
-        print(src)
-        print(self.uuid)
-        
-        with open(f"{str(self.uuid)}.{self.language}", "x") as file:
-            file.write(src)
-        
-        self._run_benchmark()
+        self.run_benchmark()
     
     
-    def _run_benchmark(self):
-        
-        
-        pass
+    def run_benchmark(self):
+        self.dir_path.mkdir(parents=True)
+        with open(f"{self.dir_path}/{str(self.hash)}.{self.language}", "w") as file:
+            file.write(self.src)
+            
+        time.sleep(1)
+        shutil.rmtree(path=self.dir_path)
