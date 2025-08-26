@@ -18,7 +18,7 @@ class BenchmarkManager:
     
     handler_id: str
     
-    def __init__(self, handler_id: str, run: dict, parallel: bool, par_backend: None | str, language: str, format: str, range: list, stepsize: int, iterations: int):
+    def __init__(self, handler_id: str, run: dict, parallel: bool, par_backend: None | str, language: str, format: str, range: list, stepsize: int, iterations: int, src: str):
         
         # Object config
         self.handler_id = handler_id
@@ -35,12 +35,22 @@ class BenchmarkManager:
         self.stepsize   = stepsize
         self.iterations = iterations
         
+        # Source code
+        self.src = src
+        
         # Environment config
         self._checkpoint = yaml
         self._node       = int
         self._node_info  = yaml
         self._profiler   = bool
 
+        
+        print(src)
+        print(self.uuid)
+        
+        with open(f"{str(self.uuid)}.{self.language}", "x") as file:
+            file.write(src)
+        
         self._run_benchmark()
     
     

@@ -1,13 +1,13 @@
 formats:
 - zarr
-- hdf5
+- hdf5: subfiling
 - netcdf4
 iterations: 5
 languages:
 - c
 - py
 par_backend: MPI
-parallel: false
+parallel: Both
 paths:
   path_c_benchmark: components/c/benchmarks
   path_c_datasets: components/c/data/datasets

@@ -265,14 +265,14 @@ def main():
     }
     
     new_setup = {
-        "formats": ["zarr", "hdf5", "netcdf4"],
+        "formats": ["zarr", {"hdf5": "subfiling"}, "netcdf4"],
         "languages": ["c", "py"],
         "paths": paths,
         "iterations": 5,
         "runs": tmp,
         "range": [10, 90], 
         "stepsize": 5,
-        "parallel": False,
+        "parallel": "Both",
         "par_backend": "MPI",
     }
     

@@ -42,13 +42,12 @@ class Handler:
         except KeyError:
             print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
-        requested_cap = self._requested_capabilities(parallel=parallel)
-        
-        for requested in [*requested_cap]: 
-            print(requested)
-            #print(determined_cap)
-            if requested in determined_cap:
-                self._create_benchmark_manager(parallel=parallel, requested=requested)
+
+        if parallel == "Both":
+            self._compare_capabilities(parallel=False, determined_cap=determined_cap)
+            self._compare_capabilities(parallel=True, determined_cap=determined_cap)
+        else:
+            self._compare_capabilities(parallel=parallel, determined_cap=determined_cap)
              
              
     def print_config(self):
@@ -89,75 +88,95 @@ class Handler:
         
         determined = []
         
-        for path in root.rglob("*"):
-            
-            if not path.is_dir():
-                s = str(path).replace(f"{str(root)}/", "")
-                features = tuple(s.rsplit("/", 1)[0].split("/"))
-                determined.append(features)    
-                
+        for path in root.rglob("*"): 
+            if not path.is_dir():      
+                with open(path, "r") as file:
+                    current = yaml.safe_load(file)
+                    
+                    tmp = []
+                    
+                    try:
+                        tmp.append(("parallel", current["parallel"]))
+                    except KeyError:
+                        tmp.append(("parallel", False))
+                        
+                    try:
+                        tmp.append(("par_backend", current["par_backend"]))
+                    except KeyError:
+                        tmp.append(("par_backend", None))
+                    
+                    try:
+                        tmp.append(("language", current["language"]))
+                    except yaml.YAMLError as e:
+                        raise e
+                     
+                    try: 
+                        tmp.append(("format", current["format"]))
+                    except KeyError as e:
+                        raise e
+                    
+                    try:
+                        src = current["source"]
+                    except KeyError as e:
+                        raise e
+                                        
+                    determined.append((dict(tmp), src))   
+
         return determined
         
     
-    def _requested_capabilities(self, parallel: str | bool):
-        holder    = ["serial"]
-        par_backend = None
-        languages   = self.config["languages"]
-        formats     = self.config["formats"]
+    def _compare_capabilities(self, parallel: str | bool, determined_cap: list):
+        requested_cap = self._requested_capabilities(parallel=parallel)
         
+        for requested in [*requested_cap]: 
+            #print(f"requested: {dict(requested)}")
+            #print(f"determined: {determined_cap}")
+            requested = dict(requested)
+            for determined in determined_cap:
+                if requested == determined[0]:
+                    print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
+                    self._create_benchmark_manager(requested=requested, src=determined[1])
+    
+    
+    def _requested_capabilities(self, parallel: bool):
         requested   = None
         
-        if parallel is True or parallel:
-            if type(self.config["par_backend"]) is not list:
-                par_backend = [self.config["par_backend"]]
-            else:
-                par_backend = self.config["par_backend"]
-            
-            holder = ["parallel"]    
-            requested = itertools.product(*[holder, par_backend, languages, formats])
+        languages    = []
+        for langauge in self.config["languages"]:
+            languages.append(("language", langauge))
         
-        else:
-            requested = itertools.product(*[holder, languages, formats])
-    
-        return requested
-    
-    
-    def _check_supported_par_backend(self, par_backend: str):
-        try:
-            backend = {
-                "MPI": self._check_mpi,
-                "Dask": self._check_dask,
-            }
-                                                 
-            if par_backend not in backend and par_backend != "All": raise ValueError(bcolors.FAIL + f"Parallel backend \"{par_backend}\" selected is not supported. Did you mean \"All\" to run all available backends?" + bcolors.ENDC)  
+        formats      = []
+        for format in self.config["formats"]:
+            formats.append(("format", format))
             
-            for imported_backend, import_func in backend.items():
-                    
-                if par_backend == imported_backend or par_backend == "All":
-                    import_func()
-                    print(bcolors.OKGREEN + f"Success, parallel backend {par_backend} is enabled." + bcolors.ENDC)
-                             
-        except KeyError:
-            raise ValueError(bcolors.FAIL + f"\"parallel\" was set to True but not parallel backend has been configured within the config.yaml. Please select one of the available backends." + bcolors.ENDC)
+        par_backends = [("par_backend", None)]
+        
+        if parallel is True:
+            par_backends = []
+            if type(self.config["par_backend"]) is not list:
+                    par_backends.append(("par_backend", self.config["par_backend"]))
+            else:
+                for par_backend in self.config["par_backend"]:
+                    par_backends.append(("par_backend", par_backend))
+        
+        requested = itertools.product(*[[("parallel", parallel)], par_backends, languages, formats])
+
+        return requested
         
                                              
-    def _create_benchmark_manager(self, parallel: bool, requested: tuple):
+    def _create_benchmark_manager(self, requested: dict, src: str):
         for _, run in self.config["runs"].items():
             
-            language    = requested[1]
-            format      = requested[2]
-            
-            par_backend = None
-            if parallel is True: 
-                par_backend = requested[2]
-                format      = requested[3] 
-            
+            parallel    = requested["parallel"]
+            par_backend = requested["par_backend"]
+            language    = requested["language"]
+            format      = requested["format"]
             range       = self.config["range"]
             stepsize    = self.config["stepsize"]
             iterations  = self.config["iterations"]
                     
             print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations" + bcolors.ENDC)
-            BenchmarkManager(handler_id=str(self.__uuid), run=run, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations)              
+            BenchmarkManager(handler_id=str(self.__uuid), run=run, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations, src=src)              
             
     
     def _check_mpi(self):
