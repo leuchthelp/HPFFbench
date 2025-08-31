@@ -68,9 +68,11 @@ class BenchmarkManager:
 
         
     def _create_file(self):
+        create = self.create.replace("#MAIN", f"{replace_py}")
+        
         path_to_create_file = f"{self.dir_path}/create.{self.language}"
         with open(path_to_create_file, "w") as file:
-            file.write(self.create)
+            file.write(create)
         
         create_file = f"create.{self.language}"
         create_command = self.bm_config["create_command"]
@@ -86,9 +88,12 @@ class BenchmarkManager:
   
     
     def _execute_file(self):
+        
+        execute = self.src.replace("#MAIN", f"{replace_py}")
+        
         path_to_tmp_file = f"{self.dir_path}/{str(self.hash)}.{self.language}"
         with open(path_to_tmp_file, "w") as file:
-            file.write(self.src)
+            file.write(execute)
         
         tmp_file    = f"{str(self.hash)}.{self.language}"
         run_command = self.bm_config["run_command"]
@@ -99,3 +104,27 @@ class BenchmarkManager:
         p = subprocess.run(run_command.split(), capture_output=True, text=True, cwd=self.dir_path)
         print(p.stderr)
         print(p.stdout)
+        
+
+
+replace_py ="""def main():
+
+    parser = argparse.ArgumentParser(
+        prog="Python Dataformat-Benchmark",
+        description="run python based benchmark for Zarr, NetCDF4 and HDF5",
+    )
+    parser.add_argument("-c", "--create", type=int, default=-1, help="creates Zarr, NetCDF4 and HDF5 Files using a previously saved run format")
+    parser.add_argument("-b", "--benchmark", type=int, default=-1, help="benchmark to run")
+    parser.add_argument("-i", "--iterations", type=int, default=10, help="number of iterations to run the benchmark for")
+    parser.add_argument("-v", "--variable", type=str, default=None, help="variable to read, if none is provided all are read")
+    args = parser.parse_args()
+    match args.benchmark:
+        case 1:
+            bench(args.iterations, args.variable)
+        case -1:
+            if args.create != -1:
+                create(args.create, False)
+
+if __name__=="__main__":
+    main()
+        """
