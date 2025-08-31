@@ -251,19 +251,19 @@ def main():
     
     tmp = {
             "run01": {"X": [[1 * 134217728], []]},
-            "run02": {"X": [[2 * 134217728], []]},
-            "run03": {"X": [[3 * 134217728], []]},
+            #"run02": {"X": [[2 * 134217728], []]},
+            #"run03": {"X": [[3 * 134217728], []]},
     }
     
     new_setup = {
-        "formats": ["zarr", {"hdf5": "subfiling"}, "netcdf4"],
-        "languages": ["c", "py"],
+        "formats": [{"zarr": "new"}],
+        "languages": ["py"],
         "paths": paths,
         "iterations": 5,
         "runs": tmp,
         "range": [10, 90], 
         "stepsize": 5,
-        "parallel": "Both",
+        "parallel": False ,
         "par_backend": "MPI",
     }
     

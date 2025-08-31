@@ -1,7 +1,8 @@
 par_backend: 
 parallel: False
 language: py
-format: zarr
+format: 
+    zarr: "new"
 create_command: "python {path} -c 1"
 create: |
     import os

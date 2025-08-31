@@ -4,6 +4,9 @@ language: py
 format: 
   hdf5: subfiling
 source: | 
+  from func import datastruct as ds
+  import json
+
   def bench_parallel_hdf5(iterations, variable=None):
     
     from mpi4py import MPI

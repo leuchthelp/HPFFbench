@@ -2,9 +2,10 @@ from func.datastruct import bcolors
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
-import time
 import yaml
+import json
 import hashlib
+import subprocess
 
 @dataclass
 class BenchmarkManager:
@@ -28,8 +29,9 @@ class BenchmarkManager:
         hash_str = str(run_config) + str(bm_config)
         self.hash       = hashlib.sha256(hash_str.encode()).hexdigest()
         
-        self.use_path    = use_path
-        self.dir_path    = Path(f"{self.use_path}/{str(self.hash)}")
+        self.use_path   = use_path
+        self.dir_path   = Path(f"{self.use_path}/{str(self.hash)}")
+        self.bm_config  = bm_config
         
         # Benchmark config
         self.run_config = run_config
@@ -39,21 +41,61 @@ class BenchmarkManager:
         self.format     = format
         self.range      = range
         self.stepsize   = stepsize
+        self.variable   = "X"
         self.iterations = iterations
         
         # Source code
-        self.src = bm_config["source"]
+        self.create     = bm_config["create"]
+        self.src        = bm_config["source"]
         
         # Environment config
-        self._checkpoint = yaml
-        self._node       = int
-        self._node_info  = yaml
-        self._profiler   = bool
+        self._checkpoint= yaml
+        self._node      = int
+        self._node_info = yaml
+        self._profiler  = bool
     
     
     def run(self):
         self.dir_path.mkdir(parents=True)
-        with open(f"{self.dir_path}/{str(self.hash)}.{self.language}", "w") as file:
-            file.write(self.src)
-
+        
+        with open(f"{self.dir_path}/run_config.json", "w") as f:
+            json.dump(self.run_config, f)
+            
+        self._create_file()
+        self._execute_file()
+        
         shutil.rmtree(path=self.dir_path)
+
+        
+    def _create_file(self):
+        path_to_create_file = f"{self.dir_path}/create.{self.language}"
+        with open(path_to_create_file, "w") as file:
+            file.write(self.create)
+        
+        create_file = f"create.{self.language}"
+        create_command = self.bm_config["create_command"]
+        create_command = create_command.replace("{path}", f"{create_file}")
+        
+        p = subprocess.run(create_command.split(), capture_output=True, text=True, cwd=self.dir_path)
+        print(p.stderr)
+        print(p.stdout)
+        
+    
+    def _compile_file(self):
+        pass
+  
+    
+    def _execute_file(self):
+        path_to_tmp_file = f"{self.dir_path}/{str(self.hash)}.{self.language}"
+        with open(path_to_tmp_file, "w") as file:
+            file.write(self.src)
+        
+        tmp_file    = f"{str(self.hash)}.{self.language}"
+        run_command = self.bm_config["run_command"]
+        run_command = run_command.replace("{path}", f" {tmp_file} ")
+        run_command = run_command.replace("{variable}", f" {self.variable} ")
+        run_command = run_command.replace("{iterations}", f" {self.iterations} ")
+        
+        p = subprocess.run(run_command.split(), capture_output=True, text=True, cwd=self.dir_path)
+        print(p.stderr)
+        print(p.stdout)

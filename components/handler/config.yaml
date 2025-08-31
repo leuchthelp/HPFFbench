@@ -1,13 +1,10 @@
 formats:
-- zarr
-- hdf5: subfiling
-- netcdf4
+- zarr: new
 iterations: 5
 languages:
-- c
 - py
 par_backend: MPI
-parallel: Both
+parallel: false
 paths:
   path_plotting: components/visualize/plotting
   path_to_benchmarks: components/benchmarks
@@ -21,13 +18,5 @@ runs:
   run01:
     X:
     - - 134217728
-    - []
-  run02:
-    X:
-    - - 268435456
-    - []
-  run03:
-    X:
-    - - 402653184
     - []
 stepsize: 5
