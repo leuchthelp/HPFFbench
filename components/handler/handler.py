@@ -64,9 +64,7 @@ class Handler:
                         
         tmp = self.config["paths"]["path_to_results"]    
         with open(Path(f"{tmp}/results.json"), "w") as file:
-            json.dump(consolidate, file)            
-
-        
+            json.dump(consolidate, file) 
         
              
     def print_config(self):

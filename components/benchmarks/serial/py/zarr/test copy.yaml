@@ -35,7 +35,7 @@ create: |
             create_ds(yaml.safe_load(yaml_file), selection, parallel=parallel)
 
     #MAIN
-run_command:  "python {runnable} -b 1 -v {variable}"
+run_command:  "python {runnable} -b 1 -v {variable} -i {iterations}"
 source: | 
     from func import datastruct as ds
     from func.datastruct import bcolors as color
