@@ -28,10 +28,10 @@ class Handler:
         
         self.__hash = None
         
-        self._load_config(path_to_config)
-        self._check_paths()
+        self.__load_config(path_to_config)
+        self.__check_paths()
         
-        determined_cap = self._determine_capabilities()
+        determined_cap = self.__determine_capabilities()
         
         parallel = False
         try:
@@ -43,12 +43,12 @@ class Handler:
         
         tasks = None
         if parallel == "Both":
-            tasks = self._create_benchmark(parallel=False, determined_cap=determined_cap)
-            tasks.extend(self._create_benchmark(parallel=True, determined_cap=determined_cap))
+            tasks = self.__create_benchmark(parallel=False, determined_cap=determined_cap)
+            tasks.extend(self.__create_benchmark(parallel=True, determined_cap=determined_cap))
         else:
-            tasks = self._create_benchmark(parallel=parallel, determined_cap=determined_cap)
+            tasks = self.__create_benchmark(parallel=parallel, determined_cap=determined_cap)
          
-        self.__benchmarks = ProcessPool().amap(self._run_benchmark, *tasks).get()  
+        self.__benchmarks = ProcessPool().amap(self.__run_benchmark, *tasks).get()  
         
         root = Path(self.config["paths"]["path_to_results"]) 
         consolidate = {}
@@ -75,7 +75,7 @@ class Handler:
         print(self.__hash)
     
 
-    def _load_config(self, path_to_config):
+    def __load_config(self, path_to_config):
         
         print(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
         try:
@@ -92,7 +92,7 @@ class Handler:
             print(bcolors.FAIL + f"Error loading config.yaml! Additional details: {e}" + bcolors.ENDC)
     
     
-    def _check_paths(self):
+    def __check_paths(self):
         print(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
         for key, path in self.config["paths"].items():
             if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
@@ -102,7 +102,7 @@ class Handler:
         print(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
     
     
-    def _determine_capabilities(self):
+    def __determine_capabilities(self):
         root = Path(self.config["paths"]["path_to_benchmarks"])
         
         determined = []
@@ -139,12 +139,12 @@ class Handler:
         return determined
         
 
-    def _run_benchmark(self, bm: BenchmarkManager):
+    def __run_benchmark(self, bm: BenchmarkManager):
         return bm.run()
     
     
-    def _create_benchmark(self, parallel: str | bool, determined_cap: list) -> list:
-        requested_cap = self._requested_capabilities(parallel=parallel)
+    def __create_benchmark(self, parallel: str | bool, determined_cap: list) -> list:
+        requested_cap = self.__requested_capabilities(parallel=parallel)
         
         tasks = []
         for requested in [*requested_cap]: 
@@ -152,12 +152,12 @@ class Handler:
             for determined in determined_cap:
                 if requested == determined[0]:
                     print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
-                    tasks.append(self._create_benchmark_manager(requested=requested, bm_config=determined[1]))
+                    tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=determined[1]))
                
         return tasks
 
     
-    def _requested_capabilities(self, parallel: bool):
+    def __requested_capabilities(self, parallel: bool):
         requested   = None
         
         languages    = []
@@ -183,7 +183,7 @@ class Handler:
         return requested
         
                                              
-    def _create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
+    def __create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
         
         bm = []
         for _, run_config in self.config["runs"].items():
@@ -217,13 +217,4 @@ class Handler:
                 )
         return bm
 
-            
-    def _check_mpi(self):
-        from mpi4py import MPI
-    
-    
-    def _check_dask(self):
-        try:
-            print("Import Dask (mock)")
-        except ImportError:
-            raise ImportError(bcolors.FAIL + f"Dask not present, please install Dask." + bcolors.ENDC)
+        

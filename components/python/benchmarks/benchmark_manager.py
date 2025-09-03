@@ -67,10 +67,10 @@ class BenchmarkManager:
         self.src            = bm_config["source"]
         
         # Environment config
-        self._checkpoint    = yaml
-        self._node          = int
-        self._node_info     = yaml
-        self._profiler      = bool
+        self.__checkpoint    = yaml
+        self.__node          = int
+        self.__node_info     = yaml
+        self.__profiler      = bool
     
     
     def run(self):
@@ -81,19 +81,19 @@ class BenchmarkManager:
         
         
         if self.create is not None:    
-            self._create_file()
+            self.__create_file()
         
         if self.compile is not None:
-            self._compile_file()
-        self._execute_file()
+            self.__compile_file()
+        self.__execute_file()
         
         shutil.rmtree(path=self.dir_path)
         
         return self
 
  
-    def _create_file(self):
-        create = self.create.replace("#MAIN", self._replace_main(self.language))
+    def __create_file(self):
+        create = self.create.replace("#MAIN", self.__replace_main(self.language))
         
         path_to_create_file = f"{self.dir_path}/create.{self.language}"
         with open(path_to_create_file, "w") as file:
@@ -108,14 +108,14 @@ class BenchmarkManager:
         print(p.stdout)
         
 
-    def _compile_file(self):
+    def __compile_file(self):
         pass
   
 
-    def _execute_file(self):
+    def __execute_file(self):
         
-        execute = self.src.replace("#MAIN", self._replace_main(self.language))
-        execute = execute.replace("#RESULT", self._replace_result(self.language))
+        execute = self.src.replace("#MAIN", self.__replace_main(self.language))
+        execute = execute.replace("#RESULT", self.__replace_result(self.language))
         
         path_to_tmp_file = f"{self.dir_path}/execute.{self.language}"
         with open(path_to_tmp_file, "w") as file:
@@ -132,7 +132,7 @@ class BenchmarkManager:
         print(p.stdout)
     
         
-    def _replace_main(self, language):
+    def __replace_main(self, language):
         
         match language:
             case "py":
@@ -162,7 +162,7 @@ if __name__=="__main__":
                 return ""
      
         
-    def _replace_result(self, language):
+    def __replace_result(self, language):
         
         match language:
             case "py":
