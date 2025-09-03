@@ -8,6 +8,7 @@ from components.runners.python.runner_zarr import runner_zarr
 from components.handler import Handler
 import pandas as pd
 import os, shutil, subprocess, json, yaml
+import time
 
 
 #paths
@@ -32,11 +33,12 @@ path_py_results = "components/python/data/results"
 path_plotting = "components/visualize/plotting"
 
 paths = {
-    "path_to_benchmarks" : "components/benchmarks",
-    "path_to_tmp"        : "components/tmp",
-    "path_to_config"     : "components/handler/",
-    "path_to_visuals"    : "components/visualize",
-    "path_plotting"      : "components/visualize/plotting",
+    "path_to_benchmarks": "components/benchmarks",
+    "path_to_tmp"       : "components/tmp",
+    "path_to_config"    : "components/handler/",
+    "path_to_visuals"   : "components/visualize",
+    "path_to_plotting"  : "components/visualize/plotting",
+    "path_to_results"   : "components/results",     
 }
     
 
@@ -204,6 +206,7 @@ def bench_c(setup, df, variable, iterations, mpi_ranks):
 
    
 def main():
+    start = time.time()
     
     iterations = 5
     variable = "X"
@@ -271,6 +274,9 @@ def main():
         yaml.dump(new_setup, file)
         
     handler = Handler(path_to_config=path_to_config)
+    
+    end = time.time()
+    print(end - start)
 
 if __name__=="__main__":
     main()

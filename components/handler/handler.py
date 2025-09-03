@@ -2,12 +2,10 @@ from dataclasses import dataclass
 from func.datastruct import bcolors
 from python.benchmarks import BenchmarkManager
 from pathlib import Path
+from pathos.pools import ProcessPool
 import itertools
-import uuid
 import yaml
 import hashlib
-import asyncio
-import threading
 
 
 @dataclass
@@ -29,7 +27,6 @@ class Handler:
         
         self.__hash = None
         self.__benchmarks = list 
-        self.loop = asyncio.get_event_loop()
         
         self._load_config(path_to_config)
         self._check_paths()
@@ -50,16 +47,17 @@ class Handler:
             tasks.extend(self._create_benchmark(parallel=True, determined_cap=determined_cap))
         else:
             tasks = self._create_benchmark(parallel=parallel, determined_cap=determined_cap)
-        
-        self.loop.run_until_complete(self._run_benchmark(tasks=tasks))
+         
+        pool = ProcessPool(nodes=6).amap(self._run_benchmark, *tasks)
+        pool.get()
         
              
     def print_config(self):
         print(self.config)
      
         
-    def print_uuid(self):
-        print(self.__uuid)
+    def print_id(self):
+        print(self.__hash)
     
 
     def _load_config(self, path_to_config):
@@ -126,8 +124,8 @@ class Handler:
         return determined
         
 
-    async def _run_benchmark(self, tasks: list):
-        await asyncio.gather(*tasks)
+    def _run_benchmark(self, bm: BenchmarkManager):
+        bm.run()
     
     
     def _create_benchmark(self, parallel: str | bool, determined_cap: list) -> list:
@@ -139,7 +137,7 @@ class Handler:
             for determined in determined_cap:
                 if requested == determined[0]:
                     print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
-                    tasks.append(self.loop.create_task(self._create_benchmark_manager(requested=requested, bm_config=determined[1])))
+                    tasks.append(self._create_benchmark_manager(requested=requested, bm_config=determined[1]))
                
         return tasks
 
@@ -170,22 +168,40 @@ class Handler:
         return requested
         
                                              
-    async def _create_benchmark_manager(self, requested: dict, bm_config: dict):
+    def _create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
+        
+        bm = []
         for _, run_config in self.config["runs"].items():
             
+            datatype    = "f8"
             parallel    = requested["parallel"]
             par_backend = requested["par_backend"]
             language    = requested["language"]
             format      = requested["format"]
-            use_path    = self.config["paths"]["path_to_tmp"] 
+            use_path    = Path(self.config["paths"]["path_to_tmp"] )
+            results_path= Path(self.config["paths"]["path_to_results"])
             range       = self.config["range"]
             stepsize    = self.config["stepsize"]
             iterations  = self.config["iterations"]
                     
             print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
-            bm = BenchmarkManager(handler_id=str(self.__hash), run_config=run_config, parallel=parallel, par_backend=par_backend, language=language, format=format, range=range, stepsize=stepsize, iterations=iterations, use_path=use_path, bm_config=bm_config)              
-            bm.run()
-            
+            bm.append(
+                BenchmarkManager(
+                    handler_id=str(self.__hash), 
+                    run_config=run_config, 
+                    parallel=parallel, 
+                    par_backend=par_backend, 
+                    language=language, 
+                    format=format, 
+                    range=range, 
+                    stepsize=stepsize, 
+                    iterations=iterations, 
+                    use_path=use_path, 
+                    results_path=results_path, 
+                    bm_config=bm_config)
+                )
+        return bm
+
             
     def _check_mpi(self):
         from mpi4py import MPI

@@ -6,9 +6,10 @@ languages:
 par_backend: MPI
 parallel: false
 paths:
-  path_plotting: components/visualize/plotting
   path_to_benchmarks: components/benchmarks
   path_to_config: components/handler/
+  path_to_plotting: components/visualize/plotting
+  path_to_results: components/results
   path_to_tmp: components/tmp
   path_to_visuals: components/visualize
 range:

@@ -3,17 +3,16 @@ parallel: False
 language: py
 format: 
     zarr: "new"
-create_command: "python {path} -c 1"
+create_command: "python {runnable} -c 1"
 create: |
     import os
     import shutil
-    import json
     from func import datastruct as ds
     from func.datastruct import bcolors as color
-    import json
+    import yaml
     import argparse
 
-    def create_ds(form, selection, parallel=False):
+    def create_ds(form, selection, parallel=False, path=None):
     
         from mpi4py import MPI
         #new.create(path="test_dataset.zarr", shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
@@ -31,26 +30,23 @@ create: |
                 ds_zarr.create(path="test_dataset.zarr", form=form, engine="zarr", parallel=parallel)
     
 
-    def create(selection, parallel=False):
-        with open("run_config.json") as json_file:
-            create_ds(json.load(json_file), selection, parallel=parallel)
+    def create(selection, parallel=False, path=None):
+        with open("run_config.yaml") as yaml_file:
+            create_ds(yaml.safe_load(yaml_file), selection, parallel=parallel)
 
     #MAIN
-run_command:  "python {path} -b 1 -v {variable}"
+run_command:  "python {runnable} -b 1 -v {variable}"
 source: | 
-    import os
-    import shutil
-    import json
     from func import datastruct as ds
     from func.datastruct import bcolors as color
-    import json
+    import yaml
     import argparse
 
-    def bench(iterations, variable=None):    
+    def bench(iterations, variable=None, path=None):    
         if variable == None:
             variable = []
-            with open("run_config.json") as json_file:
-                tmp = json.load(json_file) 
+            with open("run_config.yaml") as yaml_file:
+                tmp = yaml.safe_load(yaml_file) 
 
                 for keys in tmp.keys():
                   variable.append(keys)
@@ -58,9 +54,9 @@ source: |
         ds_zarr = ds.Datastruct()
         ds_zarr.open(mode="r+", engine="zarr", path="test_dataset.zarr")
         ds_zarr.read("bench_complete", variable=variable, iterations=iterations)
+        result = ds_zarr.log
 
-        with open("test-zarr-python.json", "w") as f:
-            json.dump(ds_zarr.log, f)
+        #RESULT
     
     #MAIN
 
