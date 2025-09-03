@@ -18,7 +18,15 @@ class BenchmarkManager:
     
     """
     
-    handler_id: str
+    handler_id  : str
+    run_config  : dict
+    parallel    : bool
+    par_backend : None | str
+    language    : str
+    range       : list
+    stepsize    : int
+    iterations  : int
+    bm_config   : dict
     
     
     def __init__(self, handler_id: str, run_config: dict, parallel: bool, par_backend: None | str, language: str, format: str, range: list, stepsize: int, iterations: int, use_path: Path, results_path: Path, bm_config: dict):
@@ -80,6 +88,8 @@ class BenchmarkManager:
         self._execute_file()
         
         shutil.rmtree(path=self.dir_path)
+        
+        return self
 
  
     def _create_file(self):

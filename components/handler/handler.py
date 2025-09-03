@@ -1,10 +1,11 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from func.datastruct import bcolors
 from python.benchmarks import BenchmarkManager
 from pathlib import Path
 from pathos.pools import ProcessPool
 import itertools
 import yaml
+import json
 import hashlib
 
 
@@ -26,7 +27,6 @@ class Handler:
     def __init__(self, path_to_config: None | str):
         
         self.__hash = None
-        self.__benchmarks = list 
         
         self._load_config(path_to_config)
         self._check_paths()
@@ -48,8 +48,25 @@ class Handler:
         else:
             tasks = self._create_benchmark(parallel=parallel, determined_cap=determined_cap)
          
-        pool = ProcessPool(nodes=6).amap(self._run_benchmark, *tasks)
-        pool.get()
+        self.__benchmarks = ProcessPool().amap(self._run_benchmark, *tasks).get()  
+        
+        root = Path(self.config["paths"]["path_to_results"]) 
+        consolidate = {}
+        
+        for path in root.rglob("*"):
+            if not path.is_dir():
+                with open(path, "r") as file:
+                    current = yaml.safe_load(file)
+                    
+                    for bm in self.__benchmarks:
+                        if bm.hash == path.name.replace(".yaml", ""):
+                            consolidate[bm.hash] = {"benchmark": asdict(bm), "result": current}
+                        
+        tmp = self.config["paths"]["path_to_results"]    
+        with open(Path(f"{tmp}/results.json"), "w") as file:
+            json.dump(consolidate, file)            
+
+        
         
              
     def print_config(self):
@@ -125,7 +142,7 @@ class Handler:
         
 
     def _run_benchmark(self, bm: BenchmarkManager):
-        bm.run()
+        return bm.run()
     
     
     def _create_benchmark(self, parallel: str | bool, determined_cap: list) -> list:
