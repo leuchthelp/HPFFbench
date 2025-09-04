@@ -59,21 +59,22 @@ def main():
             }
 
     tmp = {
-            "run01": {"X": [[1 * 134217728], []]},
-            "run02": {"X": [[2 * 134217728], []]},
+            "run01": {"X": [[1 * 134217728], []], "Y": [[1 * 134217728], []]},
+            "run02": {"X": [[2 * 134217728], [], "f8"]},
             "run03": {"X": [[3 * 134217728], []]},
     }
     
     new_setup = {
-        "formats": [{"zarr": "new"}],
-        "languages": ["py"],
-        "paths": paths,
-        "iterations": 5,
-        "runs": tmp,
-        "range": [10, 90], 
-        "stepsize": 5,
-        "parallel": False ,
-        "par_backend": "MPI",
+        "formats"               : [{"zarr": "new"}],
+        "languages"             : ["py"],
+        "paths"                 : paths,
+        "iterations"            : 5,
+        "runs"                  : tmp,
+        "range"                 : [10, 90], 
+        "stepsize"              : 5,
+        "parallel"              : False ,
+        "par_backend"           : "MPI",
+        "variable_to_benchmark" : "X",
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:
@@ -82,9 +83,9 @@ def main():
     with Profile() as profile:  
         handler = Handler(path_to_config=path_to_config)
         stats = Stats(profile).strip_dirs()
-        stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
-        stats.sort_stats(SortKey.CALLS).print_stats(10)
-        stats.sort_stats(SortKey.TIME).print_stats(5)
+        #stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
+        #stats.sort_stats(SortKey.CALLS).print_stats(10)
+        #stats.sort_stats(SortKey.TIME).print_stats(5)
 
 if __name__=="__main__":
     main()

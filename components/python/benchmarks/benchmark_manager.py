@@ -1,5 +1,5 @@
 from func.datastruct import bcolors
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
 import shutil
 import yaml
@@ -19,22 +19,41 @@ class BenchmarkManager:
     """
     
     handler_id  : str
+    hash        : str
     run_config  : dict
     parallel    : bool
     par_backend : None | str
     language    : str
+    format      : str
     range       : list
     stepsize    : int
+    datatype    : list
+    var_to_bm   : str | list
     iterations  : int
     bm_config   : dict
     
     
-    def __init__(self, handler_id: str, run_config: dict, parallel: bool, par_backend: None | str, language: str, format: str, range: list, stepsize: int, iterations: int, use_path: Path, results_path: Path, bm_config: dict):
+    def __init__(self, 
+                 handler_id     : str, 
+                 run_config     : dict, 
+                 parallel       : bool, 
+                 par_backend    : None | str, 
+                 language       : str, 
+                 format         : str, 
+                 range          : list, 
+                 stepsize       : int, 
+                 datatype       : list,
+                 var_to_bm      : str | list,
+                 iterations     : int, 
+                 use_path       : Path, 
+                 results_path   : Path, 
+                 bm_config      : dict
+                 ):
         
         # Object config
         self.handler_id = handler_id
         
-        hash_str = str(run_config) + str(bm_config)
+        hash_str = str(run_config) + str(bm_config["par_backend"]) + str(bm_config["parallel"])+ str(bm_config["format"])
         self.hash           = hashlib.sha256(hash_str.encode()).hexdigest()
         
         self.use_path       = use_path
@@ -50,7 +69,8 @@ class BenchmarkManager:
         self.format         = format
         self.range          = range
         self.stepsize       = stepsize
-        self.variable       = "X"
+        self.datatype       = datatype
+        self.var_to_bm      = var_to_bm
         self.iterations     = iterations
         
         # Source code
@@ -67,10 +87,10 @@ class BenchmarkManager:
         self.src            = bm_config["source"]
         
         # Environment config
-        self.__checkpoint    = yaml
-        self.__node          = int
-        self.__node_info     = yaml
-        self.__profiler      = bool
+        self.__checkpoint   = yaml
+        self.__node         = int
+        self.__node_info    = yaml
+        self.__profiler     = bool
     
     
     def run(self):
@@ -89,7 +109,7 @@ class BenchmarkManager:
         
         shutil.rmtree(path=self.dir_path)
         
-        return self
+        return asdict(self)
 
  
     def __create_file(self):
@@ -124,7 +144,9 @@ class BenchmarkManager:
         tmp_file    = f"execute.{self.language}"
         run_command = self.bm_config["run_command"]
         run_command = run_command.replace("{runnable}", f"{tmp_file}")
-        run_command = run_command.replace("{variable}", f"{self.variable}")
+        
+        tmp = ",".join(self.var_to_bm)    
+        run_command = run_command.replace("{var_to_bm}", f"{tmp}")
         run_command = run_command.replace("{iterations}", f"{self.iterations}")
         
         p = subprocess.run(run_command.split(), capture_output=True, text=True, cwd=self.dir_path)
@@ -145,12 +167,12 @@ class BenchmarkManager:
     parser.add_argument("-c", "--create", type=int, default=-1, help="creates Zarr, NetCDF4 and HDF5 Files using a previously saved run format")
     parser.add_argument("-b", "--benchmark", type=int, default=-1, help="benchmark to run")
     parser.add_argument("-i", "--iterations", type=int, default=10, help="number of iterations to run the benchmark for")
-    parser.add_argument("-v", "--variable", type=str, default=None, help="variable to read, if none is provided all are read")
+    parser.add_argument("-v", "--var_to_bm", type=str, default=None, help="var_to_bm to read, if none is provided all are read")
     parser.add_argument("-p", "--path", type=str, default=None, help="Path to file to use for benchmark")
     args = parser.parse_args()
     match args.benchmark:
         case 1:
-            bench(args.iterations, args.variable)
+            bench(args.iterations, args.var_to_bm)
         case -1:
             if args.create != -1:
                 create(args.create, False)

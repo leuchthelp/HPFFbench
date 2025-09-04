@@ -1,11 +1,11 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from func.datastruct import bcolors
 from python.benchmarks import BenchmarkManager
 from pathlib import Path
 from pathos.pools import ProcessPool
+import pandas as pd
 import itertools
 import yaml
-import json
 import hashlib
 
 
@@ -41,39 +41,16 @@ class Handler:
         except KeyError:
             print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
-        tasks = None
+        
         if parallel == "Both":
-            tasks = self.__create_benchmark(parallel=False, determined_cap=determined_cap)
-            tasks.extend(self.__create_benchmark(parallel=True, determined_cap=determined_cap))
+            self.__tasks = self.__create_benchmark(parallel=False, determined_cap=determined_cap)
+            self.__tasks.extend(self.__create_benchmark(parallel=True, determined_cap=determined_cap))
         else:
-            tasks = self.__create_benchmark(parallel=parallel, determined_cap=determined_cap)
+            self.__tasks = self.__create_benchmark(parallel=parallel, determined_cap=determined_cap)
          
-        self.__benchmarks = ProcessPool().amap(self.__run_benchmark, *tasks).get()  
-        
-        root = Path(self.config["paths"]["path_to_results"]) 
-        consolidate = {}
-        
-        for path in root.rglob("*"):
-            if not path.is_dir():
-                with open(path, "r") as file:
-                    current = yaml.safe_load(file)
-                    
-                    for bm in self.__benchmarks:
-                        if bm.hash == path.name.replace(".yaml", ""):
-                            consolidate[bm.hash] = {"benchmark": asdict(bm), "result": current}
-                        
-        tmp = self.config["paths"]["path_to_results"]    
-        with open(Path(f"{tmp}/results.json"), "w") as file:
-            json.dump(consolidate, file) 
-        
-             
-    def print_config(self):
-        print(self.config)
-     
-        
-    def print_id(self):
-        print(self.__hash)
-    
+
+        self.__start()
+                      
 
     def __load_config(self, path_to_config):
         
@@ -138,10 +115,6 @@ class Handler:
 
         return determined
         
-
-    def __run_benchmark(self, bm: BenchmarkManager):
-        return bm.run()
-    
     
     def __create_benchmark(self, parallel: str | bool, determined_cap: list) -> list:
         requested_cap = self.__requested_capabilities(parallel=parallel)
@@ -156,6 +129,47 @@ class Handler:
                
         return tasks
 
+
+    def __start(self):
+        self.__benchmarks = ProcessPool().amap(self.__run_benchmark, *self.__tasks).get()  
+        self.__prepare_dataframe()
+        
+
+    def __run_benchmark(self, bm: BenchmarkManager):
+        return bm.run()
+
+    
+    def __prepare_dataframe(self):
+        root = Path(self.config["paths"]["path_to_results"]) 
+        df = pd.DataFrame()
+        
+        for path in root.rglob("*"):
+            if not path.is_dir():
+                for index in range(len(self.__benchmarks)):
+                    
+                    bm = self.__benchmarks[index]
+                    
+                    if bm["hash"] == path.name.replace(".yaml", ""):
+                        
+                        with open(path, "r") as file:
+                            current = yaml.safe_load(file)
+                        
+                        tmp = pd.DataFrame(data={
+                                "run"       : index, 
+                                "benchmark" : bm["hash"],
+                                "run_config": str(bm["run_config"]), 
+                                "time taken": current,
+                                "parallel"  : bm["parallel"],
+                                "language"  : bm["language"], 
+                                "format"    : str(bm["bm_config"]["format"]), 
+                                })
+                        
+                        df = pd.concat([tmp, df], ignore_index=True)
+    
+                          
+        tmp = self.config["paths"]["path_to_results"]     
+        df.to_json(Path(f"{tmp}/results.json"))
+    
     
     def __requested_capabilities(self, parallel: bool):
         requested   = None
@@ -188,7 +202,6 @@ class Handler:
         bm = []
         for _, run_config in self.config["runs"].items():
             
-            datatype    = "f8"
             parallel    = requested["parallel"]
             par_backend = requested["par_backend"]
             language    = requested["language"]
@@ -197,9 +210,18 @@ class Handler:
             results_path= Path(self.config["paths"]["path_to_results"])
             range       = self.config["range"]
             stepsize    = self.config["stepsize"]
+            
+            datatype    = []
+            for _, item in run_config.items():
+                if any(isinstance(x, str) for x in item):
+                    datatype.append(item[-1])
+                else:
+                    datatype.append("f8")
+            
+            var_to_bm   = self.config["variable_to_benchmark"]
             iterations  = self.config["iterations"]
                     
-            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config} parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
+            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
             bm.append(
                 BenchmarkManager(
                     handler_id=str(self.__hash), 
@@ -210,6 +232,8 @@ class Handler:
                     format=format, 
                     range=range, 
                     stepsize=stepsize, 
+                    datatype=datatype,
+                    var_to_bm=var_to_bm,
                     iterations=iterations, 
                     use_path=use_path, 
                     results_path=results_path, 

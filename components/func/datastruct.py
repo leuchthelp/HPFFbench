@@ -156,45 +156,8 @@ class Datastruct:
                                
         return self
 
-    
-    def __read_header(self, variable, iterations):
-        
-        if type(variable) == str:
-            match self.engine:
-                case "zarr":
-                    print(self.dataset[variable].info_complete())
                 
-                case "hdf5":
-                    print(self.dataset[variable])
-                
-                case "netcdf4":
-                    print(self.dataset.variables[variable])
-                        
-        else:
-            match self.engine:
-                case "zarr":
-                    print(self.dataset.info_complete())
-                        
-                case "hdf5":
-                    print(self.dataset)
-                        
-                case "netcdf4":
-                    print(self.dataset)
-      
-                    
-    def __read_variable(self, variable, iterations):
-        match self.engine:
-            case "zarr":
-                return self.dataset[variable][:]
-                
-            case "hdf5":
-                return self.dataset[variable][:]
-                
-            case "netcdf4":
-                return self.dataset.variables[variable][:] 
- 
-                
-    def __bench_variable(self, variable, iterations):
+    def __bench_variable(self, variable: list, iterations):
         bench = []
         
         match self.engine:
@@ -238,7 +201,7 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
  
  
-    def __bench_variable_parallel(self, variable, iterations):
+    def __bench_variable_parallel(self, variable: list, iterations):
         from mpi4py import MPI
         
         bench = []
@@ -331,19 +294,30 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
   
   
-    def __bench_complete(self, variable, iterations):
+    def __bench_complete(self, variable: list, iterations):
         bench = []
+        size = []
+        var_tmp = []
          
         match self.engine:
             case "zarr":
-                size = {self.dataset[variable].shape[0]}
+                
+                for var in variable:
+                    try:
+                        size.append({self.dataset[var].shape[0]})
+                        var_tmp.append(var)
+                    except KeyError:
+                        print(f"Variable: {var} does not exist.")
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, , size: {size}")
+                    print(f"i: {i} for variable: {var_tmp} for engine: {self.engine}, size: {size}")
                     start = time.monotonic()
                     
                     for var in variable:
-                        self.dataset[var][:]
+                        try:
+                            self.dataset[var][:]
+                        except KeyError:
+                            print(f"Variable: {var} does not exist.")
                     
                     bench.append(time.monotonic() - start)
                 
@@ -351,15 +325,23 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
                 
             case "hdf5":
-                size = {self.dataset[variable].shape[0]}
+                for var in variable:
+                    try:
+                        size.append({self.dataset[var].shape[0]})
+                        var_tmp.append(var)
+                    except KeyError:
+                        print(f"Variable: {var} does not exist.")
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, , size: {size}")
+                    print(f"i: {i} for variable: {var_tmp} for engine: {self.engine}, size: {size}")
                     start = time.monotonic()
                     
                     for var in variable:
-                        #self.dataset[variable].read_direct(arr)
-                        self.dataset[var][:]
+                        try:
+                            #self.dataset[variable].read_direct(arr)
+                            self.dataset[var][:]
+                        except KeyError:
+                            print(f"Variable: {var_tmp} does not exist.")
                         
                     bench.append(time.monotonic() - start)
                 
@@ -367,14 +349,22 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
                 
             case "netcdf4":
-                size = {self.dataset[variable].shape[0]}
+                for var in variable:
+                    try:
+                        size.append({self.dataset[var].shape[0]})
+                        var_tmp.append(var)
+                    except KeyError:
+                            print(f"Variable: {var} does not exist.")    
                 
                 for i in range(iterations):
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, , size: {size}")
+                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, size: {size}")
                     start = time.monotonic()
                     
                     for var in variable:
-                        self.dataset[var][:]
+                        try:
+                            self.dataset[var][:]
+                        except KeyError:
+                            print(f"Variable: {var} does not exist.")
                     
                     bench.append(time.monotonic() - start)
                 
@@ -382,129 +372,163 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
  
  
-    def __bench_complete_parallel(self, variable, iterations):
+    def __bench_complete_parallel(self, variable: list, iterations):    
+        match self.engine:
+            case "zarr":
+                self.__bench_complete_parallel_zarr(variable=variable, iterations=iterations)
+                
+            case "hdf5":
+                self.__bench_complete_parallel_hdf5(variable=variable, iterations=iterations)
+                
+            case "netcdf4":
+                self.__bench_complete_parallel_netcdf4(variable=variable, iterations=iterations)
+ 
+    
+    def __bench_complete_parallel_zarr(self, variable: list, iterations):
         from mpi4py import MPI
         
         bench = []
+        size = []
+        var_tmp = []
         rank = MPI.COMM_WORLD.rank
         rsize = MPI.COMM_WORLD.size
-         
-        match self.engine:
-            case "zarr":
-                
-                for i in range(iterations):
-                    if rank == rank:
-                        size = {self.dataset[variable].shape[0]}
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {size}")
-                    
-                    if rank == 0:
-                        start = time.monotonic()
-                    
-                    for var in variable:
-                        
-                        total_size = self.dataset[var].shape[0]
-                        size = int(total_size / rsize)
-                        
-                        rstart = rank * size
-                        rend = rstart + size
-                        self.dataset[var][rstart:rend:]
-                        
-                    if rank == 0: 
-                        bench.append(time.monotonic() - start)
-                        
-                    MPI.COMM_WORLD.Barrier()
-                
-                self.log = bench
-                
-                MPI.COMM_WORLD.Barrier()
-                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
-                
-            case "hdf5":
-                
-                for i in range(iterations):
-                    size = {self.dataset[variable].shape[0]}
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {size}")
-                    
-                    if rank == 0:
-                        start = time.monotonic()
-                    
-                    for var in variable:
-                        
-                        total_size = self.dataset[var].shape[0]
-                        size = int(total_size / rsize)
-                    
-                        rstart = rank * size
-                        rend = rstart + size
-                    
-                        self.dataset[var][rstart:rend:]
-                    
-                    if rank == 0: 
-                        bench.append(time.monotonic() - start)
-                        
-                    MPI.COMM_WORLD.Barrier()
-                
-                if rank == 0:
-                    self.log = bench
-                    
-                MPI.COMM_WORLD.Barrier()
-                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
-                
-            case "netcdf4":
-                
-                for i in range(iterations):
-                    size = {self.dataset[variable].shape[0]}
-                    print(f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {size}")
-                    
-                    if rank == 0:
-                        start = time.monotonic()
-                    
-                    for var in variable:
-                        
-                        total_size = self.dataset[var].shape[0]
-                        size = int(total_size / rsize)
-                    
-                        rstart = rank * size
-                        rend = rstart + size
-                    
-                        self.dataset[var][rstart:rend:]
-                    
-                    if rank == 0:
-                        bench.append(time.monotonic() - start)
-                        
-                    MPI.COMM_WORLD.Barrier()
-                
-                if rank == 0:
-                    self.log = bench
-                    
-                MPI.COMM_WORLD.Barrier()
-                print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
- 
- 
-    def __bench_sinus(self, variable, iterations):
-        pass
-   
-    
-    def __bench_calc_max(self, variable, iterations):
-        match self.engine:
-            case "zarr":
-                self.dataset[variable]
-                
-            case "hdf5":
-                self.dataset[variable]
-                
-            case "netcdf4":
-                self.dataset.variables[variable]
         
-      
-    def read(self, pattern, variable=None, iterations=None, logging=False):
+        for i in range(iterations):
+            if rank == rank:
+                for var in variable:
+                    
+                    try:
+                        size.append({self.dataset[var].shape[0]})
+                        var_tmp.append(var)
+                    except KeyError:
+                        print(f"Variable: {var} does not exist.")
+            print(f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {size}")
+            
+            if rank == 0:
+                start = time.monotonic()
+            
+            for var in variable:
+                
+                try:
+                    total_size = self.dataset[var].shape[0]
+                    size = int(total_size / rsize)
+
+                    rstart = rank * size
+                    rend = rstart + size
+                    self.dataset[var][rstart:rend:]
+                except KeyError:
+                        print(f"Variable: {var} does not exist.")
+                
+            if rank == 0: 
+                bench.append(time.monotonic() - start)
+                
+            MPI.COMM_WORLD.Barrier()
+                
+        self.log = bench
+        
+        MPI.COMM_WORLD.Barrier()
+        print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+     
+        
+    def __bench_complete_parallel_hdf5(self, variable: list, iterations):
+        from mpi4py import MPI
+        
+        bench = []
+        size = []
+        var_tmp = []
+        rank = MPI.COMM_WORLD.rank
+        rsize = MPI.COMM_WORLD.size
+        
+        for i in range(iterations):
+            for var in variable:
+                try:
+                    size.append({self.dataset[var].shape[0]})
+                    var_tmp.append(var)
+                except KeyError:
+                    print(f"Variable: {var} does not exist.")
+            print(f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {size}")
+            
+            if rank == 0:
+                start = time.monotonic()
+            
+            for var in variable:
+                
+                try:
+                    total_size = self.dataset[var].shape[0]
+                    size = int(total_size / rsize)
+
+                    rstart = rank * size
+                    rend = rstart + size
+
+                    self.dataset[var][rstart:rend:]
+                except KeyError:
+                    print(f"Variable: {var} does not exist.")
+            
+            if rank == 0: 
+                bench.append(time.monotonic() - start)
+                
+            MPI.COMM_WORLD.Barrier()
+                
+        if rank == 0:
+            self.log = bench
+            
+        MPI.COMM_WORLD.Barrier()
+        print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+        
+        
+    def __bench_complete_parallel_netcdf4(self, variable: list, iterations):
+        from mpi4py import MPI
+        
+        bench = []
+        size = []
+        var_tmp = []
+        rank = MPI.COMM_WORLD.rank
+        rsize = MPI.COMM_WORLD.size
+        
+        for i in range(iterations):
+            for var in variable:
+                try:
+                    size.append({self.dataset[var].shape[0]})
+                    var_tmp.append(var)
+                except KeyError:
+                    print(f"Variable: {var} does not exist.")
+            print(f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {size}")
+            
+            if rank == 0:
+                start = time.monotonic()
+            
+            for var in variable:
+                
+                try:
+                    total_size = self.dataset[var].shape[0]
+                    size = int(total_size / rsize)
+
+                    rstart = rank * size
+                    rend = rstart + size
+
+                    self.dataset[var][rstart:rend:]
+                except KeyError:
+                    print(f"Variable: {var} does not exist.")
+            
+            if rank == 0:
+                bench.append(time.monotonic() - start)
+                
+            MPI.COMM_WORLD.Barrier()
+                
+        if rank == 0:
+            self.log = bench
+            
+        MPI.COMM_WORLD.Barrier()
+        print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+    
+            
+    def read(self, pattern, variable: str, iterations: None, logging=False):
         
         patterns = {
-            "header": self.__read_header,
-            "variable": self.__read_variable,
             "bench_variable": self.__bench_variable,
             "bench_complete": self.__bench_complete,
             "bench_variable_parallel": self.__bench_variable_parallel,
             "bench_complete_parallel": self.__bench_complete_parallel,
         }
-                
-        return patterns[pattern](variable=variable, iterations=iterations)
+
+        return patterns[pattern](variable=variable.split(","), iterations=iterations)
