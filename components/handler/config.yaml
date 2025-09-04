@@ -33,4 +33,6 @@ runs:
     - - 402653184
     - []
 stepsize: 5
-variable_to_benchmark: X
+variable_to_benchmark:
+- X
+- Y

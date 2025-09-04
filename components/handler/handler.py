@@ -95,11 +95,14 @@ class Handler:
                         tmp.append(("parallel", current["parallel"]))  # type: ignore
                     except KeyError:
                         tmp.append(("parallel", False))
-                        
+                    
                     try:
-                        tmp.append(("par_backend", current["par_backend"]))  # type: ignore
+                        if current["par_backend"] is not None:  # type: ignore
+                            tmp.append(("par_backend", current["par_backend"]))  # type: ignore
+                        else:
+                            raise KeyError
                     except KeyError:
-                        tmp.append(("par_backend", None))
+                        tmp.append(("par_backend", "base"))
                     
                     try:
                         tmp.append(("language", current["language"]))  # type: ignore
@@ -115,7 +118,32 @@ class Handler:
 
         return determined
         
-    
+   
+    def __requested_capabilities(self, parallel: bool):
+        requested   = None
+        
+        languages    = []
+        for langauge in self.config["languages"]:  # type: ignore
+            languages.append(("language", langauge))
+        
+        formats      = []
+        for format in self.config["formats"]:  # type: ignore
+            formats.append(("format", format))
+            
+        par_backends = [("par_backend", "base")]
+        
+        if parallel is True:
+            par_backends = []
+            if type(self.config["par_backend"]) is not list:  # type: ignore
+                    par_backends.append(("par_backend", self.config["par_backend"]))  # type: ignore
+            else:
+                for par_backend in self.config["par_backend"]:  # type: ignore
+                    par_backends.append(("par_backend", par_backend))
+        
+        requested = itertools.product(*[[("parallel", parallel)], par_backends, languages, formats])
+        return requested   
+   
+     
     def __create_benchmark(self, parallel: bool, determined_cap: list) -> list:
         requested_cap = self.__requested_capabilities(parallel=parallel) 
         
@@ -130,73 +158,6 @@ class Handler:
         return tasks
 
 
-    def __start(self):
-        self.__benchmarks = ProcessPool().amap(self.__run_benchmark, *self.__tasks).get()  
-        self.__prepare_dataframe()
-        
-
-    def __run_benchmark(self, bm: BenchmarkManager):
-        return bm.run()
-
-    
-    def __prepare_dataframe(self):
-        root = Path(self.config["paths"]["path_to_results"]) # type: ignore
-        df = pd.DataFrame()
-        
-        for path in root.rglob("*"):
-            if not path.is_dir():
-                for index in range(len(self.__benchmarks)):
-                    
-                    bm = self.__benchmarks[index]
-                    
-                    if bm["hash"] == path.name.replace(".yaml", ""):
-                        
-                        with open(path, "r") as file:
-                            current = yaml.safe_load(file)
-                        
-                        tmp = pd.DataFrame(data={
-                                "run"       : index, 
-                                "benchmark" : bm["hash"],
-                                "run_config": str(bm["run_config"]), 
-                                "time taken": current,
-                                "parallel"  : bm["parallel"],
-                                "language"  : bm["language"], 
-                                "format"    : str(bm["bm_config"]["format"]), 
-                                })
-                        
-                        df = pd.concat([tmp, df], ignore_index=True)
-    
-                          
-        tmp = self.config["paths"]["path_to_results"] # type: ignore  
-        df.to_json(Path(f"{tmp}/results.json"))
-    
-    
-    def __requested_capabilities(self, parallel: bool):
-        requested   = None
-        
-        languages    = []
-        for langauge in self.config["languages"]:  # type: ignore
-            languages.append(("language", langauge))
-        
-        formats      = []
-        for format in self.config["formats"]:  # type: ignore
-            formats.append(("format", format))
-            
-        par_backends = [("par_backend", None)]
-        
-        if parallel is True:
-            par_backends = []
-            if type(self.config["par_backend"]) is not list:  # type: ignore
-                    par_backends.append(("par_backend", self.config["par_backend"]))  # type: ignore
-            else:
-                for par_backend in self.config["par_backend"]:  # type: ignore
-                    par_backends.append(("par_backend", par_backend))
-        
-        requested = itertools.product(*[[("parallel", parallel)], par_backends, languages, formats])
-
-        return requested
-        
-                                             
     def __create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
         
         bm = []
@@ -240,5 +201,46 @@ class Handler:
                     bm_config=bm_config)
                 )
         return bm
+
+
+    def __start(self):
+        self.__benchmarks = ProcessPool().amap(self.__run_benchmark, *self.__tasks).get()  
+        self.__prepare_dataframe()
+        
+
+    def __run_benchmark(self, bm: BenchmarkManager):
+        return bm.run()
+
+    
+    def __prepare_dataframe(self):
+        root = Path(self.config["paths"]["path_to_results"]) # type: ignore
+        df = pd.DataFrame()
+        
+        for path in root.rglob("*"):
+            if not path.is_dir():
+                for index in range(len(self.__benchmarks)):
+                    
+                    bm = self.__benchmarks[index]
+                    
+                    if bm["hash"] == path.name.replace(".yaml", ""):
+                        
+                        with open(path, "r") as file:
+                            current = yaml.safe_load(file)
+                        
+                        tmp = pd.DataFrame(data={
+                                "run"       : index, 
+                                "benchmark" : bm["hash"],
+                                "run_config": str(bm["run_config"]), 
+                                "time taken": current,
+                                "parallel"  : bm["parallel"],
+                                "language"  : bm["language"], 
+                                "format"    : str(bm["bm_config"]["format"]), 
+                                })
+                        
+                        df = pd.concat([df, tmp], ignore_index=True)
+    
+                          
+        tmp = self.config["paths"]["path_to_results"] # type: ignore  
+        df.to_json(Path(f"{tmp}/results.json"))                                          
 
         
