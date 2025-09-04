@@ -35,7 +35,7 @@ class Handler:
         
         parallel = False
         try:
-            parallel = self.config["parallel"] 
+            parallel = self.config["parallel"] # type: ignore
             if parallel != "Both" and type(parallel) is not bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
             
         except KeyError:
@@ -71,7 +71,7 @@ class Handler:
     
     def __check_paths(self):
         print(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
-        for key, path in self.config["paths"].items():
+        for key, path in self.config["paths"].items(): # type: ignore
             if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
         
         print(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
@@ -80,7 +80,7 @@ class Handler:
     
     
     def __determine_capabilities(self):
-        root = Path(self.config["paths"]["path_to_benchmarks"])
+        root = Path(self.config["paths"]["path_to_benchmarks"])  # type: ignore
         
         determined = []
         
@@ -92,22 +92,22 @@ class Handler:
                     tmp = []
                     
                     try:
-                        tmp.append(("parallel", current["parallel"]))
+                        tmp.append(("parallel", current["parallel"]))  # type: ignore
                     except KeyError:
                         tmp.append(("parallel", False))
                         
                     try:
-                        tmp.append(("par_backend", current["par_backend"]))
+                        tmp.append(("par_backend", current["par_backend"]))  # type: ignore
                     except KeyError:
                         tmp.append(("par_backend", None))
                     
                     try:
-                        tmp.append(("language", current["language"]))
+                        tmp.append(("language", current["language"]))  # type: ignore
                     except yaml.YAMLError as e:
                         raise e
                      
                     try: 
-                        tmp.append(("format", current["format"]))
+                        tmp.append(("format", current["format"]))  # type: ignore
                     except KeyError as e:
                         raise e
                                         
@@ -116,8 +116,8 @@ class Handler:
         return determined
         
     
-    def __create_benchmark(self, parallel: str | bool, determined_cap: list) -> list:
-        requested_cap = self.__requested_capabilities(parallel=parallel)
+    def __create_benchmark(self, parallel: bool, determined_cap: list) -> list:
+        requested_cap = self.__requested_capabilities(parallel=parallel) 
         
         tasks = []
         for requested in [*requested_cap]: 
@@ -140,7 +140,7 @@ class Handler:
 
     
     def __prepare_dataframe(self):
-        root = Path(self.config["paths"]["path_to_results"]) 
+        root = Path(self.config["paths"]["path_to_results"]) # type: ignore
         df = pd.DataFrame()
         
         for path in root.rglob("*"):
@@ -167,7 +167,7 @@ class Handler:
                         df = pd.concat([tmp, df], ignore_index=True)
     
                           
-        tmp = self.config["paths"]["path_to_results"]     
+        tmp = self.config["paths"]["path_to_results"] # type: ignore  
         df.to_json(Path(f"{tmp}/results.json"))
     
     
@@ -175,21 +175,21 @@ class Handler:
         requested   = None
         
         languages    = []
-        for langauge in self.config["languages"]:
+        for langauge in self.config["languages"]:  # type: ignore
             languages.append(("language", langauge))
         
         formats      = []
-        for format in self.config["formats"]:
+        for format in self.config["formats"]:  # type: ignore
             formats.append(("format", format))
             
         par_backends = [("par_backend", None)]
         
         if parallel is True:
             par_backends = []
-            if type(self.config["par_backend"]) is not list:
-                    par_backends.append(("par_backend", self.config["par_backend"]))
+            if type(self.config["par_backend"]) is not list:  # type: ignore
+                    par_backends.append(("par_backend", self.config["par_backend"]))  # type: ignore
             else:
-                for par_backend in self.config["par_backend"]:
+                for par_backend in self.config["par_backend"]:  # type: ignore
                     par_backends.append(("par_backend", par_backend))
         
         requested = itertools.product(*[[("parallel", parallel)], par_backends, languages, formats])
@@ -200,16 +200,16 @@ class Handler:
     def __create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
         
         bm = []
-        for _, run_config in self.config["runs"].items():
+        for _, run_config in self.config["runs"].items():  # type: ignore
             
             parallel    = requested["parallel"]
             par_backend = requested["par_backend"]
             language    = requested["language"]
             format      = requested["format"]
-            use_path    = Path(self.config["paths"]["path_to_tmp"] )
-            results_path= Path(self.config["paths"]["path_to_results"])
-            range       = self.config["range"]
-            stepsize    = self.config["stepsize"]
+            use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
+            results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
+            range       = self.config["range"]  # type: ignore
+            stepsize    = self.config["stepsize"]  # type: ignore
             
             datatype    = []
             for _, item in run_config.items():
@@ -218,8 +218,8 @@ class Handler:
                 else:
                     datatype.append("f8")
             
-            var_to_bm   = self.config["variable_to_benchmark"]
-            iterations  = self.config["iterations"]
+            var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
+            iterations  = self.config["iterations"]  # type: ignore
                     
             print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
             bm.append(

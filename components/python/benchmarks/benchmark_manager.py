@@ -113,7 +113,7 @@ class BenchmarkManager:
 
  
     def __create_file(self):
-        create = self.create.replace("#MAIN", self.__replace_main(self.language))
+        create = self.create.replace("#MAIN", self.__replace_main(self.language)) # type: ignore
         
         path_to_create_file = f"{self.dir_path}/create.{self.language}"
         with open(path_to_create_file, "w") as file:
