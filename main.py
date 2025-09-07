@@ -80,9 +80,9 @@ def main():
     with Profile() as profile:  
         handler = Handler(path_to_config=path_to_config)
         stats = Stats(profile).strip_dirs()
-        #stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
-        #stats.sort_stats(SortKey.CALLS).print_stats(10)
-        #stats.sort_stats(SortKey.TIME).print_stats(5)
+        stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
+        stats.sort_stats(SortKey.CALLS).print_stats(10)
+        stats.sort_stats(SortKey.TIME).print_stats(5)
 
 if __name__=="__main__":
     main()

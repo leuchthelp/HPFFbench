@@ -3,10 +3,10 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 import shutil
 import yaml
+import json
 import hashlib
 import subprocess
 import os
-import random
 
 @dataclass
 class BenchmarkManager:
@@ -108,8 +108,8 @@ class BenchmarkManager:
     def run(self):
         self.dir_path.mkdir(parents=True)
         
-        with open(f"{self.dir_path}/run_config.yaml", "w") as f:
-            yaml.safe_dump(self.run_config, f)
+        with open(f"{self.dir_path}/run_config.json", "w") as f:
+            json.dump(self.run_config, f)
         
         
         if self.create is not None:  
@@ -262,8 +262,8 @@ if __name__=="__main__":
         match language:
             case "py":
                 return f"""if parallel is False or MPI.COMM_WORLD.rank == 0:
-        with open("{self.results_path.absolute()}/{self.hash}.yaml", "a") as f:
-            yaml.dump(result, f)
+        with open("{self.results_path.absolute()}/{self.hash}.json", "a") as f:
+            json.dump(result, f)
                         """
             case "c":
                 return ""

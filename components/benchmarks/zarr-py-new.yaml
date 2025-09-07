@@ -12,7 +12,7 @@ create: |
     import shutil
     from func import datastruct as ds
     from func.datastruct import bcolors as color
-    import yaml
+    import json
     import argparse
 
     def create_ds(form, selection, parallel=False, path=None):
@@ -29,8 +29,8 @@ create: |
     
 
     def create(selection, parallel=False, path=None):
-        with open("run_config.yaml") as yaml_file:
-            create_ds(yaml.safe_load(yaml_file), selection, parallel=parallel, path=path)
+        with open("run_config.json") as json_file:
+            create_ds(json.load(json_file), selection, parallel=parallel, path=path)
 
     #MAIN
 run_command:  
@@ -39,7 +39,7 @@ run_command:
 source: | 
     from func import datastruct as ds
     from func.datastruct import bcolors as color
-    import yaml
+    import json
     import argparse
 
     def bench(iterations, variable: None, parallel=False, path=None):
@@ -49,8 +49,8 @@ source: |
 
         if variable == None:
             variable = []
-            with open("run_config.yaml") as yaml_file:
-                tmp = yaml.safe_load(yaml_file) 
+            with open("run_config.json") as yaml_file:
+                tmp = json.load(yaml_file) 
 
                 for keys in tmp.keys():
                   variable.append(keys)
