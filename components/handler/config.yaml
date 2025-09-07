@@ -1,10 +1,10 @@
 formats:
 - zarr: new
-iterations: 5
+iterations: 10
 languages:
 - py
 par_backend: MPI
-parallel: false
+parallel: Both
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_config: components/handler/
@@ -15,6 +15,7 @@ paths:
 range:
 - 10
 - 90
+ranks: 2
 runs:
   run01:
     X:

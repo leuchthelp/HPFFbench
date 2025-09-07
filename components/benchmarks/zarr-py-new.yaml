@@ -1,9 +1,12 @@
-par_backend: 
-parallel: False
+parallel: "configurable"
+par_backend: "MPI"
 language: py
+extension: zarr
 format: 
     zarr: "new"
-create_command: "python {runnable} -c 1"
+create_command: 
+    serial  : "python {runnable}"
+    MPI: "mpiexec -n python {runnable}"
 create: |
     import os
     import shutil
@@ -13,36 +16,37 @@ create: |
     import argparse
 
     def create_ds(form, selection, parallel=False, path=None):
-    
-        from mpi4py import MPI
-        #new.create(path="test_dataset.zarr", shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
+
+        if parallel:
+            from mpi4py import MPI
+
+        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
         match selection:
             case 1:
-                ds_zarr = ds.Datastruct()
-                
-                if parallel is False or MPI.COMM_WORLD.rank == 0:
-                    if os.path.exists("test_dataset.zarr"):
-                        shutil.rmtree("test_dataset.zarr")
-                    else:
-                        print(f"{color.OKCYAN}The file does not exist{color.ENDC}")
-                
+                ds_zarr = ds.Datastruct() 
                 print(f"{color.WARNING}Creating zarr{color.ENDC}")
-                ds_zarr.create(path="test_dataset.zarr", form=form, engine="zarr", parallel=parallel)
+                ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel)
     
 
     def create(selection, parallel=False, path=None):
         with open("run_config.yaml") as yaml_file:
-            create_ds(yaml.safe_load(yaml_file), selection, parallel=parallel)
+            create_ds(yaml.safe_load(yaml_file), selection, parallel=parallel, path=path)
 
     #MAIN
-run_command:  "python {runnable} -b 1 -v {var_to_bm} -i {iterations}"
+run_command:  
+    serial  : "python {runnable} -v"
+    MPI: "mpiexec -n python {runnable} -v"  
 source: | 
     from func import datastruct as ds
     from func.datastruct import bcolors as color
     import yaml
     import argparse
 
-    def bench(iterations, variable=None, path=None):    
+    def bench(iterations, variable: None, parallel=False, path=None):
+
+        if parallel:
+            from mpi4py import MPI
+
         if variable == None:
             variable = []
             with open("run_config.yaml") as yaml_file:
@@ -52,8 +56,12 @@ source: |
                   variable.append(keys)
 
         ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r+", engine="zarr", path="test_dataset.zarr")
-        ds_zarr.read("bench_complete", variable=variable, iterations=iterations)
+        ds_zarr.open(mode="r+", engine="zarr", path=path)
+
+        if parallel:
+            ds_zarr.read("bench_complete_parallel", variable=variable, iterations=iterations)
+        else:
+            ds_zarr.read("bench_complete", variable=variable, iterations=iterations)
         result = ds_zarr.log
 
         #RESULT

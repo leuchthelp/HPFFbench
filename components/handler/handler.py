@@ -3,6 +3,7 @@ from func.datastruct import bcolors
 from python.benchmarks import BenchmarkManager
 from pathlib import Path
 from pathos.pools import ProcessPool
+from copy import deepcopy
 import pandas as pd
 import itertools
 import yaml
@@ -31,7 +32,7 @@ class Handler:
         self.__load_config(path_to_config)
         self.__check_paths()
         
-        determined_cap = self.__determine_capabilities()
+        self.__capabilities = self.__determine_capabilities()
         
         parallel = False
         try:
@@ -43,12 +44,11 @@ class Handler:
         
         
         if parallel == "Both":
-            self.__tasks = self.__create_benchmark(parallel=False, determined_cap=determined_cap)
-            self.__tasks.extend(self.__create_benchmark(parallel=True, determined_cap=determined_cap))
+            self.__tasks = self.__create_benchmark(parallel=False, determined_cap=self.__capabilities)
+            self.__tasks.extend(self.__create_benchmark(parallel=True, determined_cap=self.__capabilities))
         else:
-            self.__tasks = self.__create_benchmark(parallel=parallel, determined_cap=determined_cap)
-         
-
+            self.__tasks = self.__create_benchmark(parallel=parallel, determined_cap=self.__capabilities)
+        
         self.__start()
                       
 
@@ -97,7 +97,7 @@ class Handler:
                         tmp.append(("parallel", False))
                     
                     try:
-                        if current["par_backend"] is not None:  # type: ignore
+                        if current["par_backend"] is not None and current["parallel"] is True:  # type: ignore
                             tmp.append(("par_backend", current["par_backend"]))  # type: ignore
                         else:
                             raise KeyError
@@ -151,10 +151,20 @@ class Handler:
         for requested in [*requested_cap]: 
             requested = dict(requested)
             for determined in determined_cap:
-                if requested == determined[0]:
+                
+                tmp_det = deepcopy(determined)
+                
+                if determined[0]["parallel"] == "configurable" and parallel is True:
+                    tmp_det[0]["par_backend"] = requested["par_backend"]
+                    tmp_det[0]["parallel"] = requested["parallel"]
+                    
+                elif determined[0]["parallel"] == "configurable" and parallel is False:
+                   tmp_det[0]["parallel"] = False
+                
+                if requested == tmp_det[0]:
                     print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
-                    tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=determined[1]))
-               
+                    tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=tmp_det[1]))
+        
         return tasks
 
 
@@ -167,6 +177,8 @@ class Handler:
             par_backend = requested["par_backend"]
             language    = requested["language"]
             format      = requested["format"]
+            extension   = bm_config["extension"]
+            ranks       = self.config["ranks"]  # type: ignore
             use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
             results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
             range       = self.config["range"]  # type: ignore
@@ -182,15 +194,18 @@ class Handler:
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
                     
-            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)
+            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
+            
             bm.append(
                 BenchmarkManager(
                     handler_id=str(self.__hash), 
                     run_config=run_config, 
                     parallel=parallel, 
                     par_backend=par_backend, 
+                    ranks=ranks,
                     language=language, 
-                    format=format, 
+                    format=format,
+                    extension=extension, 
                     range=range, 
                     stepsize=stepsize, 
                     datatype=datatype,
@@ -199,12 +214,16 @@ class Handler:
                     use_path=use_path, 
                     results_path=results_path, 
                     bm_config=bm_config)
-                )
+            )
+            
         return bm
 
 
     def __start(self):
-        self.__benchmarks = ProcessPool().amap(self.__run_benchmark, *self.__tasks).get()  
+        try:
+            self.__benchmarks = ProcessPool().amap(self.__run_benchmark, [x for xs in self.__tasks for x in xs]).get()
+        except TypeError:     
+            raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC)
         self.__prepare_dataframe()
         
 
@@ -238,6 +257,7 @@ class Handler:
                                 })
                         
                         df = pd.concat([df, tmp], ignore_index=True)
+                        df = df.sort_values(by="run", ascending=True)
     
                           
         tmp = self.config["paths"]["path_to_results"] # type: ignore  
