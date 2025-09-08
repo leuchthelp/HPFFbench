@@ -1,10 +1,10 @@
 formats:
 - zarr: new
-iterations: 5
+iterations: 10
 languages:
 - py
 par_backend: MPI
-parallel: false
+parallel: Both
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_config: components/handler/
@@ -17,11 +17,46 @@ range:
 - 90
 ranks: 32
 runs:
-  run02:
+  run04:
     X:
-    - - 268435456
+    - - 1342177280
     - []
-    - f8
+  run05:
+    X:
+    - - 2684354560
+    - []
+  run06:
+    X:
+    - - 4026531840
+    - []
+  run07:
+    X:
+    - - 5368709120
+    - []
+  run08:
+    X:
+    - - 6710886400
+    - []
+  run09:
+    X:
+    - - 8053063680
+    - []
+  run10:
+    X:
+    - - 9395240960
+    - []
+  run11:
+    X:
+    - - 10737418240
+    - []
+  run12:
+    X:
+    - - 12079595520
+    - []
+  run13:
+    X:
+    - - 13421772800
+    - []
 stepsize: 5
 variable_to_benchmark:
 - X

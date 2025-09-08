@@ -7,6 +7,7 @@ from copy import deepcopy
 import pandas as pd
 import itertools
 import yaml
+import json
 import hashlib
 
 
@@ -241,10 +242,10 @@ class Handler:
                     
                     bm = self.__benchmarks[index]
                     
-                    if bm["hash"] == path.name.replace(".yaml", ""):
+                    if bm["hash"] == path.name.replace(".json", ""):
                         
                         with open(path, "r") as file:
-                            current = yaml.safe_load(file)
+                            current = json.load(file)
                         
                         tmp = pd.DataFrame(data={
                                 "run"       : index, 
