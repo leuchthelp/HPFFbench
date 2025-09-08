@@ -67,6 +67,7 @@ class BenchmarkManager:
         self.results_path   = results_path
         self.dir_path       = Path(f"{self.use_path}/{str(self.hash)}")
         self.bm_config      = bm_config
+        self.sbatch_config  = "/work/ku0598/k203191/dkrz_dev/slurm-scripts/run-anything.sh"
         
         # Benchmark config
         self.run_config     = run_config
@@ -83,6 +84,7 @@ class BenchmarkManager:
         self.iterations     = iterations
         self.internal_i     = 1
         self.no_caching     = True
+        self.local          = False
         self.location       = f"test.{self.extension}"
         
         # Source code
@@ -155,10 +157,16 @@ class BenchmarkManager:
                 
         create_command = create_command.replace("-l", f"-l {self.location}")
         
-        p = subprocess.run(create_command.split(), capture_output=True, text=True, cwd=self.dir_path)
+        if  "SLURM_JOB_ID" in os.environ and self.local is False:
+            create_command = ["sbatch", self.sbatch_config, create_command]
+        else: 
+            create_command = create_command.split()
+
+        
+        p = subprocess.run(create_command, capture_output=True, text=True, cwd=self.dir_path)
         print(p.stderr)
         print(p.stdout)
-        
+    
 
     def __compile_file(self):
         pass
@@ -181,11 +189,7 @@ class BenchmarkManager:
             run_command = run_commands[str(self.par_backend)]
             run_command = run_command +  "-p"
             run_command = run_command.replace("-n", f"-n {self.ranks} ")
-            
-            
-        if  "SLURM_JOB_ID"  in os.environ:
-            run_command = "sbatch " + run_command
-        
+
         
         tmp = ",".join(self.var_to_bm)    
         run_command = run_command.replace("-v", f"-v {tmp} ")
@@ -199,30 +203,38 @@ class BenchmarkManager:
             
         if "-l" not in run_command:
                 run_command = run_command + f"-l {self.location}"
-    
-    
+
+
+        if  "SLURM_JOB_ID" in os.environ and self.local is False:
+            run_command = ["sbatch", self.sbatch_config, run_command]
+
+        
         for i in range(self.iterations):
             
-            p = subprocess.run(run_command.split(), capture_output=True, text=True, cwd=self.dir_path)
-            print(p.stderr)
-            print(p.stdout)
-            
-            if "SLURM_JOB_ID" not in os.environ and self.no_caching:
-                
-                new_path = Path(f"{self.dir_path}/{i}")
-                new_path.mkdir(parents=True)
-                
-                current_path = None
-                for path in self.dir_path.rglob(f"*.{self.extension}"):
-                    current_path = path
+            if  "SLURM_JOB_ID" in os.environ and self.local is False:
+                p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path)
+                print(p.stderr)
+                print(p.stdout)
+            else: 
+                p = subprocess.run(run_command.split(), capture_output=True, text=True, cwd=self.dir_path)  # type: ignore
+                print(p.stderr)
+                print(p.stdout)
+
+                if self.no_caching is True:
+                    new_path = Path(f"{self.dir_path}/{i}")
+                    new_path.mkdir(parents=True)
                     
-                new_file_location = shutil.move(current_path.absolute(), f"{new_path.absolute()}/{i}.{self.extension}")  # type: ignore
-                
-                #print(f"current location: {self.location} -> new location: {new_file_location}")
-                
-                run_command = run_command.replace(f"-l {self.location}", f"-l {new_file_location}")
-                #print(f"new run command: {run_command}")
-                self.location = new_file_location
+                    current_path = None
+                    for path in self.dir_path.rglob(f"*.{self.extension}"):
+                        current_path = path
+                        
+                    new_file_location = shutil.move(current_path.absolute(), f"{new_path.absolute()}/{i}.{self.extension}")  # type: ignore
+                    
+                    #print(f"current location: {self.location} -> new location: {new_file_location}")
+                    
+                    run_command = run_command.replace(f"-l {self.location}", f"-l {new_file_location}")  # type: ignore
+                    #print(f"new run command: {run_command}")
+                    self.location = new_file_location
                 
         
     def __replace_main(self, language):
@@ -262,7 +274,12 @@ if __name__=="__main__":
         match language:
             case "py":
                 return f"""if parallel is False or MPI.COMM_WORLD.rank == 0:
-        with open("{self.results_path.absolute()}/{self.hash}.json", "a") as f:
+        from pathlib import Path
+        if Path("{self.results_path.absolute()}/{self.hash}.json").exists():
+            with open("{self.results_path.absolute()}/{self.hash}.json", "r") as t:
+                result.extend(json.load(t))    
+        
+        with open("{self.results_path.absolute()}/{self.hash}.json", "w") as f:
             json.dump(result, f)
                         """
             case "c":
