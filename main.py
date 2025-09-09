@@ -51,15 +51,15 @@ def main():
     }
     
     new_setup = {
-        "formats"               : [{"zarr": "new"}],
+        "formats"               : ["zarr"],
         "languages"             : ["py"],
         "paths"                 : paths,
-        "iterations"            : 1,
+        "iterations"            : 10,
         "runs"                  : tmp,
         "range"                 : [10, 90], 
         "stepsize"              : 5,
         "parallel"              : "Both",
-        "par_backend"           : ["MPI", "Dask"],
+        "par_backend"           : "MPI",
         "ranks"                 : 1,
         "variable_to_benchmark" : ["X", "Y"],
     }
@@ -71,8 +71,8 @@ def main():
         handler = Handler(path_to_config=path_to_config)
         stats = Stats(profile).strip_dirs()
         #stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
-        #stats.sort_stats(SortKey.CALLS).print_stats(10)
-        #stats.sort_stats(SortKey.TIME).print_stats(5)
+        #stats.sort_stats(SortKey.CALLS).print_stats(20)
+        #stats.sort_stats(SortKey.TIME).print_stats(20)
 
 if __name__=="__main__":
     main()

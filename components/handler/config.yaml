@@ -1,11 +1,9 @@
 formats:
-- zarr: new
-iterations: 1
+- zarr
+iterations: 10
 languages:
 - py
-par_backend:
-- MPI
-- Dask
+par_backend: MPI
 parallel: Both
 paths:
   path_to_benchmarks: components/benchmarks

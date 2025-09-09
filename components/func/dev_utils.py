@@ -1,10 +1,13 @@
-def calc_chunksize(chunks):
+def calc_size_unit(input: list):
     
     res = 1
     size = "Byte"
     
-    for chunksize in chunks:
-        res *= chunksize
+    if not input:
+        return None
+    
+    for item in input:
+        res *= item
     
     res *= 8
     if res > 1 * 1024 * 1024:
@@ -19,4 +22,4 @@ def calc_chunksize(chunks):
         res /= 1024
         size = "GB"
 
-    return (res, size)
+    return res, size

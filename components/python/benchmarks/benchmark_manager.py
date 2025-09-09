@@ -1,4 +1,5 @@
 from func.datastruct import bcolors
+from func.dev_utils import calc_size_unit
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import shutil
@@ -20,22 +21,27 @@ class BenchmarkManager:
     
     """
     
-    handler_id  : str
-    hash        : str
-    run_config  : dict
-    parallel    : bool
-    par_backend : None | str
-    ranks       : None | int
-    language    : str
-    format      : str
-    extension   : str
-    range       : list
-    stepsize    : int
-    datatype    : list
-    var_to_bm   : str | list
-    iterations  : int
-    internal_i  : int
-    bm_config   : dict
+    handler_id      : str
+    hash            : str
+    run_config      : dict
+    parallel        : bool
+    par_backend     : None | str
+    ranks           : None | int
+    language        : str
+    format          : str
+    engine          : str
+    extension       : str
+    range           : list
+    stepsize        : int
+    datatype        : list
+    var_to_bm       : str | list
+    total_filesize  : int
+    unit            : str
+    filesize_var    : list
+    chunksize_var   : list
+    iterations      : int
+    internal_i      : int
+    bm_config       : dict
     
     
     def __init__(self, 
@@ -60,7 +66,7 @@ class BenchmarkManager:
         # Object config
         self.handler_id = handler_id
         
-        hash_str = str(run_config) + str(bm_config["par_backend"]) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format) + str(ranks)
+        hash_str = str(run_config) + str(bm_config["par_backend"]) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format) + str(ranks) + str(var_to_bm)
         self.hash           = hashlib.sha256(hash_str.encode()).hexdigest()
         
         self.use_path       = use_path
@@ -69,6 +75,7 @@ class BenchmarkManager:
         self.bm_config      = bm_config
         self.sbatch_config  = "/work/ku0598/k203191/dkrz_dev/slurm-scripts/run-anything.sh"
         
+        
         # Benchmark config
         self.run_config     = run_config
         self.parallel       = parallel
@@ -76,6 +83,7 @@ class BenchmarkManager:
         self.ranks          = ranks
         self.language       = language
         self.format         = format
+        self.engine         = f"{self.format}-{self.language}-{self.parallel}"
         self.extension      = extension
         self.range          = range
         self.stepsize       = stepsize
@@ -86,6 +94,20 @@ class BenchmarkManager:
         self.no_caching     = True
         self.local          = False
         self.location       = f"test.{self.extension}"
+        
+        
+        # Benchmark info 
+        filesize_per_var    = [(key, calc_size_unit(item[0])) for key, item in run_config.items() if key in self.var_to_bm] 
+        
+        total_filesize = 0
+        for filesize in filesize_per_var:
+            total_filesize += filesize[1][0]  # type: ignore
+        
+        self.total_filesize = total_filesize  # type: ignore
+        self.unit           = filesize_per_var[0][1][1]  # type: ignore
+        self.filesize_var   = filesize_per_var   
+        self.chunksize_var  = [(key, calc_size_unit(item[1])) for key, item in run_config.items() if key in self.var_to_bm]  
+          
         
         # Source code
         try:
@@ -99,6 +121,7 @@ class BenchmarkManager:
             self.compile    = None
             
         self.src            = bm_config["source"]
+        
         
         # Environment config
         self.__checkpoint   = yaml
@@ -124,7 +147,7 @@ class BenchmarkManager:
         
         shutil.rmtree(path=self.dir_path)
         
-        return asdict(self)
+        return self.hash, asdict(self)
 
  
     def __create_file(self):

@@ -5,11 +5,11 @@ from pathlib import Path
 from pathos.pools import ProcessPool
 from copy import deepcopy
 import pandas as pd
+import numpy as np
 import itertools
 import yaml
 import json
 import hashlib
-
 
 @dataclass
 class Handler:
@@ -113,7 +113,7 @@ class Handler:
                         else:
                             raise KeyError
                     except KeyError:
-                        tmp.append(("par_backend", "base"))
+                        tmp.append(("par_backend", None))
                     
                     try:
                         tmp.append(("language", current["language"]))  # type: ignore
@@ -153,7 +153,7 @@ class Handler:
         for format in self.config["formats"]:  # type: ignore
             formats.append(("format", format))
             
-        par_backends = [("par_backend", "base")]
+        par_backends = [("par_backend", None)]
         
         if parallel is True:
             par_backends = []
@@ -173,12 +173,9 @@ class Handler:
         tasks = []
         for requested in [*requested_cap]: 
             requested = dict(requested)
-
             if str(requested) in determined_cap:
                 print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
-                
-                bm_config = determined_cap[str(requested)]
-                tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=bm_config))
+                tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=determined_cap[str(requested)]))
         
         return tasks
 
@@ -193,7 +190,12 @@ class Handler:
             language    = requested["language"]
             format      = requested["format"]
             extension   = bm_config["extension"]
-            ranks       = self.config["ranks"]  # type: ignore
+            
+            try:
+                ranks   = self.config["ranks"]  # type: ignore
+            except:
+                ranks   = [1]
+                
             use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
             results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
             range       = self.config["range"]  # type: ignore
@@ -240,7 +242,7 @@ class Handler:
 
     def __start(self):
         try:
-            self.__benchmarks = ProcessPool().amap(self.__run_benchmark, [x for xs in self.__tasks for x in xs]).get()
+            self.__benchmarks = dict(ProcessPool().amap(self.__run_benchmark, [x for xs in self.__tasks for x in xs]).get())
         except TypeError:     
             raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC)
         self.__prepare_dataframe()
@@ -251,34 +253,56 @@ class Handler:
 
     
     def __prepare_dataframe(self):
-        root = Path(self.config["paths"]["path_to_results"]) # type: ignore
+        root = Path(self.config["paths"]["path_to_results"])  # type: ignore
         df = pd.DataFrame()
         
-        for path in root.rglob("*"):
-            if not path.is_dir():
-                for index in range(len(self.__benchmarks)):
+        for index, path in enumerate(root.rglob("*")):
+            if not path.is_dir(): 
+                
+                path_name = path.name.replace(".json", "")
+                if path_name in self.__benchmarks:
                     
-                    bm = self.__benchmarks[index]
+                    bm = self.__benchmarks[path_name]
                     
-                    if bm["hash"] == path.name.replace(".json", ""):
-                        
-                        with open(path, "r") as file:
-                            current = json.load(file)
-                        
-                        tmp = pd.DataFrame(data={
-                                "run"       : index, 
-                                "benchmark" : bm["hash"],
-                                "run_config": str(bm["run_config"]), 
-                                "time taken": current,
-                                "parallel"  : bm["parallel"],
-                                "language"  : bm["language"], 
-                                "format"    : str(bm["bm_config"]["format"]), 
-                                })
-                        
-                        df = pd.concat([df, tmp], ignore_index=True)
-                        df = df.sort_values(by="run", ascending=True)
-    
-                          
+                    with open(path, "r") as file:
+                        current = json.load(file)
+                    
+                    mean = np.mean(current)
+                    std  = np.std(current)
+                    rsd  = std / mean
+                    
+                    error= std / np.sqrt(len(current))
+                    
+                    anomaly = False if 0.1 > error else True
+                    
+                    
+                    tmp = pd.DataFrame(data={
+                            "run"               : index,
+                            "benchmark"         : bm["hash"],
+                            "run_config"        : str(bm["run_config"]), 
+                            "time taken"        : current,
+                            "throughput"        : bm["total_filesize"] / mean,
+                            "engine"            : bm["engine"],
+                            "var_to_bm"         : str(bm["var_to_bm"]),
+                            "total filesize"    : str(bm["total_filesize"]),
+                            "unit"              : bm["unit"],
+                            "filesize per var"  : str(bm["filesize_var"]),
+                            "filesize per chunk": str(bm["chunksize_var"]),
+                            "parallel"          : bm["parallel"],
+                            "parallel backend"  : bm["par_backend"],
+                            "ranks"             : bm["ranks"],
+                            "language"          : bm["language"], 
+                            "format"            : str(bm["format"]), 
+                            "mean time"         : mean,
+                            "standard deviation": std,
+                            "relative std"      : rsd,
+                            "error bar"         : error,
+                            "anomaly"           : anomaly,
+                            })
+                    
+                    df = pd.concat([df, tmp], ignore_index=True)
+                    df = df.sort_values(by="run", ascending=True)
+                         
         tmp = self.config["paths"]["path_to_results"] # type: ignore  
         df.to_json(Path(f"{tmp}/results.json"))                                          
 

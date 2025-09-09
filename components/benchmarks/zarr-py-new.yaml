@@ -1,12 +1,11 @@
-parallel: "configurable"
-par_backend: "MPI"
+parallel: configurable
+par_backend: MPI
 language: py
 extension: zarr
-format: 
-    zarr: "new"
+format: zarr
 create_command: 
-    serial  : "python {runnable}"
-    MPI: "mpiexec -n python {runnable}"
+    serial  : python {runnable}
+    MPI: mpiexec -n python {runnable}
 create: |
     import os
     import shutil
@@ -34,8 +33,8 @@ create: |
 
     #MAIN
 run_command:  
-    serial  : "python {runnable} -v"
-    MPI: "mpiexec -n python {runnable} -v"  
+    serial  : python {runnable} -v
+    MPI: mpiexec -n python {runnable} -v
 source: | 
     from func import datastruct as ds
     from func.datastruct import bcolors as color
