@@ -60,7 +60,7 @@ class BenchmarkManager:
         # Object config
         self.handler_id = handler_id
         
-        hash_str = str(run_config) + str(bm_config["par_backend"]) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format)
+        hash_str = str(run_config) + str(bm_config["par_backend"]) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format) + str(ranks)
         self.hash           = hashlib.sha256(hash_str.encode()).hexdigest()
         
         self.use_path       = use_path

@@ -83,7 +83,7 @@ class Handler:
     def __determine_capabilities(self):
         root = Path(self.config["paths"]["path_to_benchmarks"])  # type: ignore
         
-        determined = []
+        determined = {}
         
         for path in root.rglob("*"): 
             if not path.is_dir():      
@@ -91,6 +91,7 @@ class Handler:
                     current = yaml.safe_load(file)
                     
                     tmp = []
+                    additional = []
                     
                     try:
                         tmp.append(("parallel", current["parallel"]))  # type: ignore
@@ -100,6 +101,15 @@ class Handler:
                     try:
                         if current["par_backend"] is not None and current["parallel"] is True:  # type: ignore
                             tmp.append(("par_backend", current["par_backend"]))  # type: ignore
+                            
+                        elif current["parallel"] == "configurable":  # type: ignore
+                            
+                            if type(current["par_backend"]) == list:  # type: ignore
+                                additional = current["par_backend"]  # type: ignore
+                            else:
+                                additional.append(current["par_backend"])  # type: ignore   
+                            raise KeyError
+                                    
                         else:
                             raise KeyError
                     except KeyError:
@@ -114,8 +124,20 @@ class Handler:
                         tmp.append(("format", current["format"]))  # type: ignore
                     except KeyError as e:
                         raise e
-                                        
-                    determined.append((dict(tmp), current))   
+                    
+                    hold = dict(tmp)
+                    if hold["parallel"] == "configurable":
+                        hold["parallel"] = False
+                        
+                        for backend in additional:
+                            extra = deepcopy(hold)
+                            extra["parallel"] = True
+                            extra["par_backend"] = backend
+
+                            determined[str(extra)] = current
+                        
+                    determined[str(hold)] = current
+
 
         return determined
         
@@ -145,26 +167,18 @@ class Handler:
         return requested   
    
      
-    def __create_benchmark(self, parallel: bool, determined_cap: list) -> list:
+    def __create_benchmark(self, parallel: bool, determined_cap: dict) -> list:
         requested_cap = self.__requested_capabilities(parallel=parallel) 
         
         tasks = []
         for requested in [*requested_cap]: 
             requested = dict(requested)
-            for determined in determined_cap:
+
+            if str(requested) in determined_cap:
+                print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
                 
-                tmp_det = deepcopy(determined)
-                
-                if determined[0]["parallel"] == "configurable" and parallel is True:
-                    tmp_det[0]["par_backend"] = requested["par_backend"]
-                    tmp_det[0]["parallel"] = requested["parallel"]
-                    
-                elif determined[0]["parallel"] == "configurable" and parallel is False:
-                   tmp_det[0]["parallel"] = False
-                
-                if requested == tmp_det[0]:
-                    print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
-                    tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=tmp_det[1]))
+                bm_config = determined_cap[str(requested)]
+                tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=bm_config))
         
         return tasks
 
@@ -194,28 +208,32 @@ class Handler:
             
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
-                    
-            print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
             
-            bm.append(
-                BenchmarkManager(
-                    handler_id=str(self.__hash), 
-                    run_config=run_config, 
-                    parallel=parallel, 
-                    par_backend=par_backend, 
-                    ranks=ranks,
-                    language=language, 
-                    format=format,
-                    extension=extension, 
-                    range=range, 
-                    stepsize=stepsize, 
-                    datatype=datatype,
-                    var_to_bm=var_to_bm,
-                    iterations=iterations, 
-                    use_path=use_path, 
-                    results_path=results_path, 
-                    bm_config=bm_config)
-            )
+            if type(ranks) == int:
+                ranks = [ranks]
+            
+            for rank in ranks:        
+                print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
+
+                bm.append(
+                    BenchmarkManager(
+                        handler_id=str(self.__hash), 
+                        run_config=run_config, 
+                        parallel=parallel, 
+                        par_backend=par_backend, 
+                        ranks=rank,
+                        language=language, 
+                        format=format,
+                        extension=extension, 
+                        range=range, 
+                        stepsize=stepsize, 
+                        datatype=datatype,
+                        var_to_bm=var_to_bm,
+                        iterations=iterations, 
+                        use_path=use_path, 
+                        results_path=results_path, 
+                        bm_config=bm_config)
+                )
             
         return bm
 
