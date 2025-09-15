@@ -353,7 +353,7 @@ class Datastruct:
                     try:
                         size.append({self.dataset[var].shape[0]})
                         var_tmp.append(var)
-                    except KeyError:
+                    except IndexError:
                             print(f"Variable: {var} does not exist.")    
                 
                 for i in range(iterations):
@@ -363,7 +363,7 @@ class Datastruct:
                     for var in variable:
                         try:
                             self.dataset[var][:]
-                        except KeyError:
+                        except IndexError:
                             print(f"Variable: {var} does not exist.")
                     
                     bench.append(time.monotonic() - start)
@@ -490,7 +490,7 @@ class Datastruct:
                 try:
                     size.append({self.dataset[var].shape[0]})
                     var_tmp.append(var)
-                except KeyError:
+                except IndexError:
                     print(f"Variable: {var} does not exist.")
             print(f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {size}")
             
@@ -507,7 +507,7 @@ class Datastruct:
                     rend = rstart + size
 
                     self.dataset[var][rstart:rend:]
-                except KeyError:
+                except IndexError:
                     print(f"Variable: {var} does not exist.")
             
             if rank == 0:

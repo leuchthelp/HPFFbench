@@ -1,6 +1,6 @@
 formats:
-- zarr
-iterations: 10
+- netcdf4
+iterations: 1
 languages:
 - py
 par_backend: MPI
@@ -17,22 +17,11 @@ range:
 - 90
 ranks: 1
 runs:
-  run01:
-    X:
-    - - 134217728
-    - []
-    Y:
-    - - 134217728
-    - []
   run02:
     X:
     - - 268435456
     - []
     - f8
-  run03:
-    X:
-    - - 402653184
-    - []
 stepsize: 5
 variable_to_benchmark:
 - X

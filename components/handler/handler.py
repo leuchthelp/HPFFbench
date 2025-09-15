@@ -10,6 +10,7 @@ import itertools
 import yaml
 import json
 import hashlib
+import random
 
 @dataclass
 class Handler:
@@ -191,10 +192,15 @@ class Handler:
             format      = requested["format"]
             extension   = bm_config["extension"]
             
+            ranks   = [1]
             try:
                 ranks   = self.config["ranks"]  # type: ignore
-            except:
-                ranks   = [1]
+                
+                if type(ranks) == int:
+                    ranks = [ranks]
+                
+            except KeyError as e:
+                raise e
                 
             use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
             results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
@@ -211,11 +217,8 @@ class Handler:
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
             
-            if type(ranks) == int:
-                ranks = [ranks]
-            
             for rank in ranks:        
-                print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
+                print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, ranks: {rank}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
 
                 bm.append(
                     BenchmarkManager(
@@ -273,8 +276,10 @@ class Handler:
                     
                     error= std / np.sqrt(len(current))
                     
-                    anomaly = False if 0.1 > error else True
+                    anomaly = False if 0.35 > error else True
                     
+                    # demo code, do not use in future
+                    node = f"l{random.randint(10400, 10430)}"
                     
                     tmp = pd.DataFrame(data={
                             "run"               : index,
@@ -298,12 +303,13 @@ class Handler:
                             "relative std"      : rsd,
                             "error bar"         : error,
                             "anomaly"           : anomaly,
+                            "node"              : node,
                             })
                     
                     df = pd.concat([df, tmp], ignore_index=True)
-                    df = df.sort_values(by="run", ascending=True)
                          
-        tmp = self.config["paths"]["path_to_results"] # type: ignore  
+        tmp = self.config["paths"]["path_to_results"] # type: ignore
+        df.sort_values(by=["total filesize", "run", "ranks", "format"], ascending=[True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 
         

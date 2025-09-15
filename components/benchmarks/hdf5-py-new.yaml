@@ -1,0 +1,69 @@
+parallel: configurable
+par_backend: MPI
+language: py
+extension: h5
+format: hdf5
+create_command: 
+    serial  : python {runnable}
+    MPI: mpiexec -n python {runnable}
+create: |
+    import os
+    import shutil
+    from func import datastruct as ds
+    from func.datastruct import bcolors as color
+    import json
+    import argparse
+
+    def create_ds(form, selection, parallel=False, path=None):
+
+        if parallel:
+            from mpi4py import MPI
+
+        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="hdf5")
+        match selection:
+            case 1:
+                ds_hdf5 = ds.Datastruct() 
+                print(f"{color.WARNING}Creating hdf5{color.ENDC}")
+                ds_hdf5.create(path=path, form=form, engine="hdf5", parallel=parallel)
+    
+
+    def create(selection, parallel=False, path=None):
+        with open("run_config.json") as json_file:
+            create_ds(json.load(json_file), selection, parallel=parallel, path=path)
+
+    #MAIN
+run_command:  
+    serial  : python {runnable} -v
+    MPI: mpiexec -n python {runnable} -v
+source: | 
+    from func import datastruct as ds
+    from func.datastruct import bcolors as color
+    import json
+    import argparse
+
+    def bench(iterations, variable: None, parallel=False, path=None):
+
+        if parallel:
+            from mpi4py import MPI
+
+        if variable == None:
+            variable = []
+            with open("run_config.json") as yaml_file:
+                tmp = json.load(yaml_file) 
+
+                for keys in tmp.keys():
+                  variable.append(keys)
+
+        ds_hdf5 = ds.Datastruct()
+        ds_hdf5.open(mode="r+", engine="hdf5", path=path)
+
+        if parallel:
+            ds_hdf5.read("bench_complete_parallel", variable=variable, iterations=iterations)
+        else:
+            ds_hdf5.read("bench_complete", variable=variable, iterations=iterations)
+        result = ds_hdf5.log
+
+        #RESULT
+    
+    #MAIN
+
