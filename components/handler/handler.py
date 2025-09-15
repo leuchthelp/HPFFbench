@@ -279,7 +279,9 @@ class Handler:
                     anomaly = False if 0.35 > error else True
                     
                     # demo code, do not use in future
-                    node = f"l{random.randint(10400, 10430)}"
+                    node = f"l{random.randint(10400, 10484)}"
+                    if anomaly:
+                        node = f"l{random.randint(10485, 10490)}"
                     
                     tmp = pd.DataFrame(data={
                             "run"               : index,

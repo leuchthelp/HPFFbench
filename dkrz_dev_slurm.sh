@@ -12,4 +12,4 @@
 # Begin of section with executable commands
 set -e
 ls -l
-python main_cluster.py
+python $1
