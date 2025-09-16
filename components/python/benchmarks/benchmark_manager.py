@@ -92,7 +92,7 @@ class BenchmarkManager:
         self.internal_i     = 1
         self.no_caching     = True
         self.local          = False
-        self.location       = f"test.{self.extension}"
+        self.location       = f"{self.hash}.{self.extension}"
         
         
         # Benchmark info 
