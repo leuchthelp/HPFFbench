@@ -1,11 +1,9 @@
 formats:
 - netcdf4
-- hdf5
-- zarr
-iterations: 1
+iterations: 3
 languages:
 - py
-only data: false
+only data: true
 par_backend: MPI
 parallel: Both
 paths:
@@ -18,7 +16,7 @@ paths:
 range:
 - 10
 - 90
-ranks: 2
+ranks: 1
 runs:
   run01:
     X:
@@ -30,4 +28,3 @@ runs:
 stepsize: 5
 variable_to_benchmark:
 - X
-- Y

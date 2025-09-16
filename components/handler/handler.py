@@ -307,13 +307,13 @@ class Handler:
                     rsd  = std / mean
                     
                     error= std / np.sqrt(len(current))
+        
+                    anomaly = False
                     
-                    anomaly = False if 0.35 > error else True
                     
                     # demo code, do not use in future
                     node = f"l{random.randint(10400, 10484)}"
-                    if anomaly:
-                        node = f"l{random.randint(10485, 10490)}"
+                    
                     
                     tmp = pd.DataFrame(data={
                             "run"               : index,
@@ -340,10 +340,15 @@ class Handler:
                             "node"              : node,
                             })
                     
+                    for index, rows in tmp.iterrows():
+                        if rows["time taken"] <= mean + mean * (error + 0.05):
+                            tmp.at[index, "anomaly"] = True
+                            tmp.at[index, "node"] = f"l{random.randint(10485, 10490)}"
+                    
                     df = pd.concat([df, tmp], ignore_index=True)
                          
         tmp = self.config["paths"]["path_to_results"] # type: ignore
-        df.sort_values(by=["total filesize", "run", "ranks", "format"], ascending=[True, True, True, False], inplace=True)
+        df.sort_values(by=["engine", "total filesize", "run", "ranks", "format"], ascending=[True, True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 
         

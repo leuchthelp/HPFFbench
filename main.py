@@ -51,16 +51,16 @@ def main():
     }
     
     new_setup = {
-        "formats"               : ["netcdf4", "hdf5", "zarr"],
+        "formats"               : ["netcdf4"],
         "languages"             : ["py"],
         "paths"                 : paths,
-        "iterations"            : 5,
+        "iterations"            : 3,
         "runs"                  : tmp,
         "range"                 : [10, 90], 
         "stepsize"              : 5,
         "parallel"              : "Both",
         "par_backend"           : "MPI",
-        "ranks"                 : 2,
+        "ranks"                 : 1,
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
         #"max processes"         : 10,
