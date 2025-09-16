@@ -1,5 +1,7 @@
 formats:
 - netcdf4
+- hdf5
+- zarr
 iterations: 1
 languages:
 - py
@@ -16,13 +18,15 @@ paths:
 range:
 - 10
 - 90
-ranks: 1
+ranks: 2
 runs:
-  run02:
+  run01:
     X:
-    - - 268435456
+    - - 134217728
     - []
-    - f8
+    Y:
+    - - 134217728
+    - []
 stepsize: 5
 variable_to_benchmark:
 - X

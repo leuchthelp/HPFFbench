@@ -55,7 +55,7 @@ source: |
                   variable.append(keys)
 
         ds_hdf5 = ds.Datastruct()
-        ds_hdf5.open(mode="r+", engine="hdf5", path=path)
+        ds_hdf5.open(mode="r+", engine="hdf5", path=path, parallel=parallel)
 
         if parallel:
             ds_hdf5.read("bench_complete_parallel", variable=variable, iterations=iterations)

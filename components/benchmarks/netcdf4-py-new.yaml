@@ -55,7 +55,7 @@ source: |
                   variable.append(keys)
 
         ds_netcdf4 = ds.Datastruct()
-        ds_netcdf4.open(mode="r+", engine="netcdf4", path=path)
+        ds_netcdf4.open(mode="r+", engine="netcdf4", path=path, parallel=parallel)
 
         if parallel:
             ds_netcdf4.read("bench_complete_parallel", variable=variable, iterations=iterations)
