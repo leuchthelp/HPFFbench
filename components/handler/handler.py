@@ -1,8 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from func.datastruct import bcolors
 from python.benchmarks import BenchmarkManager
 from pathlib import Path
-from pathos.pools import ProcessPool
+from pathos.pools import _ProcessPool as ProcessPool
 from copy import deepcopy
 import pandas as pd
 import numpy as np
@@ -30,15 +30,31 @@ class Handler:
     def __init__(self, path_to_config: None | str):
         
         self.__hash = None
+        self.__benchmarks = []
         
         self.__load_config(path_to_config)
         self.__check_paths()
         
         self.__capabilities = self.__determine_capabilities()
         
+        try:
+            self.__only_data = self.config["only data"]  # type: ignore
+        except:
+            self.__only_data = False
+            
+        try:
+            self.__max_processes = self.config["max processes"]  # type: ignore
+        except:
+            self.__max_processes = None
+            
+        try:
+            self.__bm_per_processes = self.config["bm per process"]  # type: ignore
+        except:
+            self.__bm_per_processes = None
+        
         parallel = False
         try:
-            parallel = self.config["parallel"] # type: ignore
+            parallel = self.config["parallel"]  # type: ignore
             if parallel != "Both" and type(parallel) is not bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
             
         except KeyError:
@@ -51,7 +67,13 @@ class Handler:
         else:
             self.__tasks = self.__create_benchmark(parallel=parallel, determined_cap=self.__capabilities)
         
-        self.__start()
+        
+        if self.__only_data is False:
+            self.__start()
+        else:
+            print(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
+        
+        self.__prepare_dataframe()
                       
 
     def __load_config(self, path_to_config):
@@ -183,7 +205,7 @@ class Handler:
 
     def __create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
         
-        bm = []
+        benchmarks = []
         for _, run_config in self.config["runs"].items():  # type: ignore
             
             parallel    = requested["parallel"]
@@ -220,8 +242,7 @@ class Handler:
             for rank in ranks:        
                 print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, ranks: {rank}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
 
-                bm.append(
-                    BenchmarkManager(
+                bm = BenchmarkManager(
                         handler_id=str(self.__hash), 
                         run_config=run_config, 
                         parallel=parallel, 
@@ -238,26 +259,31 @@ class Handler:
                         use_path=use_path, 
                         results_path=results_path, 
                         bm_config=bm_config)
-                )
+                
+                
+                self.__benchmarks.append((bm.hash, asdict(bm))) # type: ignore
+
+                benchmarks.append(bm)
             
-        return bm
+        return benchmarks
 
 
     def __start(self):
         try:
-            self.__benchmarks = dict(ProcessPool().amap(self.__run_benchmark, [x for xs in self.__tasks for x in xs]).get())
+            ProcessPool(processes=self.__max_processes).map_async(self.__run_benchmark, [x for xs in self.__tasks for x in xs], chunksize=self.__bm_per_processes).get()
         except TypeError:     
             raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC)
-        self.__prepare_dataframe()
         
 
-    def __run_benchmark(self, bm: BenchmarkManager):
-        return bm.run()
+    def __run_benchmark(self, benchmarks: BenchmarkManager):
+        return benchmarks.run()
 
     
     def __prepare_dataframe(self):
         root = Path(self.config["paths"]["path_to_results"])  # type: ignore
         df = pd.DataFrame()
+        
+        self.__benchmarks = dict(self.__benchmarks)
         
         for index, path in enumerate(root.rglob("*")):
             if not path.is_dir(): 
@@ -265,7 +291,7 @@ class Handler:
                 path_name = path.name.replace(".json", "")
                 if path_name in self.__benchmarks:
                     
-                    bm = self.__benchmarks[path_name]
+                    benchmarks = self.__benchmarks[path_name]
                     
                     with open(path, "r") as file:
                         current = json.load(file)
@@ -285,21 +311,21 @@ class Handler:
                     
                     tmp = pd.DataFrame(data={
                             "run"               : index,
-                            "benchmark"         : bm["hash"],
-                            "run_config"        : str(bm["run_config"]), 
+                            "benchmark"         : benchmarks["hash"],
+                            "run_config"        : str(benchmarks["run_config"]), 
                             "time taken"        : current,
-                            "throughput"        : bm["total_filesize"] / mean,
-                            "engine"            : bm["engine"],
-                            "var_to_bm"         : str(bm["var_to_bm"]),
-                            "total filesize"    : str(bm["total_filesize"]),
-                            "unit"              : bm["unit"],
-                            "filesize per var"  : str(bm["filesize_var"]),
-                            "filesize per chunk": str(bm["chunksize_var"]),
-                            "parallel"          : bm["parallel"],
-                            "parallel backend"  : bm["par_backend"],
-                            "ranks"             : bm["ranks"],
-                            "language"          : bm["language"], 
-                            "format"            : str(bm["format"]), 
+                            "throughput"        : benchmarks["total_filesize"] / mean,
+                            "engine"            : benchmarks["engine"],
+                            "var_to_bm"         : str(benchmarks["var_to_bm"]),
+                            "total filesize"    : str(benchmarks["total_filesize"]),
+                            "unit"              : benchmarks["unit"],
+                            "filesize per var"  : str(benchmarks["filesize_var"]),
+                            "filesize per chunk": str(benchmarks["chunksize_var"]),
+                            "parallel"          : benchmarks["parallel"],
+                            "parallel backend"  : benchmarks["par_backend"],
+                            "ranks"             : benchmarks["ranks"],
+                            "language"          : benchmarks["language"], 
+                            "format"            : str(benchmarks["format"]), 
                             "mean time"         : mean,
                             "standard deviation": std,
                             "relative std"      : rsd,

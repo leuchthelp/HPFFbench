@@ -106,7 +106,8 @@ class BenchmarkManager:
         self.total_filesize = total_filesize  # type: ignore
         self.unit           = filesize_per_var[0][1][1]  # type: ignore
         self.filesize_var   = filesize_per_var   
-        self.chunksize_var  = [(key, calc_size_unit(item[1])) for key, item in run_config.items() if key in self.var_to_bm]  
+        self.chunksize_var  = [(key, calc_size_unit(item[1])) for key, item in run_config.items() if key in self.var_to_bm] 
+        self.show_metdata   = True 
           
         
         # Source code
@@ -136,6 +137,12 @@ class BenchmarkManager:
         with open(f"{self.dir_path}/run_config.json", "w") as f:
             json.dump(self.run_config, f)
         
+        self_dict = asdict(self)  
+        
+        if self.show_metdata:
+            with open(f"{self.dir_path}/metadata.yaml", "w") as f:
+                yaml.safe_dump(self_dict, f)
+        
         
         if self.create is not None:  
             self.__create_file()
@@ -147,7 +154,7 @@ class BenchmarkManager:
         
         shutil.rmtree(path=self.dir_path)
         
-        return self.hash, asdict(self)
+        return self.hash, self_dict
 
  
     def __create_file(self):

@@ -3,6 +3,7 @@ formats:
 iterations: 1
 languages:
 - py
+only data: false
 par_backend: MPI
 parallel: Both
 paths:

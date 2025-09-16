@@ -62,6 +62,9 @@ def main():
         "par_backend"           : "MPI",
         "ranks"                 : 1,
         "variable_to_benchmark" : ["X", "Y"],
+        "only data"             : False,
+        #"max processes"         : 20,
+        #"bm per process"        : 1,
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:

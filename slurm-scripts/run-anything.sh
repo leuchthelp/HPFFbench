@@ -4,11 +4,11 @@
 #SBATCH --account=ku0598
 #SBATCH --constraint="[cell02]"
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
 #SBATCH --mem=0
 #SBATCH --cpu-freq=High
-#SBATCH --distribution=block:cyclic
-#SBATCH --time=08:00:00
+#SBATCH --distribution=block:block:block
+#SBATCH --time=00:30:00
+#SBATCH --exclusive
 #SBATCH --output=log/log-%j/log.%j.txt
 #SBATCH --error=log/log-%j/log.%j.err
 
