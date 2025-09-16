@@ -11,6 +11,8 @@ import yaml
 import json
 import hashlib
 import random
+import tqdm
+import sys
 
 @dataclass
 class Handler:
@@ -50,7 +52,7 @@ class Handler:
         try:
             self.__bm_per_processes = self.config["bm per process"]  # type: ignore
         except:
-            self.__bm_per_processes = None
+            self.__bm_per_processes = 1
         
         parallel = False
         try:
@@ -270,7 +272,11 @@ class Handler:
 
     def __start(self):
         try:
-            ProcessPool(processes=self.__max_processes).map_async(self.__run_benchmark, [x for xs in self.__tasks for x in xs], chunksize=self.__bm_per_processes).get()
+            bm_list = [x for xs in self.__tasks for x in xs]
+            pool = ProcessPool(processes=self.__max_processes)
+            for _ in tqdm.tqdm(pool.imap_unordered(self.__run_benchmark, bm_list, chunksize=self.__bm_per_processes), total=len(bm_list), unit="benchmarks", colour="green", file=sys.stdout, desc="Benchmarks still to run"):
+                pass      
+            
         except TypeError:     
             raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC)
         

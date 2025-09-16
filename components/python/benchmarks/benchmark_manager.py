@@ -1,4 +1,3 @@
-from func.datastruct import bcolors
 from func.dev_utils import calc_size_unit
 from dataclasses import dataclass, asdict
 from pathlib import Path
