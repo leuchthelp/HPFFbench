@@ -134,29 +134,29 @@ class BenchmarkManager:
     
     def run(self):
         self.dir_path.mkdir(parents=True)
-        
-        sm = SpackManager(self.id, ["hdf5", "netcdf4", "zarr"])
 
+        try:
+            with open(f"{self.dir_path}/run_config.json", "w") as f:
+                json.dump(self.run_config, f)
+
+            self_dict = asdict(self)  
+
+            if self.show_metdata:
+                with open(f"{self.dir_path}/metadata.yaml", "w") as f:
+                    yaml.safe_dump(self_dict, f)
+
+
+            if self.create != None:  
+                self.__create_file()
+                pass
+
+            if self.compile != None:
+                self.__compile_file()
+
+            self.__execute_file()
         
-        with open(f"{self.dir_path}/run_config.json", "w") as f:
-            json.dump(self.run_config, f)
-        
-        self_dict = asdict(self)  
-        
-        if self.show_metdata:
-            with open(f"{self.dir_path}/metadata.yaml", "w") as f:
-                yaml.safe_dump(self_dict, f)
-        
-        
-        if self.create != None:  
-            self.__create_file()
-        
-        if self.compile != None:
-            self.__compile_file()
-        
-        self.__execute_file()
-        
-        shutil.rmtree(path=self.dir_path)
+        finally:
+            shutil.rmtree(path=self.dir_path)
         
         return self.id, self_dict
 

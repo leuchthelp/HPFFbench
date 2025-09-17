@@ -5,7 +5,7 @@ languages:
 - py
 only data: false
 par_backend: MPI
-parallel: false
+parallel: Both
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_config: components/handler/

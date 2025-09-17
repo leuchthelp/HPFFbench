@@ -58,7 +58,7 @@ def main():
         "runs"                  : tmp,
         "range"                 : [10, 90], 
         "stepsize"              : 5,
-        "parallel"              : False,
+        "parallel"              : "Both",
         "par_backend"           : "MPI",
         "ranks"                 : [1],
         "variable_to_benchmark" : ["X"],
