@@ -57,7 +57,7 @@ class Handler:
         parallel = False
         try:
             parallel = self.config["parallel"]  # type: ignore
-            if parallel != "Both" and type(parallel) is not bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
+            if parallel != "Both" and type(parallel) != bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
             
         except KeyError:
             print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
@@ -70,7 +70,7 @@ class Handler:
             self.__tasks = self.__create_benchmark(parallel=parallel, determined_cap=self.__capabilities)
         
         
-        if self.__only_data is False:
+        if self.__only_data == False:
             self.__start()
         else:
             print(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
@@ -124,7 +124,7 @@ class Handler:
                         tmp.append(("parallel", False))
                     
                     try:
-                        if current["par_backend"] is not None and current["parallel"] is True:  # type: ignore
+                        if current["par_backend"] != None and current["parallel"] == True:  # type: ignore
                             tmp.append(("par_backend", current["par_backend"]))  # type: ignore
                             
                         elif current["parallel"] == "configurable":  # type: ignore
@@ -180,9 +180,9 @@ class Handler:
             
         par_backends = [("par_backend", None)]
         
-        if parallel is True:
+        if parallel == True:
             par_backends = []
-            if type(self.config["par_backend"]) is not list:  # type: ignore
+            if type(self.config["par_backend"]) != list:  # type: ignore
                     par_backends.append(("par_backend", self.config["par_backend"]))  # type: ignore
             else:
                 for par_backend in self.config["par_backend"]:  # type: ignore

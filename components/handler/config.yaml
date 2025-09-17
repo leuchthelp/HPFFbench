@@ -5,7 +5,8 @@ formats:
 iterations: 1
 languages:
 - py
-only data: true
+max processes: 4
+only data: false
 par_backend: MPI
 parallel: Both
 paths:
@@ -20,8 +21,6 @@ range:
 - 90
 ranks:
 - 1
-- 8
-- 16
 runs:
   run02:
     X:

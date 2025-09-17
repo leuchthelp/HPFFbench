@@ -83,7 +83,7 @@ class BenchmarkManager:
         self.language       = language
         self.format         = format
         
-        self.engine         = f"{self.format}-{self.language}" if self.parallel is True else f"{self.format}-{self.language}-parallel"
+        self.engine         = f"{self.format}-{self.language}" if self.parallel == True else f"{self.format}-{self.language}-parallel"
         self.extension      = extension
         self.range          = range
         self.stepsize       = stepsize
@@ -144,10 +144,10 @@ class BenchmarkManager:
                 yaml.safe_dump(self_dict, f)
         
         
-        if self.create is not None:  
+        if self.create != None:  
             self.__create_file()
         
-        if self.compile is not None:
+        if self.compile != None:
             self.__compile_file()
         
         self.__execute_file()
@@ -187,7 +187,7 @@ class BenchmarkManager:
                 
         create_command = create_command.replace("-l", f"-l {self.location}")
         
-        if  "SLURM_JOB_ID" in os.environ and self.local is False:
+        if  "SLURM_JOB_ID" in os.environ and self.local == False:
             create_command = ["sbatch", self.sbatch_config, create_command]
         else: 
             create_command = create_command.split()
@@ -241,7 +241,7 @@ class BenchmarkManager:
         
         for i in range(self.iterations):
             
-            if  "SLURM_JOB_ID" in os.environ and self.local is False:
+            if  "SLURM_JOB_ID" in os.environ and self.local == False:
                 p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path)
                 print(p.stderr)
                 print(p.stdout)
@@ -250,7 +250,7 @@ class BenchmarkManager:
                 print(p.stderr)
                 print(p.stdout)
 
-                if self.no_caching is True:
+                if self.no_caching == True:
                     new_path = Path(f"{self.dir_path}/{i}")
                     new_path.mkdir(parents=True)
                     
