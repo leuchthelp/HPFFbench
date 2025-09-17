@@ -216,15 +216,17 @@ class Handler:
             format      = requested["format"]
             extension   = bm_config["extension"]
             
-            ranks   = [1]
-            try:
-                ranks   = self.config["ranks"]  # type: ignore
-                
-                if type(ranks) == int:
-                    ranks = [ranks]
-                
-            except KeyError as e:
-                raise e
+            ranks = [1]
+            
+            if parallel == True:
+                try:
+                    ranks = self.config["ranks"]  # type: ignore
+
+                    if type(ranks) == int:
+                        ranks = [ranks]
+
+                except KeyError as e:
+                    raise e
                 
             use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
             results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
@@ -339,13 +341,13 @@ class Handler:
                             })
                     
                     for i, rows in tmp.iterrows():
-                        if rows["relative std"] <= 0.35:
-                            tmp.at[i, "anomaly"] = True
-                            tmp.at[i, "node"] = f"l{random.randint(10485, 10490)}"
+                        if rows["relative std"] > 0.35:
+                            tmp.at[i, "anomaly"] = True  # type: ignore
+                            tmp.at[i, "node"] = f"l{random.randint(10485, 10490)}"  # type: ignore
                     
                     df = pd.concat([df, tmp], ignore_index=True)
                          
-        tmp = self.config["paths"]["path_to_results"] # type: ignore
+        tmp = self.config["paths"]["path_to_results"]  # type: ignore
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 
