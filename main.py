@@ -35,7 +35,7 @@ def main():
 
     tmp = {
             #"run01": {"X": [[1 * 134217728], []], "Y": [[1 * 134217728], []]},
-            "run02": {"X": [[2 * 134217728], [], "f8"]},
+            "run02": {"X": [[1 * 134217728], [], "f8"]},
             #"run03": {"X": [[3 * 134217728], []]},
             
             #"run04": {"X": [[10 * 134217728], []]},
@@ -51,19 +51,19 @@ def main():
     }
     
     new_setup = {
-        "formats"               : ["netcdf4", "hdf5", "zarr"],
+        "formats"               : ["zarr"],
         "languages"             : ["py"],
         "paths"                 : paths,
         "iterations"            : 1,
         "runs"                  : tmp,
         "range"                 : [10, 90], 
         "stepsize"              : 5,
-        "parallel"              : "Both",
+        "parallel"              : False,
         "par_backend"           : "MPI",
         "ranks"                 : [1],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
-        "max processes"         : 4,
+        #"max processes"         : 4,
         #"bm per process"        : 1,
     }
     

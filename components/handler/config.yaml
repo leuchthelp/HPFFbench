@@ -1,14 +1,11 @@
 formats:
-- netcdf4
-- hdf5
 - zarr
 iterations: 1
 languages:
 - py
-max processes: 4
 only data: false
 par_backend: MPI
-parallel: Both
+parallel: false
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_config: components/handler/
@@ -24,7 +21,7 @@ ranks:
 runs:
   run02:
     X:
-    - - 268435456
+    - - 134217728
     - []
     - f8
 stepsize: 5

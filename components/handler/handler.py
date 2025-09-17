@@ -1,6 +1,6 @@
 from dataclasses import dataclass, asdict
 from func.datastruct import bcolors
-from python.benchmarks import BenchmarkManager
+from benchmarkmanager import BenchmarkManager
 from pathlib import Path
 from pathos.pools import _ProcessPool as ProcessPool
 from copy import deepcopy
@@ -31,7 +31,7 @@ class Handler:
     
     def __init__(self, path_to_config: None | str):
         
-        self.__hash = None
+        self.__id = None
         self.__benchmarks = []
         
         self.__load_config(path_to_config)
@@ -84,7 +84,7 @@ class Handler:
         try:
             file = open(f"{path_to_config}config.yaml", "r")
             self.config = yaml.safe_load(stream=file)
-            self.__hash = hashlib.sha256(str(path_to_config).encode()).hexdigest()
+            self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
             print(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
             
         except FileNotFoundError as e:
@@ -247,7 +247,7 @@ class Handler:
                 print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, ranks: {rank}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
 
                 bm = BenchmarkManager(
-                        handler_id=str(self.__hash), 
+                        handler_id=str(self.__id), 
                         run_config=run_config, 
                         parallel=parallel, 
                         par_backend=par_backend, 
@@ -265,7 +265,7 @@ class Handler:
                         bm_config=bm_config)
                 
                 
-                self.__benchmarks.append((bm.hash, asdict(bm))) # type: ignore
+                self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
 
                 benchmarks.append(bm)
             
@@ -317,7 +317,7 @@ class Handler:
                     node = f"l{random.randint(10400, 10484)}"
                     
                     tmp = pd.DataFrame(data={
-                            "benchmark"         : benchmarks["hash"],
+                            "benchmark"         : benchmarks["id"],
                             "run_config"        : str(benchmarks["run_config"]), 
                             "time taken"        : current,
                             "throughput"        : benchmarks["total_filesize"] / mean,

@@ -1,4 +1,5 @@
 from func.dev_utils import calc_size_unit
+from spackmanager import SpackManager
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import shutil
@@ -21,7 +22,7 @@ class BenchmarkManager:
     """
     
     handler_id      : str
-    hash            : str
+    id              : str
     run_config      : dict
     parallel        : bool
     par_backend     : None | str
@@ -65,12 +66,12 @@ class BenchmarkManager:
         # Object config
         self.handler_id = handler_id
         
-        hash_str = str(run_config) + str(bm_config["par_backend"]) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format) + str(ranks) + str(var_to_bm)
-        self.hash           = hashlib.sha256(hash_str.encode()).hexdigest()
+        id_str = str(run_config) + str(bm_config["par_backend"]) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format) + str(ranks) + str(var_to_bm)
+        self.id           = hashlib.sha256(id_str.encode()).hexdigest()
         
         self.use_path       = use_path
         self.results_path   = results_path
-        self.dir_path       = Path(f"{self.use_path}/{str(self.hash)}")
+        self.dir_path       = Path(f"{self.use_path}/{str(self.id)}")
         self.bm_config      = bm_config
         self.sbatch_config  = "/work/ku0598/k203191/dkrz_dev/slurm-scripts/run-anything.sh"
         
@@ -93,7 +94,7 @@ class BenchmarkManager:
         self.internal_i     = 1
         self.no_caching     = True
         self.local          = False
-        self.location       = f"{self.hash}.{self.extension}"
+        self.location       = f"{self.id}.{self.extension}"
         
         
         # Benchmark info 
@@ -134,6 +135,9 @@ class BenchmarkManager:
     def run(self):
         self.dir_path.mkdir(parents=True)
         
+        sm = SpackManager(self.id, ["hdf5", "netcdf4", "zarr"])
+
+        
         with open(f"{self.dir_path}/run_config.json", "w") as f:
             json.dump(self.run_config, f)
         
@@ -154,7 +158,7 @@ class BenchmarkManager:
         
         shutil.rmtree(path=self.dir_path)
         
-        return self.hash, self_dict
+        return self.id, self_dict
 
  
     def __create_file(self):
@@ -305,11 +309,11 @@ if __name__=="__main__":
             case "py":
                 return f"""if parallel is False or MPI.COMM_WORLD.rank == 0:
         from pathlib import Path
-        if Path("{self.results_path.absolute()}/{self.hash}.json").exists():
-            with open("{self.results_path.absolute()}/{self.hash}.json", "r") as t:
+        if Path("{self.results_path.absolute()}/{self.id}.json").exists():
+            with open("{self.results_path.absolute()}/{self.id}.json", "r") as t:
                 result.extend(json.load(t))    
         
-        with open("{self.results_path.absolute()}/{self.hash}.json", "w") as f:
+        with open("{self.results_path.absolute()}/{self.id}.json", "w") as f:
             json.dump(result, f)
                         """
             case "c":
