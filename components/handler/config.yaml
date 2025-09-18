@@ -1,9 +1,11 @@
 formats:
 - zarr
+- netcdf4
+- hdf5
 iterations: 1
 languages:
 - py
-only data: false
+only data: true
 par_backend: MPI
 parallel: Both
 paths:
@@ -17,13 +19,52 @@ range:
 - 10
 - 90
 ranks:
-- 1
+- 8
+- 16
+- 32
+- 64
+- 128
 runs:
-  run02:
+  run04:
     X:
-    - - 134217728
+    - - 1342177280
     - []
-    - f8
+  run05:
+    X:
+    - - 2684354560
+    - []
+  run06:
+    X:
+    - - 4026531840
+    - []
+  run07:
+    X:
+    - - 5368709120
+    - []
+  run08:
+    X:
+    - - 6710886400
+    - []
+  run09:
+    X:
+    - - 8053063680
+    - []
+  run10:
+    X:
+    - - 9395240960
+    - []
+  run11:
+    X:
+    - - 10737418240
+    - []
+  run12:
+    X:
+    - - 12079595520
+    - []
+  run13:
+    X:
+    - - 13421772800
+    - []
 stepsize: 5
 variable_to_benchmark:
 - X
