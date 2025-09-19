@@ -24,7 +24,7 @@ create: |
             case 1:
                 ds_netcdf4 = ds.Datastruct() 
                 print(f"{color.WARNING}Creating netcdf4{color.ENDC}")
-                ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=parallel)
+                ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=False)
     
 
     def create(selection, parallel=False, path=None):
