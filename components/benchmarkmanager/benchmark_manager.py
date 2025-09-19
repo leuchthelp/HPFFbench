@@ -84,7 +84,7 @@ class BenchmarkManager:
         self.language       = language
         self.format         = format
         
-        self.engine         = f"{self.format}-{self.language}" if self.parallel == True else f"{self.format}-{self.language}-parallel"
+        self.engine         = f"{self.format}-{self.language}-parallel" if self.parallel == True else f"{self.format}-{self.language}"
         self.extension      = extension
         self.range          = range
         self.stepsize       = stepsize

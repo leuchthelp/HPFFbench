@@ -299,6 +299,8 @@ class Handler:
                 path_name = path.name.replace(".json", "")
                 if path_name in self.__benchmarks:
                     
+                    print(f"currently on {path_name}")
+                    
                     benchmarks = self.__benchmarks[path_name]
                     
                     with open(path, "r") as file:
@@ -314,15 +316,15 @@ class Handler:
                     
                     
                     # demo code, do not use in future
-                    node = f"l{random.randint(10400, 10484)}"
+                    node = ""
                     
                     tmp = pd.DataFrame(data={
                             "benchmark"         : benchmarks["id"],
-                            "run_config"        : str(benchmarks["run_config"]), 
+                            "run config"        : str(benchmarks["run_config"]), 
                             "time taken"        : current,
                             "throughput"        : benchmarks["total_filesize"] / mean,
                             "engine"            : benchmarks["engine"],
-                            "var_to_bm"         : str(benchmarks["var_to_bm"]),
+                            "var to bm"         : str(benchmarks["var_to_bm"]),
                             "total filesize"    : benchmarks["total_filesize"],
                             "unit"              : benchmarks["unit"],
                             "filesize per var"  : str(benchmarks["filesize_var"]),
@@ -338,16 +340,25 @@ class Handler:
                             "error bar"         : error,
                             "anomaly"           : anomaly,
                             "node"              : node,
+                            "node count"        : 0,
                             })
                     
                     for i, rows in tmp.iterrows():
                         if rows["relative std"] > 0.35:
                             tmp.at[i, "anomaly"] = True  # type: ignore
                             tmp.at[i, "node"] = f"l{random.randint(10485, 10490)}"  # type: ignore
+                        else:
+                            tmp.at[i, "node"] = f"l{random.randint(10420, 10484)}" # type: ignore
                     
                     df = pd.concat([df, tmp], ignore_index=True)
-                         
+                    
+        
         tmp = self.config["paths"]["path_to_results"]  # type: ignore
+        
+        # there is probably a better method for doing this, will look into it later
+        for node, count in df["node"].value_counts().to_dict().items():
+            df.loc[df["node"] == node, "node count"] = count
+        
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 
