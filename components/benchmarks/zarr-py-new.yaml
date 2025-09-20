@@ -16,9 +16,6 @@ create: |
 
     def create_ds(form, selection, parallel=False, path=None):
 
-        if parallel:
-            from mpi4py import MPI
-
         #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
         match selection:
             case 1:
@@ -43,9 +40,6 @@ source: |
 
     def bench(iterations, variable: None, parallel=False, path=None):
 
-        if parallel:
-            from mpi4py import MPI
-
         if variable == None:
             variable = []
             with open("run_config.json") as yaml_file:
@@ -55,7 +49,7 @@ source: |
                   variable.append(keys)
 
         ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r+", engine="zarr", path=path)
+        ds_zarr.open(mode="r", engine="zarr", path=path)
 
         if parallel:
             ds_zarr.read("bench_complete_parallel", variable=variable, iterations=iterations)

@@ -307,7 +307,8 @@ if __name__=="__main__":
         
         match language:
             case "py":
-                return f"""if parallel is False or MPI.COMM_WORLD.rank == 0:
+                return f"""from mpi4py import MPI
+    if parallel is False or MPI.COMM_WORLD.rank == 0:
         from pathlib import Path
         if Path("{self.results_path.absolute()}/{self.id}.json").exists():
             with open("{self.results_path.absolute()}/{self.id}.json", "r") as t:
