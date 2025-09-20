@@ -1,11 +1,12 @@
 formats:
-- netcdf4
-iterations: 1
+- hdf5
+iterations: 3
 languages:
 - py
+max processes: 20
 only data: false
 par_backend: MPI
-parallel: Both
+parallel: true
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_config: components/handler/
@@ -17,13 +18,16 @@ range:
 - 10
 - 90
 ranks:
-- 8
+- 32
 runs:
-  run02:
+  run04:
     X:
-    - - 134217728
+    - - 1342177280
     - []
-    - f8
+  run05:
+    X:
+    - - 2684354560
+    - []
 stepsize: 5
 variable_to_benchmark:
 - X

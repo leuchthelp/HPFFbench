@@ -16,8 +16,8 @@ create: |
 
     def create_ds(form, selection, parallel=False, path=None):
 
-        if parallel:
-            from mpi4py import MPI
+        #if parallel:
+        #    from mpi4py import MPI
 
         #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="netcdf4")
         match selection:
