@@ -21,6 +21,7 @@ range:
 - 90
 ranks:
 - 1
+- 2
 runs:
   run02:
     X:
