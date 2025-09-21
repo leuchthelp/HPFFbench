@@ -7,8 +7,6 @@ create_command:
     serial  : python {runnable}
     MPI: mpiexec -n python {runnable}
 create: |
-    import os
-    import shutil
     from func import datastruct as ds
     from func.datastruct import bcolors as color
     import json
@@ -20,7 +18,7 @@ create: |
         match selection:
             case 1:
                 ds_zarr = ds.Datastruct() 
-                print(f"{color.WARNING}Creating zarr{color.ENDC}")
+                print(color.WARNING + f"Creating zarr" + color.ENDC)
                 ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel, collective=collective)
     
 
@@ -34,7 +32,6 @@ run_command:
     MPI: mpiexec -n python {runnable} -v
 source: | 
     from func import datastruct as ds
-    from func.datastruct import bcolors as color
     import json
     import argparse
 

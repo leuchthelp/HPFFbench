@@ -7,8 +7,6 @@ create_command:
     serial  : python {runnable}
     MPI: mpiexec -n python {runnable}
 create: |
-    import os
-    import shutil
     from func import datastruct as ds
     from func.datastruct import bcolors as color
     import json
@@ -20,7 +18,7 @@ create: |
         match selection:
             case 1:
                 ds_hdf5 = ds.Datastruct() 
-                print(f"{color.WARNING}Creating hdf5{color.ENDC}")
+                print(color.WARNING + f"Creating hdf5" + color.ENDC)
                 ds_hdf5.create(path=path, form=form, engine="hdf5", parallel=parallel, collective=collective)
     
 
@@ -34,7 +32,6 @@ run_command:
     MPI: mpiexec -n python {runnable} -v
 source: | 
     from func import datastruct as ds
-    from func.datastruct import bcolors as color
     import json
     import argparse
 

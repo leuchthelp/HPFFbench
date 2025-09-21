@@ -5,10 +5,8 @@ extension: nc
 format: netcdf4
 create_command: 
     serial  : python {runnable}
-    MPI: mpiexec -n python {runnable}
+    #MPI: mpiexec -n python {runnable}
 create: |
-    import os
-    import shutil
     from func import datastruct as ds
     from func.datastruct import bcolors as color
     import json
@@ -20,7 +18,7 @@ create: |
         match selection:
             case 1:
                 ds_netcdf4 = ds.Datastruct() 
-                print(f"{color.WARNING}Creating netcdf4{color.ENDC}")
+                print(color.WARNING + f"Creating netcdf4" + color.ENDC)
                 ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=parallel, collective=collective)
     
 
@@ -34,7 +32,6 @@ run_command:
     MPI: mpiexec -n python {runnable} -v
 source: | 
     from func import datastruct as ds
-    from func.datastruct import bcolors as color
     import json
     import argparse
 
