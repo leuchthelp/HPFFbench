@@ -14,19 +14,19 @@ create: |
     import json
     import argparse
 
-    def create_ds(form, selection, parallel=False, path=None):
+    def create_ds(form, selection, parallel=False, path=None, collective=False):
 
-        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="zarr")
+        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="zarr")
         match selection:
             case 1:
                 ds_zarr = ds.Datastruct() 
                 print(f"{color.WARNING}Creating zarr{color.ENDC}")
-                ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel)
+                ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel, collective=collective)
     
 
-    def create(selection, parallel=False, path=None):
+    def create(selection, parallel=False, path=None, collective=False):
         with open("run_config.json") as json_file:
-            create_ds(json.load(json_file), selection, parallel=parallel, path=path)
+            create_ds(json.load(json_file), selection, parallel=parallel, path=path, collective=collective)
 
     #MAIN
 run_command:  
@@ -38,7 +38,7 @@ source: |
     import json
     import argparse
 
-    def bench(iterations, variable: None, parallel=False, path=None):
+    def bench(iterations, variable: None, parallel=False, path=None, collective=False):
 
         if variable == None:
             variable = []
@@ -52,6 +52,7 @@ source: |
         ds_zarr.open(mode="r", engine="zarr", path=path)
 
         if parallel:
+            ds_zarr.collective = collective
             ds_zarr.read("bench_complete_parallel", variable=variable, iterations=iterations)
         else:
             ds_zarr.read("bench_complete", variable=variable, iterations=iterations)

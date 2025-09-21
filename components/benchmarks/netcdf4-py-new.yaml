@@ -5,7 +5,7 @@ extension: nc
 format: netcdf4
 create_command: 
     serial  : python {runnable}
-    #MPI: mpiexec -n python {runnable}
+    MPI: mpiexec -n python {runnable}
 create: |
     import os
     import shutil
@@ -14,19 +14,19 @@ create: |
     import json
     import argparse
 
-    def create_ds(form, selection, parallel=False, path=None):
+    def create_ds(form, selection, parallel=False, path=None, collective=False):
 
-        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r+", engine="netcdf4")
+        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="netcdf4")
         match selection:
             case 1:
                 ds_netcdf4 = ds.Datastruct() 
                 print(f"{color.WARNING}Creating netcdf4{color.ENDC}")
-                ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=False)
+                ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=parallel, collective=collective)
     
 
-    def create(selection, parallel=False, path=None):
+    def create(selection, parallel=False, path=None, collective=False):
         with open("run_config.json") as json_file:
-            create_ds(json.load(json_file), selection, parallel=parallel, path=path)
+            create_ds(json.load(json_file), selection, parallel=parallel, path=path, collective=collective)
 
     #MAIN
 run_command:  
@@ -38,7 +38,7 @@ source: |
     import json
     import argparse
 
-    def bench(iterations, variable: None, parallel=False, path=None):
+    def bench(iterations, variable: None, parallel=False, path=None, collective=False):
 
         if variable == None:
             variable = []
@@ -52,6 +52,7 @@ source: |
         ds_netcdf4.open(mode="r", engine="netcdf4", path=path, parallel=parallel)
 
         if parallel:
+            ds_netcdf4.collective = collective
             ds_netcdf4.read("bench_complete_parallel", variable=variable, iterations=iterations)
         else:
             ds_netcdf4.read("bench_complete", variable=variable, iterations=iterations)

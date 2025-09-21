@@ -27,6 +27,7 @@ class BenchmarkManager:
     parallel        : bool
     par_backend     : None | str
     ranks           : None | int
+    collective      : bool
     language        : str
     format          : str
     engine          : str
@@ -81,6 +82,7 @@ class BenchmarkManager:
         self.parallel       = parallel
         self.par_backend    = par_backend
         self.ranks          = ranks
+        self.collective     = False
         self.language       = language
         self.format         = format
         
@@ -175,19 +177,22 @@ class BenchmarkManager:
         
         if self.par_backend in create_commands.keys():
             create_command = create_commands[str(self.par_backend)]
-            create_command = create_command +  "-p"
+            create_command = create_command + "-p"
             create_command = create_command.replace("-n ", f"-n {self.ranks} ")
+            
+            if self.collective == True:
+                create_command = create_command + f"-o {self.collective}"
 
         create_command = create_command.replace("{runnable}", f"{create_file} ")
         create_command = create_command.replace("-p", f"-p {self.parallel} ")
         
         
         if "-c" not in create_command:
-            create_command = create_command + "-c 1 "
+            create_command = create_command + " -c 1"
         
             
         if "-l" not in create_command:
-            create_command = create_command + "-l"
+            create_command = create_command + " -l"
                 
         create_command = create_command.replace("-l", f"-l {self.location}")
         
@@ -196,7 +201,7 @@ class BenchmarkManager:
         else: 
             create_command = create_command.split()
 
-        
+
         p = subprocess.run(create_command, capture_output=True, text=True, cwd=self.dir_path)
         print(p.stderr)
         print(p.stdout)
@@ -223,6 +228,9 @@ class BenchmarkManager:
             run_command = run_commands[str(self.par_backend)]
             run_command = run_command +  "-p"
             run_command = run_command.replace("-n", f"-n {self.ranks} ")
+            
+            if self.collective == True:
+                run_command = run_command + f"-o {self.collective}"
 
         
         tmp = ",".join(self.var_to_bm)    
@@ -233,10 +241,10 @@ class BenchmarkManager:
         
         
         if "-b" not in run_command:
-            run_command = run_command + "-b 1 "
+            run_command = run_command + " -b 1"
             
         if "-l" not in run_command:
-                run_command = run_command + f"-l {self.location}"
+                run_command = run_command + f" -l {self.location}"
 
 
         if  "SLURM_JOB_ID" in os.environ and self.local is False:
@@ -287,14 +295,15 @@ class BenchmarkManager:
     parser.add_argument("-v", "--var_to_bm", type=str, default=None, help="var_to_bm to read, if none is provided all are read")
     parser.add_argument("-p", "--parallel", type=bool, default=False, help="If to run the benchmark using parallelism of any kind supported")
     parser.add_argument("-l", "--location", type=str, default="", help="Location where file will be create / saved")
+    parser.add_argument("-o", "--out_in", type=bool, default=False, help="Set I/O to either use independent (default or False) or collective I/O (True)")
     args = parser.parse_args()
     
     match args.benchmark:
         case 1:
-            bench(iterations=args.iterations, variable=args.var_to_bm, parallel=args.parallel, path=args.location)
+            bench(iterations=args.iterations, variable=args.var_to_bm, parallel=args.parallel, path=args.location, collective=args.out_in)
         case -1:
             if args.create != -1:
-                create(selection=args.create, parallel=args.parallel, path=args.location)
+                create(selection=args.create, parallel=args.parallel, path=args.location, collective=args.out_in)
 
 if __name__=="__main__":
     main()

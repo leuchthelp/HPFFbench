@@ -32,9 +32,14 @@ class Handler:
     def __init__(self, path_to_config: None | str):
         
         self.__id = None
+        self.config = {}
         self.__benchmarks = []
         
         self.__load_config(path_to_config)
+        
+        if bool(self.config["runs"]) == False:
+            raise ValueError(bcolors.FAIL + "No runs specified, please add some." + bcolors.ENDC)
+        
         self.__check_paths()
         
         self.__capabilities = self.__determine_capabilities()
@@ -200,14 +205,15 @@ class Handler:
             requested = dict(requested)
             if str(requested) in determined_cap:
                 print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
+                
                 tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=determined_cap[str(requested)]))
         
         return tasks
 
 
     def __create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
-        
         benchmarks = []
+        
         for _, run_config in self.config["runs"].items():  # type: ignore
             
             parallel    = requested["parallel"]
@@ -243,6 +249,7 @@ class Handler:
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
             
+    
             for rank in ranks:        
                 print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, ranks: {rank}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
 
