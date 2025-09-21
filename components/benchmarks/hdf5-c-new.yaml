@@ -1,0 +1,135 @@
+parallel: False
+language: c
+extension: h5
+format: hdf5
+compile: True
+compile_command: gcc {runnable} -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -Wl,-rpath -Wl,/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -lmpi -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib -lhdf5_hl -lhdf5
+create_command: 
+    serial: "{runnable}"
+create: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <hdf5.h>
+    #include <unistd.h>
+    #include <argp.h>
+
+    #define ANSI_COLOR_RED "\x1b[31m"
+    #define ANSI_COLOR_GREEN "\x1b[32m"
+    #define ANSI_COLOR_YELLOW "\x1b[33m"
+    #define ANSI_COLOR_BLUE "\x1b[34m"
+    #define ANSI_COLOR_MAGENTA "\x1b[35m"
+    #define ANSI_COLOR_CYAN "\x1b[36m"
+    #define ANSI_COLOR_RESET "\x1b[0m"
+
+    void create(bool with_chunking, hsize_t size, hsize_t chunk, char* location)
+    {
+        printf(ANSI_COLOR_YELLOW "Create hdf5 file" ANSI_COLOR_RESET "\n");
+        hid_t plist_id, file_id, filespace, dset_id; /* file identifier */
+        herr_t status;
+        hsize_t dims[1];
+        hsize_t cdims[1];
+
+        /* Create a new file using default properties. */
+        file_id = H5Fcreate(location, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+        // setup dimensions
+        hsize_t some_size = size;
+
+        dims[0] = some_size;
+        filespace = H5Screate_simple(1, dims, NULL);
+
+        plist_id = H5Pcreate(H5P_DATASET_CREATE);
+
+        if (chunk != 0)
+        {
+            // setup chunking
+            cdims[0] = chunk;
+            status = H5Pset_chunk(plist_id, 1, cdims);
+        }
+
+        // create Dataset
+        dset_id = H5Dcreate(file_id, "/X", H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+
+        // fill buffer
+        float *wbuf = calloc(some_size, sizeof(float));
+
+        if (!wbuf)
+        {
+            fprintf(stderr, "Fatal: unable to allocate array\n");
+            exit(EXIT_FAILURE);
+        }
+
+        hsize_t i;
+
+        for (i = 0; i < some_size; i++)
+        {
+            wbuf[i] = (float)rand() / RAND_MAX;
+        }
+
+        status = H5Dwrite(dset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, wbuf);
+
+        free(wbuf);
+
+        /* Terminate access to the file. */
+        status = H5Dclose(dset_id);
+        status = H5Sclose(filespace);
+        status = H5Fclose(file_id);
+        printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
+    }
+
+    #MAIN
+run_command:
+    serial: "{runnable}"
+source: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <hdf5.h>
+    #include <unistd.h>
+    #include <argp.h>
+
+    #define ANSI_COLOR_RED "\x1b[31m"
+    #define ANSI_COLOR_GREEN "\x1b[32m"
+    #define ANSI_COLOR_YELLOW "\x1b[33m"
+    #define ANSI_COLOR_BLUE "\x1b[34m"
+    #define ANSI_COLOR_MAGENTA "\x1b[35m"
+    #define ANSI_COLOR_CYAN "\x1b[36m"
+    #define ANSI_COLOR_RESET "\x1b[0m"
+
+    void bench(hsize_t size, int iteration, char* location)
+    {
+        double arr3[iteration];
+
+        for (int i = 0; i < iteration; i++)
+        {
+            printf("i: %d for variable: X\n", i);
+
+            hid_t file_id, dset_id;
+            herr_t status;
+            hsize_t some_size = size;
+            float *rbuf = calloc(some_size, sizeof(float));
+
+            file_id = H5Fopen(location, H5F_ACC_RDONLY, H5P_DEFAULT);
+            dset_id = H5Dopen2(file_id, "/X", H5P_DEFAULT);
+
+            struct timespec start, end;
+
+            clock_gettime(CLOCK_MONOTONIC, &start);
+
+            status = H5Dread(dset_id, H5T_NATIVE_FLOAT, H5S_BLOCK, H5S_ALL, H5P_DEFAULT, rbuf);
+
+            status = H5Dclose(dset_id);
+            status = H5Fclose(file_id);
+
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            double elapsed = end.tv_sec - start.tv_sec;
+            elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+            arr3[i] = elapsed;
+
+            free(rbuf);
+            printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
+        }
+    }
+
+    #MAIN

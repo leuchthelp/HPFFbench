@@ -67,7 +67,12 @@ class BenchmarkManager:
         # Object config
         self.handler_id = handler_id
         
-        id_str = str(run_config) + str(bm_config["par_backend"]) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format) + str(ranks) + str(var_to_bm)
+        try:
+            config_par_backend = bm_config["par_backend"]
+        except:
+            config_par_backend = None
+            
+        id_str = str(run_config) + str(config_par_backend) + str(par_backend) + str(bm_config["parallel"]) + str(parallel) + str(bm_config["format"]) + str(format) + str(ranks) + str(var_to_bm)
         self.id           = hashlib.sha256(id_str.encode()).hexdigest()
         
         self.use_path       = use_path
@@ -94,7 +99,7 @@ class BenchmarkManager:
         self.var_to_bm      = var_to_bm
         self.iterations     = iterations
         self.internal_i     = 1
-        self.no_caching     = True
+        self.no_caching     = False
         self.local          = False
         self.location       = f"{self.id}.{self.extension}"
         
@@ -121,8 +126,13 @@ class BenchmarkManager:
         
         try:
             self.compile    = bm_config["compile"]
-        except:
-            self.compile    = None
+            try:
+                self.compile_command = bm_config["compile_command"]
+            except:
+                raise ValueError("Missing compile command for benchmark requiring compilation")
+        except KeyError:
+            self.compile    = False
+            
             
         self.src            = bm_config["source"]
         
@@ -150,10 +160,7 @@ class BenchmarkManager:
 
             if self.create != None:  
                 self.__create_file()
-                pass
 
-            if self.compile != None:
-                self.__compile_file()
 
             self.__execute_file()
         
@@ -166,14 +173,20 @@ class BenchmarkManager:
     def __create_file(self):
         create = self.create.replace("#MAIN", self.__replace_main(self.language)) # type: ignore
         
-        path_to_create_file = f"{self.dir_path}/create.{self.language}"
+        path_to_create_file = Path(f"{self.dir_path}/create.{self.language}")
         with open(path_to_create_file, "w") as file:
             file.write(create)
         
+        
         create_file = f"create.{self.language}"
+        if self.compile == True:
+            compiled_file = self.__compile_file(path=path_to_create_file)
+            create_file = f"./{compiled_file}"
+        
         
         create_commands = self.bm_config["create_command"]
         create_command  = create_commands["serial"]
+        
         
         if self.par_backend in create_commands.keys():
             create_command = create_commands[str(self.par_backend)]
@@ -182,6 +195,7 @@ class BenchmarkManager:
             
             if self.collective == True:
                 create_command = create_command + f"-o {self.collective}"
+
 
         create_command = create_command.replace("{runnable}", f"{create_file} ")
         create_command = create_command.replace("-p", f"-p {self.parallel} ")
@@ -207,8 +221,19 @@ class BenchmarkManager:
         print(p.stdout)
     
 
-    def __compile_file(self):
-        pass
+    def __compile_file(self, path: Path):
+        
+        compile_command = self.compile_command.replace("{runnable}", f"{path.absolute()}")
+        
+        compiled_file = f"{path.name}.out"
+        compile_command = compile_command + " -Wl,--unresolved-symbols=ignore-in-object-files" + f" -o {compiled_file}"
+        
+
+        p = subprocess.run(compile_command.split(), capture_output=True, text=True, cwd=self.dir_path, check=True)
+        print(p.stderr)
+        print(p.stdout)
+        
+        return compiled_file
   
 
     def __execute_file(self):
@@ -216,14 +241,20 @@ class BenchmarkManager:
         execute = self.src.replace("#MAIN", self.__replace_main(self.language))
         execute = execute.replace("#RESULT", self.__replace_result(self.language))
         
-        path_to_tmp_file = f"{self.dir_path}/execute.{self.language}"
+        path_to_tmp_file = Path(f"{self.dir_path}/execute.{self.language}")
         with open(path_to_tmp_file, "w") as file:
             file.write(execute)
         
-        tmp_file    = f"execute.{self.language}"
-        run_commands = self.bm_config["run_command"]
         
+        tmp_file    = f"execute.{self.language}"
+        if self.compile == True:
+            compiled_file = self.__compile_file(path=path_to_tmp_file)
+            tmp_file = f"./{compiled_file}"
+        
+        
+        run_commands = self.bm_config["run_command"]
         run_command  = run_commands["serial"]
+        
         if self.par_backend in run_commands.keys():
             run_command = run_commands[str(self.par_backend)]
             run_command = run_command +  "-p"
@@ -250,7 +281,7 @@ class BenchmarkManager:
         if  "SLURM_JOB_ID" in os.environ and self.local is False:
             run_command = ["sbatch", self.sbatch_config, run_command]
 
-        
+
         for i in range(self.iterations):
             
             if  "SLURM_JOB_ID" in os.environ and self.local == False:
@@ -282,8 +313,14 @@ class BenchmarkManager:
     def __replace_main(self, language):
         
         match language:
+            
+            ##################################################################################################
+            #### Py Part to be injected for #MAIN
+            ##################################################################################################
+            
             case "py":
-                return """def main():
+                return """
+def main():
 
     parser = argparse.ArgumentParser(
         prog="Python Dataformat-Benchmark",
@@ -308,8 +345,129 @@ class BenchmarkManager:
 if __name__=="__main__":
     main()
         """
+            ##################################################################################################
+            #### C Part to be injected for #MAIN
+            ##################################################################################################
+        
             case "c":
-                return ""
+                return """
+            
+#include <unistd.h>
+#include <argp.h>
+    
+typedef struct args_t
+{
+    int     create;
+    int     benchmark;
+    hsize_t size;
+    hsize_t chunk;
+    hsize_t factor;
+    int     iterations;
+    char*   location;
+} args_t;
+
+static int parse_opt(int key, char *arg, struct argp_state *state)
+{
+    args_t *arguments = state->input;
+
+    switch (key)
+    {
+    case 'c':
+        arguments->create       = atoi(arg);
+        break;
+    case 'b':
+        arguments->benchmark    = atoi(arg);
+        break;
+    case 'i':
+        arguments->iterations   = atoi(arg);
+        break;
+    case 's':
+        arguments->size         = strtoull(arg, NULL, 10);
+        break;
+    case 'k':
+        arguments->chunk        = strtoull(arg, NULL, 10);
+        break;
+    case 'f':
+        arguments->factor       = strtoull(arg, NULL, 10);
+        break;
+    case 'l':
+        arguments->location     = arg;
+        break;
+    case ARGP_KEY_ARG:
+        return 0;
+    default:
+        return ARGP_ERR_UNKNOWN;
+    }
+    return 0;
+}
+
+static struct argp_option options[] = {
+    {"create file",     'c', "NUM", 0, "File to create from selection of 1-6, matches benchmarks"},
+    {"benchmark",       'b', "NUM", 0, "Benchmark to run from a selection of 1-6"},
+    {"base-filesize",   's', "NUM", 0, "Specifiy the base-filesize of the file you want to create"},
+    {"chunksize",       'k', "NUM", 0, "Specifiy the base-filesize of the file you want to create"},
+    {"factor",          'f', "NUM", 0, "Factor to multiply base-filesize with to increase / decrease size"},
+    {"iterations",      'i', "NUM", 0, "Ammount of iterations the benchmark should run"},
+    {"location",        'l', "c",   0, "Location where file is going to be created / read from"},
+    {0}};
+
+int main(int argc, char **argv)
+{
+    struct argp argp = {options, parse_opt};
+
+    args_t arguments;
+    arguments.create = -1;
+    arguments.benchmark = -1;
+    arguments.size = 134217728;
+    arguments.chunk = 0;
+    arguments.factor = 1;
+    arguments.iterations = 1;
+    arguments.location = "test.c";
+
+    printf("Default benchmark %d, filesize %lu, chunksize %lu, factor %lu, iterations %d", arguments.benchmark, arguments.size, arguments.chunk, arguments.factor, arguments.iterations);
+
+    argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+    printf("Parsing %d, filesize %lu, chunksize %lu, factor %lu, iterations %d", arguments.benchmark, arguments.size, arguments.chunk, arguments.factor, arguments.iterations);
+
+    hsize_t size    = arguments.size * arguments.factor;
+    hsize_t chunk   = arguments.chunk;
+    int iterations  = arguments.iterations;
+    char* location  = arguments.location;
+
+    // arguments parsing for creation of file
+    switch (arguments.create)
+    {
+    case -1:
+        break;
+    case 1:
+        printf("Creating hdf5 file with a filesize of %lu and chunksize of %lu", size, chunk);
+        create(false, size, chunk, location);
+        break;
+    case ARGP_KEY_ARG:
+        return 0;
+    default:
+        return ARGP_ERR_UNKNOWN;
+    }
+
+    // arguments parsing for benchmarks
+    switch (arguments.benchmark)
+    {
+    case -1:
+        printf("No benchmark specified, exiting programm now");
+        break;
+    case 1:
+        printf("Running hdf5 benchmark with a filesize of %lu for %d iterations", size, iterations);
+        bench(size, iterations, location);
+        break;
+    case ARGP_KEY_ARG:
+        return 0;
+    default:
+        return ARGP_ERR_UNKNOWN;
+    }
+    return 0;
+}
+"""
      
         
     def __replace_result(self, language):
