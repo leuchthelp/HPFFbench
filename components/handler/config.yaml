@@ -1,12 +1,12 @@
 formats:
 - hdf5
-iterations: 1
+iterations: 2
 languages:
-- py
+- c
 max processes: 20
 only data: false
 par_backend: MPI
-parallel: Both
+parallel: false
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_config: components/handler/
@@ -20,11 +20,15 @@ range:
 ranks:
 - 1
 runs:
-  run02:
+  run01:
     X:
     - - 134217728
     - []
     - f8
+    Y:
+    - - 134217728
+    - []
+    - f4
 stepsize: 5
 variable_to_benchmark:
 - X

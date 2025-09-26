@@ -76,7 +76,8 @@
     "limits": "c",
     "new": "c",
     "h5_async_lib.h": "c",
-    "cstdint": "cpp"
+    "cstdint": "cpp",
+    "complex": "c"
   },
   "cmake.sourceDirectory": "/home/dev/dkrz_dev/components/c",
   "C_Cpp.default.compilerPath": "/usr/bin/gcc"

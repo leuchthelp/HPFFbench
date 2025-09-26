@@ -162,7 +162,7 @@ class BenchmarkManager:
                 self.__create_file()
 
 
-            self.__execute_file()
+            #self.__execute_file()
         
         finally:
             shutil.rmtree(path=self.dir_path)
@@ -210,15 +210,52 @@ class BenchmarkManager:
                 
         create_command = create_command.replace("-l", f"-l {self.location}")
         
+        
+        # Transform run config into 4 lists; variables (list(string)), shape (list(list(int))), chunks (list(list(int))) & datatypes (list(string)) 
+        
+        print(list(self.run_config.values()))
+        
+        flag_variable = "-V"
+        if flag_variable not in create_command:
+            create_command = create_command + f" {flag_variable}"
+        
+        variables = ",".join(list(self.run_config.keys()))
+        create_command = create_command.replace(f"{flag_variable}", f"{flag_variable} {variables}")
+        
+        values = list(self.run_config.values())
+        shapes = []
+        chunks = []
+        datatypes = []
+        for value in values:
+            shapes.append(value[0])
+            chunks.append(value[1])
+            datatypes.append(value[2])
+            
+        
+        create_command = self.__append_flag(flag="-S", command=create_command, data=shapes)
+        create_command = self.__append_flag(flag="-C", command=create_command, data=chunks)
+        create_command = self.__append_flag(flag="-D", command=create_command, data=datatypes)
+        
+        
         if  "SLURM_JOB_ID" in os.environ and self.local == False:
             create_command = ["sbatch", self.sbatch_config, create_command]
         else: 
             create_command = create_command.split()
 
-
+        print(create_command)
         p = subprocess.run(create_command, capture_output=True, text=True, cwd=self.dir_path)
         print(p.stderr)
         print(p.stdout)
+    
+    
+    def __append_flag(self, flag: str, command: str, data: list):
+        if flag not in command:
+            command = command + f" {flag}"
+            
+        data_str = ",".join(str(x) for x in data)
+        command = command.replace(f"{flag}", f"{flag} {data_str}")
+        
+        return command
     
 
     def __compile_file(self, path: Path):
@@ -228,7 +265,7 @@ class BenchmarkManager:
         compiled_file = f"{path.name}.out"
         compile_command = compile_command + " -Wl,--unresolved-symbols=ignore-in-object-files" + f" -o {compiled_file}"
         
-
+        print(compile_command)
         p = subprocess.run(compile_command.split(), capture_output=True, text=True, cwd=self.dir_path, check=True)
         print(p.stderr)
         print(p.stdout)
@@ -354,13 +391,18 @@ if __name__=="__main__":
             
 #include <unistd.h>
 #include <argp.h>
+#include <stdio.h>
+#include <string.h>
     
 typedef struct args_t
 {
     int     create;
     int     benchmark;
-    hsize_t size;
-    hsize_t chunk;
+    char*   var_to_bm;
+    char*   variables;
+    char*   shapes;
+    char*   chunks;
+    char*   datatypes;
     hsize_t factor;
     int     iterations;
     char*   location;
@@ -381,11 +423,33 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
     case 'i':
         arguments->iterations   = atoi(arg);
         break;
-    case 's':
-        arguments->size         = strtoull(arg, NULL, 10);
+    case 'v':
+        arguments->var_to_bm    = arg;
         break;
-    case 'k':
-        arguments->chunk        = strtoull(arg, NULL, 10);
+    case 'V':
+        char* token;
+        char* rest = arg;
+        int i = 0;
+        char *array[4];
+        
+        while (token = strtok_r(rest, ",", &rest))
+        {
+            array[i++] = token;
+        }
+        
+        printf(arg);
+            
+        
+        arguments->variables    = array;
+        break;
+    case 'S':
+        arguments->shapes       = arg;
+        break;
+    case 'C':
+        arguments->chunks       = arg;
+        break;
+    case 'D':
+        arguments->datatypes    = arg;
         break;
     case 'f':
         arguments->factor       = strtoull(arg, NULL, 10);
@@ -402,38 +466,50 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
 }
 
 static struct argp_option options[] = {
-    {"create file",     'c', "NUM", 0, "File to create from selection of 1-6, matches benchmarks"},
-    {"benchmark",       'b', "NUM", 0, "Benchmark to run from a selection of 1-6"},
-    {"base-filesize",   's', "NUM", 0, "Specifiy the base-filesize of the file you want to create"},
-    {"chunksize",       'k', "NUM", 0, "Specifiy the base-filesize of the file you want to create"},
-    {"factor",          'f', "NUM", 0, "Factor to multiply base-filesize with to increase / decrease size"},
+    {"create file",     'c', "NUM", 0, "If to create a file"},
+    {"benchmark",       'b', "NUM", 0, "If to run benchmark"},
+    {"var_to_bm",       'v', "c",   0, "Variables within a file to benchmark"},
+    {"variables",       'V', "c",   0, "Variables the file should contain"},
+    {"shapes",          'S', "c",   0, "Specifiy the shapes of the file you want to create as list of lists"},
+    {"chunks",          'C', "c",   0, "Specifiy the chunksize of the file you want to create as list of lists"},
+    {"datatypes",       'D', "c",   0, "Data types each variable should have as list"},
+    {"factor",          'f', "NUM", 0, "Factor to multiply shape with to increase / decrease size"},
     {"iterations",      'i', "NUM", 0, "Ammount of iterations the benchmark should run"},
     {"location",        'l', "c",   0, "Location where file is going to be created / read from"},
     {0}};
-
+    
+    
 int main(int argc, char **argv)
 {
     struct argp argp = {options, parse_opt};
 
     args_t arguments;
-    arguments.create = -1;
+    arguments.create    = -1;
     arguments.benchmark = -1;
-    arguments.size = 134217728;
-    arguments.chunk = 0;
-    arguments.factor = 1;
-    arguments.iterations = 1;
-    arguments.location = "test.c";
+    hsize_t tmpsize     = 134217728;
+    arguments.var_to_bm = "[]";
+    arguments.variables = "[]";
+    arguments.shapes    = "[]";
+    arguments.chunks    = "[]";
+    arguments.datatypes = "[]";
+    arguments.factor    = 1;
+    arguments.iterations= 1;
+    arguments.location  = "test.c";
 
-    printf("Default benchmark %d, filesize %lu, chunksize %lu, factor %lu, iterations %d", arguments.benchmark, arguments.size, arguments.chunk, arguments.factor, arguments.iterations);
+    printf("Parsing: %d, filesize: %lu, var_to_bm: %s, variables: %s, shapes: %s, chunks: %s, datatypes: %s, factor: %lu, iterations: %d --- ", arguments.benchmark, tmpsize, arguments.var_to_bm, arguments.variables, arguments.shapes, arguments.chunks, arguments.datatypes, arguments.factor, arguments.iterations);
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
-    printf("Parsing %d, filesize %lu, chunksize %lu, factor %lu, iterations %d", arguments.benchmark, arguments.size, arguments.chunk, arguments.factor, arguments.iterations);
-
-    hsize_t size    = arguments.size * arguments.factor;
-    hsize_t chunk   = arguments.chunk;
-    int iterations  = arguments.iterations;
+    hsize_t size    = tmpsize * arguments.factor;
+    char* var_to_bm= arguments.var_to_bm;
+    char* variables= arguments.variables;
+    char* shapes   = arguments.shapes;
+    char* chunks   = arguments.chunks;
+    char* datatypes= arguments.datatypes;
     char* location  = arguments.location;
+    int iterations  = arguments.iterations;
+    
+    printf("Parsing: %d, filesize: %lu, var_to_bm: %s, variables: %s, shapes: %s, chunks: %s, datatypes: %s, factor: %lu, iterations: %d --- ", arguments.benchmark, size, var_to_bm, variables, shapes, chunks, datatypes, arguments.factor, arguments.iterations);
 
     // arguments parsing for creation of file
     switch (arguments.create)
@@ -441,8 +517,8 @@ int main(int argc, char **argv)
     case -1:
         break;
     case 1:
-        printf("Creating hdf5 file with a filesize of %lu and chunksize of %lu", size, chunk);
-        create(false, size, chunk, location);
+        printf("Creating hdf5 file with a filesize of %lu and chunksize of %s", size, chunks);
+        create(false, size, 0, location);
         break;
     case ARGP_KEY_ARG:
         return 0;
