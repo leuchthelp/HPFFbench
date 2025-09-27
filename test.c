@@ -42,7 +42,7 @@ void create(bool with_chunking, char **variables, hsize_t **shapes, hsize_t **ch
     }
 
     // create Dataset
-    dset_id = H5Dcreate(file_id, "/X", H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+    dset_id = H5Dcreate(file_id, variables[0], H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
 
     // fill buffer
     float *wbuf = calloc(some_size, sizeof(float));
