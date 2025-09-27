@@ -13,9 +13,9 @@
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-void create(bool with_chunking, hsize_t size, hsize_t chunk, char *location)
+void create(bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
 {
-    // printf(ANSI_COLOR_YELLOW "Create hdf5 file" ANSI_COLOR_RESET "\n");
+    printf(ANSI_COLOR_YELLOW "Create hdf5 file" ANSI_COLOR_RESET "\n");
     hid_t plist_id, file_id, filespace, dset_id; /* file identifier */
     herr_t status;
     hsize_t dims[1];
@@ -25,17 +25,19 @@ void create(bool with_chunking, hsize_t size, hsize_t chunk, char *location)
     file_id = H5Fcreate(location, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
     // setup dimensions
-    hsize_t some_size = size;
+    printf("size of dataset %ld \n", shapes[0][0]);
+    hsize_t some_size = shapes[0][0];
 
     dims[0] = some_size;
     filespace = H5Screate_simple(1, dims, NULL);
 
     plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
-    if (chunk != 0)
+    if (chunks[0][0] != 0)
     {
         // setup chunking
-        cdims[0] = chunk;
+        printf("chunksize %ld \n", chunks[0][0]);
+        cdims[0] = chunks[0][0];
         status = H5Pset_chunk(plist_id, 1, cdims);
     }
 
@@ -51,9 +53,7 @@ void create(bool with_chunking, hsize_t size, hsize_t chunk, char *location)
         exit(EXIT_FAILURE);
     }
 
-    hsize_t i;
-
-    for (i = 0; i < some_size; i++)
+    for (hsize_t i = 0; i < some_size; i++)
     {
         wbuf[i] = (float)rand() / RAND_MAX;
     }
@@ -66,7 +66,7 @@ void create(bool with_chunking, hsize_t size, hsize_t chunk, char *location)
     status = H5Dclose(dset_id);
     status = H5Sclose(filespace);
     status = H5Fclose(file_id);
-    // printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
+    printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
 }
 
 #include <unistd.h>
@@ -79,10 +79,10 @@ typedef struct args_t
     int create;
     int benchmark;
     char *var_to_bm;
-    char *variables;
-    char *shapes;
-    char *chunks;
-    char *datatypes;
+    char *variable;
+    char *shape;
+    char *chunk;
+    char *datatype;
     hsize_t factor;
     int iterations;
     char *location;
@@ -107,17 +107,17 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
         arguments->var_to_bm = arg;
         break;
     case 'V':
-        arguments->variables = arg;
+        arguments->variable = arg;
         break;
     case 'S':
 
-        arguments->shapes = arg;
+        arguments->shape = arg;
         break;
     case 'C':
-        arguments->chunks = arg;
+        arguments->chunk = arg;
         break;
     case 'D':
-        arguments->datatypes = arg;
+        arguments->datatype = arg;
         break;
     case 'f':
         arguments->factor = strtoull(arg, NULL, 10);
@@ -137,10 +137,10 @@ static struct argp_option options[] = {
     {"create file", 'c', "NUM", 0, "If to create a file"},
     {"benchmark", 'b', "NUM", 0, "If to run benchmark"},
     {"var_to_bm", 'v', "c", 0, "Variables within a file to benchmark"},
-    {"variables", 'V', "c", 0, "Variables the file should contain"},
-    {"shapes", 'S', "c", 0, "Specifiy the shapes of the file you want to create as list of lists"},
-    {"chunks", 'C', "c", 0, "Specifiy the chunksize of the file you want to create as list of lists"},
-    {"datatypes", 'D', "c", 0, "Data types each variable should have as list"},
+    {"variable", 'V', "c", 0, "Variables the file should contain"},
+    {"shape", 'S', "c", 0, "Specifiy the shapes of the file you want to create as list of lists"},
+    {"chunk", 'C', "c", 0, "Specifiy the chunksize of the file you want to create as list of lists"},
+    {"datatype", 'D', "c", 0, "Data types each variable should have as list"},
     {"factor", 'f', "NUM", 0, "Factor to multiply shape with to increase / decrease size"},
     {"iterations", 'i', "NUM", 0, "Ammount of iterations the benchmark should run"},
     {"location", 'l', "c", 0, "Location where file is going to be created / read from"},
@@ -155,38 +155,28 @@ hsize_t word_count(char *smth, char delim)
     return count;
 }
 
-char *get_chars(char *smth, hsize_t size)
+int get_chars(char *smth, hsize_t amount, char **buf)
 {
-    char *arr = (char *)malloc(size * sizeof(char));
-    if (arr == NULL)
-    {
-        printf("Memory allocation failed!\n");
-        exit(1); // Exit the program if allocation fails
-    }
     hsize_t i = 0;
+    char *token;
+    char *rest = smth;
 
-    for (hsize_t x = 0; x < strlen(smth); x++)
+    while ((token = strtok_r(rest, ",", &rest)))
     {
-        if (smth[x] != 44) // ASCII ","
-        {
-            arr[i] = smth[x];
-            i++;
-        }
-        else
-        {
-            continue;
-        }
+        if (i == amount)
+            break;
+        buf[i] = calloc(strlen(token), sizeof(char *));
+        strcpy(buf[i], token);
+        i++;
     }
-    return arr;
+    return 0;
 }
 
-int get_list_contents(char *smth, hsize_t *jagged)
+int get_list_contents(char *smth, hsize_t *buf)
 {
-
     hsize_t i = 0;
     char tmp_char[CHAR_MAX] = "";
     bool flag = false;
-
     for (hsize_t x = 0; x < strlen(smth); x++)
     {
         if (smth[x] != 44) // ASCII ","
@@ -204,12 +194,33 @@ int get_list_contents(char *smth, hsize_t *jagged)
         }
         else
         {
-            jagged[i] = (hsize_t)strtoull(tmp_char, NULL, 10);
+            buf[i] = (hsize_t)strtoull(tmp_char, NULL, 10);
             tmp_char[0] = '\0';
             i++;
         }
     }
-    jagged[i] = (hsize_t)strtoull(tmp_char, NULL, 10);
+    buf[i] = (hsize_t)strtoull(tmp_char, NULL, 10);
+    return 0;
+}
+
+int get_individual_as_jagged(char *smth, hsize_t size, hsize_t **buf, hsize_t *jagged_size)
+{
+    char *token;
+    char *rest = smth;
+
+    hsize_t current_var = 0;
+    while ((token = strtok_r(rest, "-", &rest)))
+    {
+        if (current_var == size)
+            break;
+        hsize_t dims = word_count(token, ',');
+        printf("token: %s, dim count: %ld \n", token, dims);
+
+        buf[current_var] = calloc(dims, sizeof(hsize_t));
+        int res = get_list_contents(token, buf[current_var]);
+        jagged_size[current_var] = dims;
+        current_var++;
+    }
     return 0;
 }
 
@@ -217,27 +228,20 @@ void print_jagged(hsize_t **jagged_arr, hsize_t *jagged_size, hsize_t count)
 {
 
     hsize_t k = 0;
-    // To display elements of Jagged array
-    for (hsize_t i = 0; i < count; i++)
+    // Display elements in Jagged array
+    for (int i = 0; i < 2; i++)
     {
 
-        // pointer to hold the address of the row
-        hsize_t *ptr = jagged_arr[i];
-
-        for (hsize_t j = 0; j < jagged_size[k]; j++)
+        hsize_t *p = jagged_arr[i];
+        for (int j = 0; j < jagged_size[k]; j++)
         {
-            printf("%ld ", *ptr);
 
-            // move the pointer to the
-            // next element in the row
-            ptr++;
+            printf("%ld ", *p);
+            // move the pointer to the next element
+            p++;
         }
-
         printf("\n");
         k++;
-
-        // move the pointer to the next row
-        jagged_arr[i]++;
     }
 }
 
@@ -250,52 +254,39 @@ int main(int argc, char *argv[])
     arguments.benchmark = -1;
     hsize_t tmpsize = 134217728;
     arguments.var_to_bm = "[]";
-    arguments.variables = "[]";
-    arguments.shapes = "[]";
-    arguments.chunks = "[]";
-    arguments.datatypes = "[]";
+    arguments.variable = "[]";
+    arguments.shape = "[]";
+    arguments.chunk = "[]";
+    arguments.datatype = "[]";
     arguments.factor = 1;
     arguments.iterations = 1;
     arguments.location = "test.c";
 
-    printf("Parsing: %d, filesize: %lu, var_to_bm: %s, variables: %s, shapes: %s, chunks: %s, datatypes: %s, factor: %lu, iterations: %d --- \n", arguments.benchmark, tmpsize, arguments.var_to_bm, arguments.variables, arguments.shapes, arguments.chunks, arguments.datatypes, arguments.factor, arguments.iterations);
+    printf("Parsing: %d, var_to_bm: %s, variables: %s, shapes: %s, chunks: %s, datatypes: %s, factor: %lu, iterations: %d --- \n", arguments.benchmark, arguments.var_to_bm, arguments.variable, arguments.shape, arguments.chunk, arguments.datatype, arguments.factor, arguments.iterations);
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
     hsize_t size = tmpsize * arguments.factor;
-    char *var_to_bm = arguments.var_to_bm;
-    char *variables = arguments.variables;
-    char *shapes = arguments.shapes;
-    char *chunks = arguments.chunks;
-    char *datatypes = arguments.datatypes;
     char *location = arguments.location;
     int iterations = arguments.iterations;
     int res;
 
-    char *var_tmp;
-    hsize_t var_count = word_count(variables, ',');
-    var_tmp = get_chars(variables, var_count);
+    // get variables to benchmark
+    hsize_t var_bm_count = word_count(arguments.var_to_bm, ',');
+    printf("word count->variables to benchmark: %ld \n", var_bm_count);
 
-    char *token;
-    char *rest = shapes;
+    // get variables
+    hsize_t var_count = word_count(arguments.variable, ',');
+    printf("word count->variables for dataset creation: %ld \n", var_count);
 
-    hsize_t **testing = malloc(var_count * sizeof(hsize_t *));
-    hsize_t jagged_size[var_count], k = 0;
+    // get shapes
+    hsize_t **shapes = calloc(var_count, sizeof(hsize_t *));
+    hsize_t shapes_size[var_count];
 
-    hsize_t current_var = 0;
-    while ((token = strtok_r(rest, "-", &rest)))
-    {
-        hsize_t dims = word_count(token, ',');
-        printf("token: %s, dim count: %ld \n", token, dims);
+    // get chunks
+    hsize_t **chunks = calloc(var_count, sizeof(hsize_t *));
+    hsize_t chunks_size[var_count];
 
-        testing[current_var] = malloc(dims * sizeof(hsize_t *));
-        get_list_contents(token, testing[current_var]);
-        jagged_size[current_var] = dims;
-        current_var++;
-    }
-
-    print_jagged(testing, jagged_size, var_count);
-
-    printf("Parsing: %d, filesize: %lu, var_to_bm: %s, variables: %s, shapes: %s, chunks: %s, datatypes: %s, factor: %lu, iterations: %d --- \n", arguments.benchmark, size, var_to_bm, variables, shapes, chunks, datatypes, arguments.factor, arguments.iterations);
+    printf("Parsing: %d, factor: %lu, iterations: %d --- \n", arguments.benchmark, arguments.factor, arguments.iterations);
 
     // arguments parsing for creation of file
     switch (arguments.create)
@@ -303,8 +294,64 @@ int main(int argc, char *argv[])
     case -1:
         break;
     case 1:
-        // printf("Creating hdf5 file with a filesize of %lu and chunksize of %s", size, chunks);
-        // create(false, size, 0, location);
+
+        // get variables
+        char **variables = calloc(var_count, sizeof(char *));
+        res = get_chars(arguments.variable, var_count, variables);
+
+        for (int i = 0; i < var_count; i++)
+        {
+            printf("%s\n", variables[i]);
+        }
+
+        // get shapes
+        res = get_individual_as_jagged(arguments.shape, var_count, shapes, shapes_size);
+        print_jagged(shapes, shapes_size, var_count);
+
+        // get chunks
+        res = get_individual_as_jagged(arguments.chunk, var_count, chunks, chunks_size);
+        if (chunks[0][0] != 0)
+            print_jagged(chunks, chunks_size, var_count);
+
+
+        // get datatypes
+        printf("word count: %ld \n", var_count);
+        char **datatypes = calloc(var_count, sizeof(char *));
+        res = get_chars(arguments.datatype, var_count, datatypes);
+
+        for (int i = 0; i < var_count; i++)
+        {
+            printf("%s\n", datatypes[i]);
+        }
+
+        printf("Creating hdf5 file \n");
+        create(false, variables, shapes, chunks, datatypes, location);
+
+        // Free variables, datatypes, shape and chunks
+        for (int i = 0; i < var_count; i++)
+        {
+            free(variables[i]);
+        }
+        free(variables);
+
+        for (int i = 0; i < var_count; i++)
+        {
+            free(datatypes[i]);
+        }
+        free(datatypes);
+
+        for (int i = 0; i < var_count; i++)
+        {
+            free(shapes[i]);
+        }
+        free(shapes);
+
+        for (int i = 0; i < var_count; i++)
+        {
+            free(chunks[i]);
+        }
+        free(chunks);
+
         break;
     case ARGP_KEY_ARG:
         return 0;
@@ -316,23 +363,32 @@ int main(int argc, char *argv[])
     switch (arguments.benchmark)
     {
     case -1:
-        // printf("No benchmark specified, exiting programm now");
+        printf("No benchmark specified, exiting programm now \n");
         break;
     case 1:
-        // printf("Running hdf5 benchmark with a filesize of %lu for %d iterations", size, iterations);
-        bench(size, iterations, location);
+        // get variables to benchmark
+        char **vars_to_bm = calloc(var_bm_count, sizeof(char *));
+        res = get_chars(arguments.var_to_bm, var_bm_count, vars_to_bm);
+
+        for (int i = 0; i < var_bm_count; i++)
+        {
+            printf("%s\n", vars_to_bm[i]);
+        }
+
+        printf("Running hdf5 benchmark for %d iterations\n", iterations);
+        bench(size, vars_to_bm, iterations, location);
+
+        // Free variables to benchmark
+        for (int i = 0; i < var_bm_count; i++)
+        {
+            free(vars_to_bm[i]);
+        }
+        free(vars_to_bm);
         break;
     case ARGP_KEY_ARG:
         return 0;
     default:
         return ARGP_ERR_UNKNOWN;
     }
-
-    for (int i = 0; i < var_count; i++)
-    {
-        free(testing[i]);
-    }
-    free(testing);
-    free(var_tmp);
     return 0;
 }

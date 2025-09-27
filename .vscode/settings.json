@@ -77,7 +77,11 @@
     "new": "c",
     "h5_async_lib.h": "c",
     "cstdint": "cpp",
-    "complex": "c"
+    "complex": "c",
+    "array": "c",
+    "string_view": "c",
+    "initializer_list": "c",
+    "utility": "c"
   },
   "cmake.sourceDirectory": "/home/dev/dkrz_dev/components/c",
   "C_Cpp.default.compilerPath": "/usr/bin/gcc"
