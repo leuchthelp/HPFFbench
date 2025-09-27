@@ -1,6 +1,6 @@
 formats:
 - hdf5
-iterations: 2
+iterations: 1
 languages:
 - c
 max processes: 20
@@ -20,15 +20,11 @@ range:
 ranks:
 - 1
 runs:
-  run01:
+  run02:
     X:
-    - - 134217728
+    - - 402653184
     - []
     - f8
-    Y:
-    - - 134217728
-    - []
-    - f4
 stepsize: 5
 variable_to_benchmark:
 - X

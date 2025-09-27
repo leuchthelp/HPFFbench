@@ -22,55 +22,55 @@ create: |
     #define ANSI_COLOR_CYAN "\x1b[36m"
     #define ANSI_COLOR_RESET "\x1b[0m"
 
-    void create(bool with_chunking, hsize_t size, hsize_t chunk, char* location)
+    void create(bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
     {
         printf(ANSI_COLOR_YELLOW "Create hdf5 file" ANSI_COLOR_RESET "\n");
         hid_t plist_id, file_id, filespace, dset_id; /* file identifier */
         herr_t status;
         hsize_t dims[1];
         hsize_t cdims[1];
-
+    
         /* Create a new file using default properties. */
         file_id = H5Fcreate(location, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
+    
         // setup dimensions
-        hsize_t some_size = size;
-
+        printf("size of dataset %ld \n", shapes[0][0]);
+        hsize_t some_size = shapes[0][0];
+    
         dims[0] = some_size;
         filespace = H5Screate_simple(1, dims, NULL);
-
+    
         plist_id = H5Pcreate(H5P_DATASET_CREATE);
-
-        if (chunk != 0)
+    
+        if (chunks[0][0] != 0)
         {
             // setup chunking
-            cdims[0] = chunk;
+            printf("chunksize %ld \n", chunks[0][0]);
+            cdims[0] = chunks[0][0];
             status = H5Pset_chunk(plist_id, 1, cdims);
         }
-
+    
         // create Dataset
-        dset_id = H5Dcreate(file_id, "/X", H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
-
+        dset_id = H5Dcreate(file_id, variables[0], H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+    
         // fill buffer
         float *wbuf = calloc(some_size, sizeof(float));
-
+    
         if (!wbuf)
         {
-            fprintf(stderr, "Fatal: unable to allocate array\n");
+            fprintf(stderr, "Fatal: unable to allocate shape_arr\n");
             exit(EXIT_FAILURE);
         }
-
-        hsize_t i;
-
-        for (i = 0; i < some_size; i++)
+    
+        for (hsize_t i = 0; i < some_size; i++)
         {
             wbuf[i] = (float)rand() / RAND_MAX;
         }
-
+    
         status = H5Dwrite(dset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, wbuf);
-
+    
         free(wbuf);
-
+    
         /* Terminate access to the file. */
         status = H5Dclose(dset_id);
         status = H5Sclose(filespace);

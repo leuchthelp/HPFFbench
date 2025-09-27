@@ -306,12 +306,9 @@ int main(int argc, char *argv[])
 
         // get shapes
         res = get_individual_as_jagged(arguments.shape, var_count, shapes, shapes_size);
-        print_jagged(shapes, shapes_size, var_count);
 
         // get chunks
         res = get_individual_as_jagged(arguments.chunk, var_count, chunks, chunks_size);
-        if (chunks[0][0] != 0)
-            print_jagged(chunks, chunks_size, var_count);
 
 
         // get datatypes
