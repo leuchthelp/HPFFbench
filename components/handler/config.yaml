@@ -20,11 +20,10 @@ range:
 ranks:
 - 1
 runs:
-  run02:
+  run03:
     X:
-    - - 402653184
+    - - 134217728
     - []
-    - f8
 stepsize: 5
 variable_to_benchmark:
 - X
