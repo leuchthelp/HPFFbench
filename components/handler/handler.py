@@ -355,6 +355,7 @@ class Handler:
                             "relative std"      : rsd,
                             "error bar"         : error,
                             "anomaly"           : anomaly,
+                            "nodes"             : str(benchmarks["nodes"]),
                             "node"              : node,
                             "node count"        : 0,
                             })
