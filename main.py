@@ -66,18 +66,14 @@ def main():
     """
     
     new_setup = {
-        "formats"               : ["hdf5"],
-        "languages"             : ["py"],
+        "formats"               : ["hdf5", {"hdf5": "async"}],
+        "languages"             : ["c"],
         "paths"                 : paths,
-        "iterations"            : 1,
-        "nodes"                 : 2,
+        "iterations"            : 5,
         "runs"                  : tmp,
-        "range"                 : [10, 90], 
-        "stepsize"              : 5,
         "parallel"              : "Both",
         "par_backend"           : "MPI",
-        "collective"            : False,
-        "ranks"                 : [1],
+        "ranks"                 : [2],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
         "max processes"         : 20,

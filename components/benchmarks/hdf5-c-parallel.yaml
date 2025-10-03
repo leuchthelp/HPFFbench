@@ -1,0 +1,288 @@
+parallel: True
+par_backend: MPI
+language: c
+extension: h5
+format: hdf5
+compile: True
+compile_command: gcc {runnable} -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -Wl,-rpath -Wl,/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -lmpi -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib -lhdf5_hl -lhdf5
+create_command: 
+    MPI: "mpiexec -n {runnable}"
+create: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <hdf5.h>
+    #include <unistd.h>
+    #include <argp.h>
+
+    #define ANSI_COLOR_RED "\x1b[31m"
+    #define ANSI_COLOR_GREEN "\x1b[32m"
+    #define ANSI_COLOR_YELLOW "\x1b[33m"
+    #define ANSI_COLOR_BLUE "\x1b[34m"
+    #define ANSI_COLOR_MAGENTA "\x1b[35m"
+    #define ANSI_COLOR_CYAN "\x1b[36m"
+    #define ANSI_COLOR_RESET "\x1b[0m"
+
+    void create(int argc, char **argv, bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
+    {
+      printf(ANSI_COLOR_YELLOW "Create hdf5 file with parallel" ANSI_COLOR_RESET "\n");
+      hid_t plist_id = 0;
+      hid_t file_id = 0;
+      hid_t filespace = 0;
+      hid_t memspace = 0;
+      hid_t dset_id = 0;
+      herr_t status = -1;
+      hsize_t dims[1];
+      hsize_t cdims[1];
+      hsize_t count[1]; /* hyperslab selection parameters */
+      hsize_t offset[1];
+      hsize_t block[1];
+
+      /*
+       * Initialize MPI
+       */
+
+      int mpi_ssize;
+      int mpi_rrank;
+      MPI_Comm comm = MPI_COMM_WORLD;
+
+      int mpi_thread_required = MPI_THREAD_MULTIPLE;
+      int mpi_thread_provided = 0;
+      /* Initialize MPI with threading support */
+      MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+
+      MPI_Comm_size(comm, &mpi_ssize);
+      MPI_Comm_rank(comm, &mpi_rrank);
+
+      hsize_t mpi_size = mpi_ssize;
+      hsize_t mpi_rank = mpi_rrank;
+
+      /*
+       * Set up file access property list with parallel I/O access
+       */
+      plist_id = H5Pcreate(H5P_FILE_ACCESS);
+      status = H5Pset_fapl_mpio(plist_id, comm, MPI_INFO_NULL);
+
+      H5Pset_all_coll_metadata_ops(plist_id, true);
+      H5Pset_coll_metadata_write(plist_id, true);
+
+      /*
+       * Create a new file collectively.
+       */
+      file_id = H5Fcreate(location, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+
+      /*
+       * Close property list.
+       */
+      H5Pclose(plist_id);
+
+      // setup dimensions
+      hsize_t process_mem_size = shapes[0][0] / mpi_size;
+
+      dims[0] = shapes[0][0];
+      filespace = H5Screate_simple(1, dims, NULL);
+
+      plist_id = H5Pcreate(H5P_DATASET_CREATE);
+
+      if (chunks[0][0] != 0)
+      {
+          // setup chunking
+          printf("chunksize %ld \n", chunks[0][0]);
+          cdims[0] = chunks[0][0];
+          status = H5Pset_chunk(plist_id, 1, cdims);
+      }
+
+      /*
+       * Create the dataset with default properties and close filespace.
+       */
+      dset_id = H5Dcreate(file_id, variables[0], H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+      H5Sclose(filespace);
+
+      /*
+       * Close property list.
+       */
+      H5Pclose(plist_id);
+
+      /*
+       * Select hyperslab in the file.
+       */
+      count[0] = process_mem_size;
+      offset[0] = count[0] * mpi_rank;
+      memspace = H5Screate_simple(1, count, NULL);
+
+      filespace = H5Dget_space(dset_id);
+
+      status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+      /*
+       * Initialize data buffer
+       */
+      float *wbuf = calloc(process_mem_size, sizeof(float));
+
+      if (!wbuf)
+      {
+          fprintf(stderr, "Fatal: unable to allocate array\n");
+          exit(EXIT_FAILURE);
+      }
+
+      hsize_t i;
+
+      for (i = 0; i < process_mem_size; i++)
+      {
+          wbuf[i] = (float)rand() / RAND_MAX;
+      }
+
+      /*
+       * Create property list for collective dataset write.
+       */
+      plist_id = H5Pcreate(H5P_DATASET_XFER);
+      H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+
+      /*
+       * To write dataset independently use
+       *
+       * H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+       */
+      status = H5Dwrite(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, plist_id, wbuf);
+
+      /*
+       * Close/release resources.
+       */
+
+      status = H5Dclose(dset_id);
+      status = H5Sclose(filespace);
+      status = H5Pclose(plist_id);
+      status = H5Fclose(file_id);
+
+      free(wbuf);
+      printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
+      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize();
+    }
+
+    #MAIN
+run_command:
+    MPI: mpiexec -n {runnable} -v
+source: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <hdf5.h>
+    #include <unistd.h>
+    #include <argp.h>
+
+    #define ANSI_COLOR_RED "\x1b[31m"
+    #define ANSI_COLOR_GREEN "\x1b[32m"
+    #define ANSI_COLOR_YELLOW "\x1b[33m"
+    #define ANSI_COLOR_BLUE "\x1b[34m"
+    #define ANSI_COLOR_MAGENTA "\x1b[35m"
+    #define ANSI_COLOR_CYAN "\x1b[36m"
+    #define ANSI_COLOR_RESET "\x1b[0m"
+
+    void bench(int argc, char **argv, hsize_t size, char** vars_to_bm, int iteration, char* location, double* result)
+    {
+        int mpi_ssize;
+        int mpi_rrank;
+        MPI_Comm comm = MPI_COMM_WORLD;
+
+        int mpi_thread_required = MPI_THREAD_MULTIPLE;
+        int mpi_thread_provided = 0;
+        /* Initialize MPI with threading support */
+        MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+
+        MPI_Comm_size(comm, &mpi_ssize);
+        MPI_Comm_rank(comm, &mpi_rrank);
+
+        hsize_t mpi_size = mpi_ssize;
+        hsize_t mpi_rank = mpi_rrank;
+
+        for (int i = 0; i < iteration; i++)
+        {
+            printf("i: %d for variable: X rank: %ld\n", i, mpi_rank);
+
+            hid_t plist_id = 0;
+            hid_t file_id = 0;
+            hid_t dset_id = 0;
+            herr_t status = -1;
+            hid_t filespace = 0;
+            hid_t memspace = 0;
+            hsize_t count[1]; /* hyperslab selection parameters */
+            hsize_t offset[1];
+            hsize_t block[1];
+
+            /*
+             * Set up file access property list with parallel I/O access
+             */
+            plist_id = H5Pcreate(H5P_FILE_ACCESS);
+            status = H5Pset_fapl_mpio(plist_id, comm, MPI_INFO_NULL);
+
+            /*
+             * Open existing file collectively and release property list identifier.
+             */
+            file_id = H5Fopen(location, H5F_ACC_RDONLY, plist_id);
+            H5Pclose(plist_id);
+
+            struct timespec start, end;
+            if (mpi_rank == 0)
+            {
+                clock_gettime(CLOCK_MONOTONIC, &start);
+            }
+
+            /*
+             * open the dataset with default properties and close filespace.
+             */
+            dset_id = H5Dopen(file_id, vars_to_bm[0], H5P_DEFAULT);
+
+            /*
+             * Select hyperslab in the file.
+             */
+
+            hsize_t process_mem_size = size / mpi_size;
+
+            count[0] = process_mem_size;
+            offset[0] = count[0] * mpi_rank;
+            memspace = H5Screate_simple(1, count, NULL);
+
+            filespace = H5Dget_space(dset_id);
+            status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+            /*
+             * Initialize data buffer
+             */
+            float *rbuf = calloc(process_mem_size, sizeof(float));
+
+            /*
+             * Create property list for collective dataset reads.
+             */
+            plist_id = H5Pcreate(H5P_DATASET_XFER);
+            H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+
+            /*
+             * To read dataset independently use
+             *
+             * H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+             */
+
+            status = H5Dread(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, plist_id, rbuf);
+
+            /*
+             * Close/release resources.
+             */
+            status = H5Dclose(dset_id);
+            status = H5Pclose(plist_id);
+            status = H5Fclose(file_id);
+
+            if (mpi_rank == 0)
+            {
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                double elapsed = end.tv_sec - start.tv_sec;
+                elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+                result[i] = elapsed;
+            }
+
+            free(rbuf);
+            MPI_Barrier(MPI_COMM_WORLD);
+            printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
+            MPI_Finalize();
+        }
+    }
+
+    #MAIN

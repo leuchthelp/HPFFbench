@@ -56,7 +56,7 @@ source: |
             ds_hdf5.read("bench_complete", variable=variable, iterations=iterations)
         result = ds_hdf5.log
 
-        #RESULT
+        return result
     
     #MAIN
 

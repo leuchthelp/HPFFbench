@@ -1,0 +1,410 @@
+parallel: True
+par_backend: MPI
+language: c
+extension: h5
+format: 
+    hdf5: async
+compile: True
+compile_command: gcc {runnable} -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -Wl,-rpath -Wl,/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -lmpi -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib -lhdf5_hl -lhdf5 -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-vol-async-develop-duo5a6xepxxfbfv5rxswyqml2og22ozm/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-vol-async-develop-duo5a6xepxxfbfv5rxswyqml2og22ozm/lib -lasynchdf5
+create_command: 
+    MPI: "mpiexec -n {runnable}"
+create: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <hdf5.h>
+    #include <unistd.h>
+    #include <argp.h>
+
+    #define ANSI_COLOR_RED "\x1b[31m"
+    #define ANSI_COLOR_GREEN "\x1b[32m"
+    #define ANSI_COLOR_YELLOW "\x1b[33m"
+    #define ANSI_COLOR_BLUE "\x1b[34m"
+    #define ANSI_COLOR_MAGENTA "\x1b[35m"
+    #define ANSI_COLOR_CYAN "\x1b[36m"
+    #define ANSI_COLOR_RESET "\x1b[0m"
+
+    int check_vol_async_present(hid_t fapl_id)
+    {
+        hid_t default_vol_id = H5I_INVALID_HID;
+        hid_t native_vol_id = H5I_INVALID_HID;
+        int cmp = -1;
+
+        /* Get the ID of the VOL connector set on the default FAPL (H5P_DEFAULT) */
+        if (H5Pget_vol_id(fapl_id, &default_vol_id) < 0)
+        {
+            fprintf(stderr, "error\n");
+            return -1;
+        }
+
+        /* Get the ID for the native VOL connector by its name */
+        if ((native_vol_id = H5VLget_connector_id_by_name("async")) < 0)
+        {
+            fprintf(stderr, "error\n");
+            return -1;
+        }
+
+        /* Compare the two VOL connectors */
+        if (H5VLcmp_connector_cls(&cmp, default_vol_id, native_vol_id) < 0)
+        {
+            fprintf(stderr, "error\n");
+            return -1;
+        }
+
+        if (0 == cmp)
+        {
+            printf("Using the async VOL connector\n");
+            return 0;
+        }
+        else
+        {
+            printf("NOT using the async VOL connector\n");
+            return -1;
+        }
+
+        H5VLclose(default_vol_id);
+        H5VLclose(native_vol_id);
+
+        return 0;
+    }
+
+    void create(int argc, char **argv, bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
+    {
+        printf(ANSI_COLOR_YELLOW "Create hdf5 file with vol-async" ANSI_COLOR_RESET "\n");
+        hid_t cplist_id = 0;
+        hid_t plist_id = 0;
+        hid_t fapl_id = 0;
+        hid_t file_id = 0;
+        hid_t filespace = 0;
+        hid_t memspace = 0;
+        hid_t dset_id = 0;
+        hid_t es_id = 0;
+        herr_t status = -1;
+        hsize_t dims[1];
+        hsize_t cdims[1];
+        hsize_t mem_chunk_dims[1];
+        hsize_t count[1]; /* hyperslab selection parameters */
+        hsize_t offset[1];
+        hsize_t block[1];
+
+        /*
+         * Initialize MPI
+         */
+
+        int mpi_ssize;
+        int mpi_rrank;
+        MPI_Comm comm = MPI_COMM_WORLD;
+
+        int mpi_thread_required = MPI_THREAD_MULTIPLE;
+        int mpi_thread_provided = 0;
+        /* Initialize MPI with threading support */
+        MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+
+        MPI_Comm_size(comm, &mpi_ssize);
+        MPI_Comm_rank(comm, &mpi_rrank);
+
+        hsize_t mpi_size = mpi_ssize;
+        hsize_t mpi_rank = mpi_rrank;
+
+        es_id = H5EScreate();
+
+        /*
+         * Set up file access property list with parallel I/O access
+         */
+        fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+        status = H5Pset_vol_async(fapl_id);
+
+        check_vol_async_present(fapl_id);
+
+        status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
+
+        H5Pset_all_coll_metadata_ops(fapl_id, true);
+        H5Pset_coll_metadata_write(fapl_id, true);
+
+        /*
+         * Create a new file collectively.
+         */
+        file_id = H5Fcreate_async(location, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id, es_id);
+
+        // setup dimensions
+        hsize_t process_mem_size = shapes[0][0] / mpi_size;
+
+        dims[0] = shapes[0][0];
+        filespace = H5Screate_simple(1, dims, NULL);
+
+        cplist_id = H5Pcreate(H5P_DATASET_CREATE);
+
+        if (chunks[0][0] != 0)
+        {
+            // setup chunking
+            printf("chunksize %ld \n", chunks[0][0]);
+            cdims[0] = chunks[0][0];
+            status = H5Pset_chunk(cplist_id, 1, cdims);
+        }
+
+        /*
+         * Create the dataset with default properties and close filespace.
+         */
+        dset_id = H5Dcreate_async(file_id, "/X", H5T_IEEE_F64LE, filespace, H5P_DEFAULT, cplist_id, H5P_DEFAULT, es_id);
+
+        /*
+         * Select hyperslab in the file.
+         */
+        count[0] = process_mem_size;
+        offset[0] = count[0] * mpi_rank;
+        memspace = H5Screate_simple(1, count, NULL);
+
+        status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+        /*
+         * Initialize data buffer
+         */
+        float *wbuf = calloc(process_mem_size, sizeof(float));
+
+        if (!wbuf)
+        {
+            fprintf(stderr, "Fatal: unable to allocate array\n");
+            exit(EXIT_FAILURE);
+        }
+
+        hsize_t i;
+
+        for (i = 0; i < process_mem_size; i++)
+        {
+            wbuf[i] = (float)rand() / RAND_MAX;
+        }
+
+        /*
+         * Create property list for collective dataset write.
+         */
+        plist_id = H5Pcreate(H5P_DATASET_XFER);
+        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+
+        /*
+         * To write dataset independently use
+         *
+         * H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+         */
+        status = H5Dwrite_async(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, plist_id, wbuf, es_id);
+
+        /*
+         * Close/release resources.
+         */
+
+        status = H5Dclose_async(dset_id, es_id);
+        status = H5Fclose_async(file_id, es_id);
+
+        size_t num_in_progress;
+        hbool_t op_failed;
+        printf("Wait for async answer \n");
+        status = H5ESwait(es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
+        printf("Finish waiting for async, num in progess: %ld, failed: %d, status: %d \n", num_in_progress, op_failed, status);
+
+        status = H5ESclose(es_id);
+
+        status = H5Pclose(fapl_id);
+        status = H5Sclose(memspace);
+        status = H5Sclose(filespace);
+        status = H5Pclose(cplist_id);
+        status = H5Pclose(plist_id);
+
+        free(wbuf);
+        printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Finalize();
+    }
+
+    #MAIN
+run_command:
+    MPI: mpiexec -n {runnable} -v
+source: |
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <hdf5.h>
+    #include <unistd.h>
+    #include <argp.h>
+
+    #define ANSI_COLOR_RED "\x1b[31m"
+    #define ANSI_COLOR_GREEN "\x1b[32m"
+    #define ANSI_COLOR_YELLOW "\x1b[33m"
+    #define ANSI_COLOR_BLUE "\x1b[34m"
+    #define ANSI_COLOR_MAGENTA "\x1b[35m"
+    #define ANSI_COLOR_CYAN "\x1b[36m"
+    #define ANSI_COLOR_RESET "\x1b[0m"
+
+    int check_vol_async_present(hid_t fapl_id)
+    {
+        hid_t default_vol_id = H5I_INVALID_HID;
+        hid_t native_vol_id = H5I_INVALID_HID;
+        int cmp = -1;
+
+        /* Get the ID of the VOL connector set on the default FAPL (H5P_DEFAULT) */
+        if (H5Pget_vol_id(fapl_id, &default_vol_id) < 0)
+        {
+            fprintf(stderr, "error\n");
+            return -1;
+        }
+
+        /* Get the ID for the native VOL connector by its name */
+        if ((native_vol_id = H5VLget_connector_id_by_name("async")) < 0)
+        {
+            fprintf(stderr, "error\n");
+            return -1;
+        }
+
+        /* Compare the two VOL connectors */
+        if (H5VLcmp_connector_cls(&cmp, default_vol_id, native_vol_id) < 0)
+        {
+            fprintf(stderr, "error\n");
+            return -1;
+        }
+
+        if (0 == cmp)
+        {
+            printf("Using the async VOL connector\n");
+            return 0;
+        }
+        else
+        {
+            printf("NOT using the async VOL connector\n");
+            return -1;
+        }
+
+        H5VLclose(default_vol_id);
+        H5VLclose(native_vol_id);
+
+        return 0;
+    }
+
+    void bench(int argc, char **argv, hsize_t size, char** vars_to_bm, int iteration, char* location, double* result)
+    {
+        /*
+         * Initialize MPI
+         */
+
+        int mpi_ssize;
+        int mpi_rrank;
+        MPI_Comm comm = MPI_COMM_WORLD;
+
+        int mpi_thread_required = MPI_THREAD_MULTIPLE;
+        int mpi_thread_provided = 0;
+        /* Initialize MPI with threading support */
+        MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+
+        MPI_Comm_size(comm, &mpi_ssize);
+        MPI_Comm_rank(comm, &mpi_rrank);
+
+        hsize_t mpi_size = mpi_ssize;
+        hsize_t mpi_rank = mpi_rrank;
+
+        for (int i = 0; i < iteration; i++)
+        {
+            printf("i: %d for variable: X rank: %ld\n", i, mpi_rank);
+
+            hid_t fapl_id = 0;
+            hid_t dxpl_id = 0;
+            hid_t es_id = 0;
+            hid_t file_id = 0;
+            hid_t dset_id = 0;
+            herr_t status = -1;
+            hid_t filespace = 0;
+            hid_t memspace = 0;
+            hsize_t count[1]; /* hyperslab selection parameters */
+            hsize_t offset[1];
+            hsize_t block[1];
+
+            es_id = H5EScreate();
+
+            /*
+             * Set up file access property list with parallel I/O access
+             */
+            fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+
+            status = H5Pset_vol_async(fapl_id);
+
+            check_vol_async_present(fapl_id);
+
+            status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
+
+            /*
+             * Open existing file collectively and release property list identifier.
+             */
+            file_id = H5Fopen_async(location, H5F_ACC_RDONLY, fapl_id, es_id);
+
+            struct timespec start, end;
+
+            if (mpi_rank == 0)
+            {
+                clock_gettime(CLOCK_MONOTONIC, &start);
+            }
+
+            /*
+             * open the dataset with default properties and close filespace.
+             */
+            dset_id = H5Dopen_async(file_id, "/X", H5P_DEFAULT, es_id);
+
+            /*
+             * Select hyperslab in the file.
+             */
+
+            hsize_t process_mem_size = size / mpi_size;
+
+            count[0] = process_mem_size;
+            offset[0] = count[0] * mpi_rank;
+            memspace = H5Screate_simple(1, count, NULL);
+
+            filespace = H5Dget_space(dset_id);
+            status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+            /*
+             * Initialize data buffer
+             */
+            float *rbuf = calloc(process_mem_size, sizeof(float));
+
+            /*
+             * Create property list for collective dataset reads.
+             */
+            dxpl_id = H5Pcreate(H5P_DATASET_XFER);
+            H5Pset_dxpl_mpio(dxpl_id, H5FD_MPIO_COLLECTIVE);
+
+            /*
+             * To read dataset independently use
+             *
+             * H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+             */
+            status = H5Dread_async(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, dxpl_id, rbuf, es_id);
+            // status = H5Dread_async(dset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, dxpl_id, rbuf, es_id);
+
+            /*
+             * Close/release resources.
+             */
+            status = H5Dclose_async(dset_id, es_id);
+            status = H5Fclose_async(file_id, es_id);
+
+            size_t num_in_progress = 0;
+            hbool_t op_failed = 0;
+
+            printf("Wait for async answer \n");
+            status = H5ESwait(es_id, H5ES_WAIT_FOREVER, &num_in_progress, &op_failed);
+            printf("Finish waiting for async, num in progess: %ld, failed: %d, status: %d \n", num_in_progress, op_failed, status);
+
+            H5ESclose(es_id);
+
+            status = H5Pclose(fapl_id);
+            status = H5Pclose(dxpl_id);
+
+            if (mpi_rank == 0)
+            {
+                clock_gettime(CLOCK_MONOTONIC, &end);
+                double elapsed = end.tv_sec - start.tv_sec;
+                elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+                result[i] = elapsed;
+            }
+
+            free(rbuf);
+            MPI_Barrier(MPI_COMM_WORLD);
+            printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
+            MPI_Finalize();
+        }
+    }
+
+    #MAIN

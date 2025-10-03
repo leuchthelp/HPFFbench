@@ -1,11 +1,10 @@
-collective: false
 formats:
 - hdf5
-iterations: 1
+- hdf5: async
+iterations: 5
 languages:
-- py
+- c
 max processes: 20
-nodes: 2
 only data: false
 par_backend: MPI
 parallel: Both
@@ -16,11 +15,8 @@ paths:
   path_to_results: components/results
   path_to_tmp: components/tmp
   path_to_visuals: components/visualize
-range:
-- 10
-- 90
 ranks:
-- 1
+- 2
 runs:
   run03:
     X:
@@ -31,6 +27,5 @@ slurm options: "\n#SBATCH --wait\n#SBATCH --partition=compute\n#SBATCH --account
   #SBATCH --distribution=block:cyclic\n#SBATCH --time=02:00:00\n#SBATCH --exclusive\n\
   #SBATCH --output=log/log-%j/log.%j.txt\n#SBATCH --error=log/log-%j/log.%j.err\n\
   \    "
-stepsize: 5
 variable_to_benchmark:
 - X

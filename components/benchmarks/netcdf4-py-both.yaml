@@ -1,11 +1,11 @@
 parallel: configurable
 par_backend: MPI
 language: py
-extension: zarr
-format: zarr
+extension: nc
+format: netcdf4
 create_command: 
     serial  : python {runnable}
-    MPI: mpiexec -n python {runnable}
+    #MPI: mpiexec -n python {runnable}
 create: |
     from func import datastruct as ds
     from func.datastruct import bcolors as color
@@ -14,10 +14,10 @@ create: |
 
     def create_ds(form, parallel=False, path=None, collective=False):
 
-        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="zarr")
-        ds_zarr = ds.Datastruct() 
-        print(color.WARNING + f"Creating zarr" + color.ENDC)
-        ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel, collective=collective)
+        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="netcdf4")
+        ds_netcdf4 = ds.Datastruct() 
+        print(color.WARNING + f"Creating netcdf4" + color.ENDC)
+        ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=parallel, collective=collective)
     
 
     def create(variables=[], shapes=[], chunks=[], datatypes=[], parallel=False, path=None, collective=False):
@@ -46,17 +46,17 @@ source: |
                 for keys in tmp.keys():
                   variable.append(keys)
 
-        ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r", engine="zarr", path=path)
+        ds_netcdf4 = ds.Datastruct()
+        ds_netcdf4.open(mode="r", engine="netcdf4", path=path, parallel=parallel)
 
         if parallel:
-            ds_zarr.collective = collective
-            ds_zarr.read("bench_complete_parallel", variable=variable, iterations=iterations)
+            ds_netcdf4.collective = collective
+            ds_netcdf4.read("bench_complete_parallel", variable=variable, iterations=iterations)
         else:
-            ds_zarr.read("bench_complete", variable=variable, iterations=iterations)
-        result = ds_zarr.log
+            ds_netcdf4.read("bench_complete", variable=variable, iterations=iterations)
+        result = ds_netcdf4.log
 
-        #RESULT
+        return result
     
     #MAIN
 

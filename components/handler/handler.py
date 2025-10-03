@@ -82,7 +82,7 @@ class Handler:
         else:
             print(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
         
-        #self.__prepare_dataframe()
+        self.__prepare_dataframe()
                       
 
     def __load_config(self, path_to_config):
@@ -205,6 +205,7 @@ class Handler:
         tasks = []
         for requested in [*requested_cap]: 
             requested = dict(requested)
+            
             if str(requested) in determined_cap:
                 print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
                 

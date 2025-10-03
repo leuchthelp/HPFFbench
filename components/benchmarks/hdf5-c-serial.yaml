@@ -22,7 +22,7 @@ create: |
     #define ANSI_COLOR_CYAN "\x1b[36m"
     #define ANSI_COLOR_RESET "\x1b[0m"
 
-    void create(bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
+    void create(int argc, char **argv, bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
     {
         printf(ANSI_COLOR_YELLOW "Create hdf5 file" ANSI_COLOR_RESET "\n");
         hid_t plist_id, file_id, filespace, dset_id; /* file identifier */
@@ -97,9 +97,8 @@ source: |
     #define ANSI_COLOR_CYAN "\x1b[36m"
     #define ANSI_COLOR_RESET "\x1b[0m"
 
-    void bench(hsize_t size, int iteration, char* location)
+    void bench(int argc, char **argv, hsize_t size, char** vars_to_bm, int iteration, char* location, double* result)
     {
-        double arr3[iteration];
 
         for (int i = 0; i < iteration; i++)
         {
@@ -111,7 +110,7 @@ source: |
             float *rbuf = calloc(some_size, sizeof(float));
 
             file_id = H5Fopen(location, H5F_ACC_RDONLY, H5P_DEFAULT);
-            dset_id = H5Dopen2(file_id, "/X", H5P_DEFAULT);
+            dset_id = H5Dopen2(file_id, vars_to_bm[0], H5P_DEFAULT);
 
             struct timespec start, end;
 
@@ -125,7 +124,7 @@ source: |
             clock_gettime(CLOCK_MONOTONIC, &end);
             double elapsed = end.tv_sec - start.tv_sec;
             elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-            arr3[i] = elapsed;
+            result[i] = elapsed;
 
             free(rbuf);
             printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
