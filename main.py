@@ -36,7 +36,7 @@ def main():
     tmp = {
             #"run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
             #"run02": {"X": [[1 * 134217728], [], "f8"]},
-            "run03": {"X": [[1 * 134217728], []]},
+            "run03": {"X": [[1 * 134217728], []],},
             
             #"run04": {"X": [[10 * 134217728], []]},
             #"run05": {"X": [[20 * 134217728], []]},
@@ -52,19 +52,18 @@ def main():
     
     new_setup = {
         "formats"               : ["hdf5"],
-        "languages"             : ["c"],
+        "languages"             : ["py"],
         "paths"                 : paths,
         "iterations"            : 1,
         "runs"                  : tmp,
         "range"                 : [10, 90], 
         "stepsize"              : 5,
-        "parallel"              : False,
+        "parallel"              : "Both",
         "par_backend"           : "MPI",
         "ranks"                 : [1],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
         "max processes"         : 20,
-        #"bm per process"        : 1,
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:

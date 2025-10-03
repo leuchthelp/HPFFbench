@@ -12,19 +12,20 @@ create: |
     import json
     import argparse
 
-    def create_ds(form, selection, parallel=False, path=None, collective=False):
+    def create_ds(form, parallel=False, path=None, collective=False):
 
         #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="zarr")
-        match selection:
-            case 1:
-                ds_zarr = ds.Datastruct() 
-                print(color.WARNING + f"Creating zarr" + color.ENDC)
-                ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel, collective=collective)
+        ds_zarr = ds.Datastruct() 
+        print(color.WARNING + f"Creating zarr" + color.ENDC)
+        ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel, collective=collective)
     
 
-    def create(selection, parallel=False, path=None, collective=False):
-        with open("run_config.json") as json_file:
-            create_ds(json.load(json_file), selection, parallel=parallel, path=path, collective=collective)
+    def create(variables=[], shapes=[], chunks=[], datatypes=[], parallel=False, path=None, collective=False):
+        form = {}
+        for index, var in enumerate(variables):
+            form[var] = [shapes[index], chunks[index], datatypes[index]]
+
+        create_ds(form=form, parallel=parallel, path=path, collective=collective)
 
     #MAIN
 run_command:  

@@ -7,7 +7,7 @@
 #SBATCH --mem=0
 #SBATCH --cpu-freq=High
 #SBATCH --distribution=block:cyclic
-#SBATCH --time=08:00:00
+#SBATCH --time=02:00:00
 #SBATCH --exclusive
 #SBATCH --output=log/log-%j/log.%j.txt
 #SBATCH --error=log/log-%j/log.%j.err

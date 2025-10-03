@@ -217,10 +217,6 @@ class Handler:
         for _, run_config in self.config["runs"].items():  # type: ignore
             
             parallel    = requested["parallel"]
-            par_backend = requested["par_backend"]
-            language    = requested["language"]
-            format      = requested["format"]
-            extension   = bm_config["extension"]
             
             ranks = [1]
             
@@ -234,43 +230,28 @@ class Handler:
                 except KeyError as e:
                     raise e
                 
+                
             use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
             results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
-            range       = self.config["range"]  # type: ignore
-            stepsize    = self.config["stepsize"]  # type: ignore
             
-            datatype    = []
-            for _, item in run_config.items():
-                if any(isinstance(x, str) for x in item):
-                    datatype.append(item[-1])
-                else:
-                    datatype.append("f8")
             
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
             
     
-            for rank in ranks:        
-                print(bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, datatype: {datatype}, parallel: {parallel}, ranks: {rank}, par_backend: {par_backend}, language: {language}, format: {format}, range: {range}, stepsize: {stepsize} and {iterations} iterations. It will be stored in {use_path}" + bcolors.ENDC)     
-
+            for rank in ranks:      
                 bm = BenchmarkManager(
                         handler_id=str(self.__id), 
-                        run_config=run_config, 
+                        run_config=run_config,
+                        bm_config=bm_config,
+                        requested=requested,
                         parallel=parallel, 
-                        par_backend=par_backend, 
                         ranks=rank,
-                        language=language, 
-                        format=format,
-                        extension=extension, 
-                        range=range, 
-                        stepsize=stepsize, 
-                        datatype=datatype,
                         var_to_bm=var_to_bm,
                         iterations=iterations, 
                         use_path=use_path, 
-                        results_path=results_path, 
-                        bm_config=bm_config)
-                
+                        results_path=results_path 
+                        )
                 
                 self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
 
