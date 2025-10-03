@@ -60,6 +60,7 @@ def main():
         "stepsize"              : 5,
         "parallel"              : "Both",
         "par_backend"           : "MPI",
+        "collective"            : False,
         "ranks"                 : [1],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,

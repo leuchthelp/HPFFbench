@@ -1,3 +1,4 @@
+collective: false
 formats:
 - hdf5
 iterations: 1
@@ -20,15 +21,10 @@ range:
 ranks:
 - 1
 runs:
-  run01:
+  run03:
     X:
     - - 134217728
     - []
-    - f8
-    Y:
-    - - 134217728
-    - []
-    - f4
 stepsize: 5
 variable_to_benchmark:
 - X

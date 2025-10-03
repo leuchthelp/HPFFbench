@@ -62,6 +62,7 @@ class Handler:
         parallel = False
         try:
             parallel = self.config["parallel"]  # type: ignore
+            
             if parallel != "Both" and type(parallel) != bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
             
         except KeyError:
@@ -206,26 +207,36 @@ class Handler:
             if str(requested) in determined_cap:
                 print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
                 
-                tasks.append(self.__create_benchmark_manager(requested=requested, bm_config=determined_cap[str(requested)]))
+                tasks.append(self.__create_benchmark_manager(parallel=parallel, requested=requested, bm_config=determined_cap[str(requested)]))
         
         return tasks
 
 
-    def __create_benchmark_manager(self, requested: dict, bm_config: dict) -> list:
+    def __create_benchmark_manager(self, parallel: bool, requested: dict, bm_config: dict) -> list:
         benchmarks = []
         
         for _, run_config in self.config["runs"].items():  # type: ignore
             
-            parallel    = requested["parallel"]
-            
             ranks = [1]
+            collective = [None]
             
             if parallel == True:
                 try:
+                    
                     ranks = self.config["ranks"]  # type: ignore
 
                     if type(ranks) == int:
                         ranks = [ranks]
+                        
+                    try: 
+                        config_collective = [self.config["collective"]] # type: ignore
+                        
+                        if config_collective == "Both":
+                            collective = [False, True]
+                        else:
+                            collective = config_collective
+                    except:
+                        collective = [False]
 
                 except KeyError as e:
                     raise e
@@ -238,24 +249,24 @@ class Handler:
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
             
-    
-            for rank in ranks:      
-                bm = BenchmarkManager(
-                        handler_id=str(self.__id), 
-                        run_config=run_config,
-                        bm_config=bm_config,
-                        requested=requested,
-                        parallel=parallel, 
-                        ranks=rank,
-                        var_to_bm=var_to_bm,
-                        iterations=iterations, 
-                        use_path=use_path, 
-                        results_path=results_path 
-                        )
-                
-                self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
+            for state in collective:
+                for rank in ranks:      
+                    bm = BenchmarkManager(
+                            handler_id=str(self.__id), 
+                            run_config=run_config,
+                            bm_config=bm_config,
+                            requested=requested,
+                            parallel=parallel, 
+                            collective=state,
+                            ranks=rank,
+                            var_to_bm=var_to_bm,
+                            iterations=iterations, 
+                            use_path=use_path, 
+                            results_path=results_path 
+                            )
 
-                benchmarks.append(bm)
+                    self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
+                    benchmarks.append(bm)
             
         return benchmarks
 
@@ -319,6 +330,7 @@ class Handler:
                             "filesize per chunk": str(benchmarks["chunksize_var"]),
                             "parallel"          : benchmarks["parallel"],
                             "parallel backend"  : benchmarks["par_backend"],
+                            "collective"        : benchmarks["collective"],
                             "ranks"             : benchmarks["ranks"],
                             "language"          : benchmarks["language"], 
                             "format"            : str(benchmarks["format"]), 
