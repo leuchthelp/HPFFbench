@@ -13,6 +13,7 @@ import hashlib
 import random
 import tqdm
 import sys
+import os
 
 @dataclass
 class Handler:
@@ -217,8 +218,10 @@ class Handler:
         
         for _, run_config in self.config["runs"].items():  # type: ignore
             
-            ranks = [1]
-            collective = [None]
+            slurm_options = None
+            nodes       = [1]
+            collective  = [None]
+            ranks       = [1]
             
             if parallel == True:
                 try:
@@ -246,27 +249,40 @@ class Handler:
             results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
             
             
+            # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
+            if  "SLURM_JOB_ID" in os.environ:
+                slurm_options= self.config["slurm options"]  # type: ignore
+                
+                try:
+                    nodes = self.config["nodes"] if type(self.config["nodes"]) == list else [self.config["nodes"]] # type: ignore
+                except:
+                    pass
+            
+            
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
             
-            for state in collective:
-                for rank in ranks:      
-                    bm = BenchmarkManager(
-                            handler_id=str(self.__id), 
-                            run_config=run_config,
-                            bm_config=bm_config,
-                            requested=requested,
-                            parallel=parallel, 
-                            collective=state,
-                            ranks=rank,
-                            var_to_bm=var_to_bm,
-                            iterations=iterations, 
-                            use_path=use_path, 
-                            results_path=results_path 
-                            )
+            for node in nodes:
+                for state in collective:
+                    for rank in ranks:      
+                        bm = BenchmarkManager(
+                                handler_id=str(self.__id), 
+                                run_config=run_config,
+                                bm_config=bm_config,
+                                nodes=node,
+                                slurm_options=slurm_options,
+                                requested=requested,
+                                parallel=parallel, 
+                                collective=state,
+                                ranks=rank,
+                                var_to_bm=var_to_bm,
+                                iterations=iterations, 
+                                use_path=use_path, 
+                                results_path=results_path 
+                                )
 
-                    self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
-                    benchmarks.append(bm)
+                        self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
+                        benchmarks.append(bm)
             
         return benchmarks
 

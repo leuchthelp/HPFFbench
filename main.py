@@ -50,11 +50,27 @@ def main():
             #"run13": {"X": [[100 * 134217728], []]},
     }
     
+    slurm_options = """
+#SBATCH --wait
+#SBATCH --partition=compute
+#SBATCH --account=ku0598
+#SBATCH --constraint="[cell02]"
+#SBATCH --nodes=1
+#SBATCH --mem=0
+#SBATCH --cpu-freq=High
+#SBATCH --distribution=block:cyclic
+#SBATCH --time=02:00:00
+#SBATCH --exclusive
+#SBATCH --output=log/log-%j/log.%j.txt
+#SBATCH --error=log/log-%j/log.%j.err
+    """
+    
     new_setup = {
         "formats"               : ["hdf5"],
         "languages"             : ["py"],
         "paths"                 : paths,
         "iterations"            : 1,
+        "nodes"                 : 2,
         "runs"                  : tmp,
         "range"                 : [10, 90], 
         "stepsize"              : 5,
@@ -65,6 +81,7 @@ def main():
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
         "max processes"         : 20,
+        "slurm options"         : slurm_options,
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:

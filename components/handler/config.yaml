@@ -5,6 +5,7 @@ iterations: 1
 languages:
 - py
 max processes: 20
+nodes: 2
 only data: false
 par_backend: MPI
 parallel: Both
@@ -25,6 +26,11 @@ runs:
     X:
     - - 134217728
     - []
+slurm options: "\n#SBATCH --wait\n#SBATCH --partition=compute\n#SBATCH --account=ku0598\n\
+  #SBATCH --constraint=\"[cell02]\"\n#SBATCH --nodes=1\n#SBATCH --mem=0\n#SBATCH --cpu-freq=High\n\
+  #SBATCH --distribution=block:cyclic\n#SBATCH --time=02:00:00\n#SBATCH --exclusive\n\
+  #SBATCH --output=log/log-%j/log.%j.txt\n#SBATCH --error=log/log-%j/log.%j.err\n\
+  \    "
 stepsize: 5
 variable_to_benchmark:
 - X

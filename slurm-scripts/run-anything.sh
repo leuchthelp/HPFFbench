@@ -39,10 +39,3 @@ if [ "$mpi_enabled" = "$w" ]; then
     export OMPI_MCA_coll_tuned_alltoallv_algorithm=2
 
 fi
-
-
-$3
-
-$4
-
-$5
