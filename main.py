@@ -66,7 +66,7 @@ def main():
     """
     
     new_setup = {
-        "formats"               : [{"hdf5": "subfiling"}],
+        "formats"               : [{"hdf5": "subfiling"}, {"hdf5": "async"}, "hdf5"],
         "languages"             : ["c"],
         "paths"                 : paths,
         "iterations"            : 2,

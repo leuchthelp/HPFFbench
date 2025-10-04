@@ -156,7 +156,6 @@ create: |
       free(wbuf);
       printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
       MPI_Barrier(MPI_COMM_WORLD);
-      MPI_Finalize();
     }
 
     #MAIN
@@ -281,7 +280,6 @@ source: |
             free(rbuf);
             MPI_Barrier(MPI_COMM_WORLD);
             printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
-            MPI_Finalize();
         }
     }
 
