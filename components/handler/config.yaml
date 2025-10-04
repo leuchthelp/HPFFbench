@@ -1,7 +1,6 @@
 formats:
-- hdf5
-- hdf5: async
-iterations: 5
+- hdf5: subfiling
+iterations: 2
 languages:
 - c
 max processes: 20

@@ -66,10 +66,10 @@ def main():
     """
     
     new_setup = {
-        "formats"               : ["hdf5", {"hdf5": "async"}],
+        "formats"               : [{"hdf5": "subfiling"}],
         "languages"             : ["c"],
         "paths"                 : paths,
-        "iterations"            : 5,
+        "iterations"            : 2,
         "runs"                  : tmp,
         "parallel"              : "Both",
         "par_backend"           : "MPI",

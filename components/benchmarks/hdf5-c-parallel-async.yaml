@@ -13,6 +13,7 @@ create: |
     #include <stdlib.h>
     #include <time.h>
     #include <hdf5.h>
+    #include <h5_async_lib.h>
     #include <unistd.h>
     #include <argp.h>
 
@@ -221,6 +222,7 @@ source: |
     #include <stdlib.h>
     #include <time.h>
     #include <hdf5.h>
+    #include <h5_async_lib.h>
     #include <unistd.h>
     #include <argp.h>
 
