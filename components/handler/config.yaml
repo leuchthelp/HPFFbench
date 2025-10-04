@@ -19,7 +19,7 @@ ranks:
 runs:
   run03:
     X:
-    - - 134217728
+    - - 402653184
     - []
 slurm options: "\n#SBATCH --wait\n#SBATCH --partition=compute\n#SBATCH --account=ku0598\n\
   #SBATCH --constraint=\"[cell02]\"\n#SBATCH --nodes=1\n#SBATCH --mem=0\n#SBATCH --cpu-freq=High\n\

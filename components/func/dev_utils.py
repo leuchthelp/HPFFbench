@@ -1,25 +1,37 @@
 def calc_size_unit(input: list):
     
     res = 1
+    compare = 1
     size = "Byte"
     
     if not input:
-        return None
+        res = 0
+        return res, size
     
     for item in input:
-        res *= item
+        compare *= item
     
-    res *= 8
-    if res > 1 * 1024 * 1024:
-        res /= 1024
+    compare *= 8
+    res = compare
+    
+    if compare >= 1 * 1024:
+        res = res 
         size="KB"
        
-    if res > 1024:
-        res /= 1024
+    if compare >= 1 * 1024 ** 2:
+        res = res / 1024
         size = "MB"
         
-    if res > 1:
-        res /= 1024
+    if compare >= 1 * 1024 ** 3:
+        res = res / 1024 ** 2 
         size = "GB"
+        
+    if compare >= 1 * 1024 ** 4:
+        res = res / 1024 ** 3 
+        size = "TB"
+        
+    if compare >= 1 * 1024 ** 5:
+        res = res / 1024 ** 4
+        size = "PB"
 
     return res, size
