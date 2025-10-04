@@ -1,7 +1,5 @@
 formats:
-- hdf5: subfiling
-- hdf5: async
-- hdf5
+- netcdf4
 iterations: 2
 languages:
 - c
