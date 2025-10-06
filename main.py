@@ -12,7 +12,7 @@ paths = {
     "path_to_tmp"       : "components/tmp",
     "path_to_config"    : "components/handler/",
     "path_to_visuals"   : "components/visualize",
-    "path_to_plotting"  : "components/visualize/plotting",
+    #"path_to_plotting"  : "components/visualize/plotting",
     "path_to_results"   : "components/results",     
 }
    
@@ -55,7 +55,6 @@ def main():
 #SBATCH --partition=compute
 #SBATCH --account=ku0598
 #SBATCH --constraint="[cell02]"
-#SBATCH --nodes=1
 #SBATCH --mem=0
 #SBATCH --cpu-freq=High
 #SBATCH --distribution=block:cyclic
@@ -65,23 +64,105 @@ def main():
 #SBATCH --error=log/log-%j/log.%j.err
     """
     
+    spack_envs = {
+        "test-env-1" : {
+            "target"    : ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
+            "language"  : ["py", "c"],
+            "packages"  : {
+                "python": {"versions" : ["3.11.9"],
+                           "fresh"    : True
+                            },
+                
+                "openmpi": {"versions" : ["5.0.5"],
+                            "fresh"    : True
+                            },
+                
+                "hdf5": {"versions" : ["1.14.5"],
+                         "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
+                         "fresh"    : True
+                         },
+                
+                "argobots": {"versions" : ["main"],
+                             "fresh"    : True
+                            },
+                
+                "netcdf-c": {"versions" : ["4.9.2"],
+                             "variants" : "build_system=cmake",
+                             "fresh"    : True
+                            },
+                
+                "py-mpi4py": {"versions" : ["4.0.1"],
+                            },
+                
+                "py-h5py": {"versions" : ["3.12.1"],
+                            },
+                
+                "py-netcdf4": {"versions" : ["1.7.1"],
+                            },
+            },
+            "compiler": "gcc@11.2.0"
+            },
+        
+        "test-env-async" : {
+            "target"    : [{"hdf5": "async"}],
+            "language"  : ["c"],
+            "packages"  : {
+                "python": {"versions" : ["3.11.9"],
+                           "fresh"    : True
+                            },
+                
+                "openmpi": {"versions" : ["5.0.5"],
+                            "fresh"    : True
+                            },
+                
+                "hdf5": {"versions" : ["1.14.5"],
+                         "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
+                         "fresh"    : True
+                         },
+                
+                "hdf5-vol-async": {"versions" : ["develop"],
+                            },
+                
+                "argobots": {"versions" : ["main"],
+                             "fresh"    : True
+                            },
+                
+                "netcdf-c": {"versions" : ["4.9.2"],
+                             "variants" : "build_system=cmake",
+                             "fresh"    : True
+                            },
+                
+                "py-mpi4py": {"versions" : ["4.0.1"],
+                            },
+                
+                "py-h5py": {"versions" : ["3.12.1"],
+                            },
+                
+                "py-netcdf4": {"versions" : ["1.7.1"],
+                            },
+            },
+            "compiler": "gcc@11.2.0"
+            }
+    }
+    
     new_setup = {
         "formats"               : ["netcdf4"],
         "languages"             : ["c"],
         "paths"                 : paths,
         "iterations"            : 2,
         "runs"                  : tmp,
-        "parallel"              : "Both",
+        "parallel"              : False,
         "par_backend"           : "MPI",
         "ranks"                 : [2],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
         "max processes"         : 20,
         "slurm options"         : slurm_options,
+        "spack env"             : spack_envs,
     }
     
     with open(f"{path_to_config}config.yaml", "w") as file:
-        yaml.dump(new_setup, file)
+        yaml.dump(new_setup, file, sort_keys=False)
       
     with Profile() as profile:  
         handler = Handler(path_to_config=path_to_config)

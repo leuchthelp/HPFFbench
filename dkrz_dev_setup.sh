@@ -58,8 +58,6 @@ module load py-h5py
 spack install py-rich %$compiler
 module load py-rich
 
-# Add cJSON 
-
 # Add to end of home/user/.bashrc via nano .bashrc from within your home/user directory
 #. ~/spack/share/spack/setup-env.sh
 #. $SPACK_ROOT/share/spack/setup-env.sh

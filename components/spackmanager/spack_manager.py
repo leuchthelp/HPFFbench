@@ -1,50 +1,135 @@
 from dataclasses import dataclass
 from pathlib import Path
+from copy import deepcopy
 import subprocess
+import itertools
+import sys
 
 @dataclass
 class SpackManager:
     
+    handler_id  : str
+    spack_env   : dict
+    env_name    : str
+    config      : dict
+    target      : list
+    packages    : dict
+    
+    
     def __init__(self,
-                 bm_id: str,
-                 package_list: list,
-                 path: Path
+                 handler_id : str,
+                 env_name   : str,
+                 spack_env  : dict,
+                 install    = False,
                  ):
         
-        self.bm_id          = bm_id
-        self.package_list   = package_list
-        self.path           = path
-        self.env_name       = self.path.name
+        self.handler_id = handler_id
+        self.spack_env  = spack_env
+        self.env_name   = env_name
+        
+        self.compiler   = self.spack_env["compiler"]
+        self.target     = self.spack_env["target"]
+        self.language   = self.spack_env["language"]
+        self.packages   = self.spack_env["packages"]
+        
+        
+        self.loadables = {}
+        
+        
+        self.file_location = Path(f"env-{self.env_name}.sh")
+        with open(self.file_location, "w") as file:
+            file.write(f"#!/bin/bash \n")
+            
+            first = True
+            for index, (name, info) in enumerate(self.packages.items()):
 
+                versions    = info["versions"] if type(info["versions"]) != str else [info["versions"]]
+                variants = [""]
+
+                if "variants" in info:
+                    variants= info["variants"] if type(info["variants"]) != str else [info["variants"]]
+
+                combinations = itertools.product(*[versions, variants, [self.compiler]])
+
+                if install == True:
+
+                    fresh = ""
+                    if "fresh" in info:
+                        fresh = "--fresh "
+
+                    self.__install(file=file, combinations=deepcopy(combinations), package_name=name, fresh=fresh)
+
+                if first == True:
+                    file.write(f"spack env create {self.env_name}\n")
+                    file.write("spack env list\n")
+                    first = False
+                    
+                self.__add_packages(file=file, combinations=deepcopy(combinations), package_name=name)
+                
+                if index == len(self.packages.items())-1:
+                    file.write(f"spack -e {self.env_name} install -j 4\n")
+                
+                self.loadables[name] = deepcopy(combinations)
+            
+            file.write("spack env list\n")
         
-        p = subprocess.run("spack find".split(), capture_output=True, check=True)
-        #print(p.stderr)
-        #print(p.stdout)
+        with open("test.log", "wb") as f:
+            p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
+                sys.stdout.buffer.write(line)
+                f.write(line)
+             
+        self.file_location.unlink()
+   
+   
+    def load_env(self):
+        loadable = f"spack env activate {self.env_name}\n"
+
+        for name, combinations in self.loadables.items():
+            loadable = self.__load_packages(loadable=loadable, combinations=combinations, package_name=name)
+         
+        #print(loadable)   
+        return loadable
         
-        try:
-            p = subprocess.run(f"spack env create {self.env_name}".split(), capture_output=True, check=True)
-            print(p.stderr)
-            print(p.stdout)
-        except:
-            print("spack env already exists - continuing")
         
-        p = subprocess.run("spack env list".split(), capture_output=True, check=True)
+    def __install(self, file, combinations, package_name: str, fresh: str):
+        for combination in combinations:
+
+            #print(f"spack install {fresh}{package_name}@{combination[0]} {combination[1]} %{combination[2]}")
+            file.write(f"spack install {fresh}{package_name}@{combination[0]} {combination[1]} %{combination[2]}\n")  
+        
+        
+    def __add_packages(self, file, combinations, package_name: str):     
+        for combination in combinations:
+            
+            #print(f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}")
+            file.write(f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}\n")  
+            
+
+    def __load_packages(self, loadable: str, combinations, package_name: str):
+        for combination in combinations:
+        
+            #print(f"spack -e {self.env_name} load {package_name}@{combination[0]} {combination[1]} %{combination[2]}")
+            loadable = loadable + f"eval `spack -e {self.env_name} load --sh {package_name}@{combination[0]} {combination[1]} %{combination[2]}`\n"
+            
+        return loadable
+            
+           
+    def delete(self):
+        with open(self.file_location, "w") as file:
+            file.write("#!/bin/bash  \n")
+            file.write(f"spack env activate {self.env_name} -p \n")   
+            file.write(f"spack remove --all \n")   
+            file.write(f"spack env deactivate {self.env_name}\n")    
+            file.write(f"spack env remove {self.env_name} -y \n")
+                       
+        
+        p = subprocess.run(["bash", self.file_location], capture_output=True, check=True)
         print(p.stderr)
         print(p.stdout)
         
-        command_ls              = "ls"
-        command_find_env_file   = "cd /home/dev/spack/share/spack"
-        command_file_executable = "chmod +x /home/dev/spack/share/spack/setup-env.sh"
-        command_spack_create_env= f"spack env create {self.path}"
-        command_source_file     = ". /home/dev/spack/share/spack/setup-env.sh"
-        command_env_activate    = f"spack env activate {self.env_name}"
-        command_env_deactivate  = f"spack env deactivate {self.env_name}"
-        command_spack_find      = "spack find"
-        command_spack_env_status= "spack env status"
+        self.file_location.unlink()
         
-        p = subprocess.run([command_source_file, command_env_activate, command_spack_env_status, command_spack_find], capture_output=True, shell=True, text=True, check=True)
-        print(p.stderr)
-        print(p.stdout)
     
     
     

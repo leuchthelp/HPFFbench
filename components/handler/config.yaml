@@ -1,30 +1,112 @@
 formats:
 - netcdf4
-iterations: 2
 languages:
 - c
-max processes: 20
-only data: false
-par_backend: MPI
-parallel: Both
 paths:
   path_to_benchmarks: components/benchmarks
-  path_to_config: components/handler/
-  path_to_plotting: components/visualize/plotting
-  path_to_results: components/results
   path_to_tmp: components/tmp
+  path_to_config: components/handler/
   path_to_visuals: components/visualize
-ranks:
-- 2
+  path_to_results: components/results
+iterations: 2
 runs:
   run03:
     X:
-    - - 402653184
+    - - 134217728
     - []
-slurm options: "\n#SBATCH --wait\n#SBATCH --partition=compute\n#SBATCH --account=ku0598\n\
-  #SBATCH --constraint=\"[cell02]\"\n#SBATCH --nodes=1\n#SBATCH --mem=0\n#SBATCH --cpu-freq=High\n\
-  #SBATCH --distribution=block:cyclic\n#SBATCH --time=02:00:00\n#SBATCH --exclusive\n\
-  #SBATCH --output=log/log-%j/log.%j.txt\n#SBATCH --error=log/log-%j/log.%j.err\n\
-  \    "
+parallel: false
+par_backend: MPI
+ranks:
+- 2
 variable_to_benchmark:
 - X
+only data: false
+max processes: 20
+slurm options: "\n#SBATCH --wait\n#SBATCH --partition=compute\n#SBATCH --account=ku0598\n\
+  #SBATCH --constraint=\"[cell02]\"\n#SBATCH --mem=0\n#SBATCH --cpu-freq=High\n#SBATCH\
+  \ --distribution=block:cyclic\n#SBATCH --time=02:00:00\n#SBATCH --exclusive\n#SBATCH\
+  \ --output=log/log-%j/log.%j.txt\n#SBATCH --error=log/log-%j/log.%j.err\n    "
+spack env:
+  test-env-1:
+    target:
+    - hdf5
+    - hdf5: subfiling
+    - netcdf4
+    - zarr
+    language:
+    - py
+    - c
+    packages:
+      python:
+        versions:
+        - 3.11.9
+        fresh: true
+      openmpi:
+        versions:
+        - 5.0.5
+        fresh: true
+      hdf5:
+        versions:
+        - 1.14.5
+        variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
+        fresh: true
+      argobots:
+        versions:
+        - main
+        fresh: true
+      netcdf-c:
+        versions:
+        - 4.9.2
+        variants: build_system=cmake
+        fresh: true
+      py-mpi4py:
+        versions:
+        - 4.0.1
+      py-h5py:
+        versions:
+        - 3.12.1
+      py-netcdf4:
+        versions:
+        - 1.7.1
+    compiler: gcc@11.2.0
+  test-env-async:
+    target:
+    - hdf5: async
+    language:
+    - c
+    packages:
+      python:
+        versions:
+        - 3.11.9
+        fresh: true
+      openmpi:
+        versions:
+        - 5.0.5
+        fresh: true
+      hdf5:
+        versions:
+        - 1.14.5
+        variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
+        fresh: true
+      hdf5-vol-async:
+        versions:
+        - develop
+      argobots:
+        versions:
+        - main
+        fresh: true
+      netcdf-c:
+        versions:
+        - 4.9.2
+        variants: build_system=cmake
+        fresh: true
+      py-mpi4py:
+        versions:
+        - 4.0.1
+      py-h5py:
+        versions:
+        - 3.12.1
+      py-netcdf4:
+        versions:
+        - 1.7.1
+    compiler: gcc@11.2.0

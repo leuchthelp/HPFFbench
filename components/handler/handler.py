@@ -1,6 +1,7 @@
 from dataclasses import dataclass, asdict
 from func.datastruct import bcolors
 from benchmarkmanager import BenchmarkManager
+from spackmanager import SpackManager
 from pathlib import Path
 from pathos.pools import _ProcessPool as ProcessPool
 from copy import deepcopy
@@ -32,7 +33,7 @@ class Handler:
     
     def __init__(self, path_to_config: None | str):
         
-        self.__id = None
+        self.__id = ""
         self.config = {}
         self.__benchmarks = []
         
@@ -70,6 +71,8 @@ class Handler:
             print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
         
+        self.spack_manager = SpackManager(handler_id=self.__id, env_name="test-env-1", spack_env=self.config["spack env"]["test-env-1"])
+        
         if parallel == "Both":
             self.__tasks = self.__create_benchmark(parallel=False, determined_cap=self.__capabilities)
             self.__tasks.extend(self.__create_benchmark(parallel=True, determined_cap=self.__capabilities))
@@ -82,7 +85,7 @@ class Handler:
         else:
             print(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
         
-        self.__prepare_dataframe()
+        #self.__prepare_dataframe()
                       
 
     def __load_config(self, path_to_config):
@@ -279,7 +282,8 @@ class Handler:
                                 var_to_bm=var_to_bm,
                                 iterations=iterations, 
                                 use_path=use_path, 
-                                results_path=results_path 
+                                results_path=results_path,
+                                spack_manager=self.spack_manager,
                                 )
 
                         self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
