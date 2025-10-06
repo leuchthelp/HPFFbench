@@ -1,2 +1,1 @@
-from .datastruct import Datastruct
-from .datastruct import bcolors
+from func.datastruct import Datastruct

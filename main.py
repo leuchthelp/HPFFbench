@@ -1,7 +1,8 @@
 from components.handler import Handler
-import yaml
 from cProfile import Profile
 from pstats import SortKey, Stats
+import yaml
+import os
 
 
 #paths
@@ -12,7 +13,7 @@ paths = {
     "path_to_tmp"       : "components/tmp",
     "path_to_config"    : "components/handler/",
     "path_to_visuals"   : "components/visualize",
-    #"path_to_plotting"  : "components/visualize/plotting",
+    "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
     "path_to_results"   : "components/results",     
 }
    
@@ -98,6 +99,9 @@ def main():
                             },
                 
                 "py-netcdf4": {"versions" : ["1.7.1"],
+                            },
+                
+                "py-pip": {"versions" : ["23.1.2"],
                             },
             },
             "compiler": "gcc@11.2.0"

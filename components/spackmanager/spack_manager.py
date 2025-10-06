@@ -73,11 +73,11 @@ class SpackManager:
             
             file.write("spack env list\n")
         
-        with open("test.log", "wb") as f:
-            p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
-                sys.stdout.buffer.write(line)
-                f.write(line)
+
+        p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
+            sys.stdout.buffer.write(line)
+
              
         self.file_location.unlink()
    
@@ -86,7 +86,7 @@ class SpackManager:
         loadable = f"spack env activate {self.env_name}\n"
 
         for name, combinations in self.loadables.items():
-            loadable = self.__load_packages(loadable=loadable, combinations=combinations, package_name=name)
+            loadable = self.__load_packages(loadable=loadable, combinations=deepcopy(combinations), package_name=name)
          
         #print(loadable)   
         return loadable

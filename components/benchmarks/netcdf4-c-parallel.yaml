@@ -9,7 +9,7 @@ create_command:
     lazy: ["python {runnable}", "py", False]
 create: |
     from func import datastruct as ds
-    from func.datastruct import bcolors as color
+    from dev_utils import bcolors as color
     import json
     import argparse
 

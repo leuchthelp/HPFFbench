@@ -1,5 +1,5 @@
 from dataclasses import dataclass, asdict
-from func.datastruct import bcolors
+from dev_utils import bcolors
 from benchmarkmanager import BenchmarkManager
 from spackmanager import SpackManager
 from pathlib import Path
@@ -85,7 +85,7 @@ class Handler:
         else:
             print(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
         
-        #self.__prepare_dataframe()
+        self.__prepare_dataframe()
                       
 
     def __load_config(self, path_to_config):
@@ -250,6 +250,7 @@ class Handler:
                 
                 
             use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
+            root_path   = Path(self.config["paths"]["path_to_root"] )  # type: ignore
             results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
             
             
@@ -282,6 +283,7 @@ class Handler:
                                 var_to_bm=var_to_bm,
                                 iterations=iterations, 
                                 use_path=use_path, 
+                                root_path=root_path,
                                 results_path=results_path,
                                 spack_manager=self.spack_manager,
                                 )
