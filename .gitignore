@@ -8,9 +8,7 @@
 .idea/
 .venv/
 build
-components/c/data/datasets/
-components/c/out/
-components/python/data/datasets/
 components/results/
 components/tmp/
-test-working-with-change.py
+components/build
+environments

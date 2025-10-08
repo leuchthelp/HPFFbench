@@ -28,14 +28,22 @@ class Handler:
     
     """
     
-    path_to_config: None | str
+    path_to_config: str
     
     
-    def __init__(self, path_to_config: None | str):
+    def __init__(self, path_to_config: str):
         
         self.__id = ""
         self.config = {}
         self.__benchmarks = []
+        
+        
+        self.__delete_envs = True
+        try:
+            self.__delete_envs = self.config["delete envs"]
+        except:
+            pass
+        
         
         self.__load_config(path_to_config)
         
@@ -50,6 +58,11 @@ class Handler:
             self.__only_data = self.config["only data"]  # type: ignore
         except:
             self.__only_data = False
+            
+        try:
+            self.__use_spack_env = self.config["use spack env"]  # type: ignore
+        except:
+            self.__use_spack_env = True
             
         try:
             self.__max_processes = self.config["max processes"]  # type: ignore
@@ -71,7 +84,10 @@ class Handler:
             print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
         
-        self.spack_manager = SpackManager(handler_id=self.__id, env_name="test-env-1", spack_env=self.config["spack env"]["test-env-1"])
+        self.spack_manager = []
+        for env_name, spack_env in self.config["spack env"].items():
+            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env))
+        
         
         if parallel == "Both":
             self.__tasks = self.__create_benchmark(parallel=False, determined_cap=self.__capabilities)
@@ -92,7 +108,7 @@ class Handler:
         
         print(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
         try:
-            file = open(f"{path_to_config}config.yaml", "r")
+            file = open(f"{path_to_config}/config.yaml", "r")
             self.config = yaml.safe_load(stream=file)
             self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
             print(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
@@ -222,7 +238,7 @@ class Handler:
         
         for _, run_config in self.config["runs"].items():  # type: ignore
             
-            slurm_options = None
+            slurm_options= ""
             nodes       = [1]
             collective  = [None]
             ranks       = [1]
@@ -270,27 +286,30 @@ class Handler:
             for node in nodes:
                 for state in collective:
                     for rank in ranks:      
-                        bm = BenchmarkManager(
-                                handler_id=str(self.__id), 
-                                run_config=run_config,
-                                bm_config=bm_config,
-                                nodes=node,
-                                slurm_options=slurm_options,
-                                requested=requested,
-                                parallel=parallel, 
-                                collective=state,
-                                ranks=rank,
-                                var_to_bm=var_to_bm,
-                                iterations=iterations, 
-                                use_path=use_path, 
-                                root_path=root_path,
-                                results_path=results_path,
-                                spack_manager=self.spack_manager,
-                                )
+                        for manager in self.spack_manager:
+                            
+                            if requested["format"] in manager.target and requested["language"] in manager.language:
+                                bm = BenchmarkManager(
+                                        handler_id=self.__id, 
+                                        run_config=run_config,
+                                        bm_config=bm_config,
+                                        nodes=node,
+                                        slurm_options=slurm_options,
+                                        requested=requested,
+                                        parallel=parallel, 
+                                        collective=state,
+                                        ranks=rank,
+                                        var_to_bm=var_to_bm,
+                                        iterations=iterations, 
+                                        use_path=use_path, 
+                                        root_path=root_path,
+                                        results_path=results_path,
+                                        spack_manager=manager,
+                                        )
 
-                        self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
-                        benchmarks.append(bm)
-            
+                                self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
+                                benchmarks.append(bm)  
+        
         return benchmarks
 
 
@@ -299,10 +318,17 @@ class Handler:
             bm_list = [x for xs in self.__tasks for x in xs]
             pool = ProcessPool(processes=self.__max_processes)
             for _ in tqdm.tqdm(pool.imap_unordered(self.__run_benchmark, bm_list, chunksize=self.__bm_per_processes), total=len(bm_list), unit="benchmarks", colour="green", file=sys.stdout, desc="Benchmarks still to run"):
-                pass      
+                pass 
             
-        except TypeError:     
-            raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC)
+            
+            if self.__delete_envs == True: 
+                for manager in self.spack_manager:
+                    print(f"remove environment: {manager.env_name}")
+                    manager.delete()
+                print("finish removing environments")       
+            
+        except TypeError as e:     
+            raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC) from e
         
 
     def __run_benchmark(self, benchmarks: BenchmarkManager):
@@ -323,7 +349,7 @@ class Handler:
                     
                     print(f"currently on {path_name}")
                     
-                    benchmarks = self.__benchmarks[path_name]
+                    benchmark = self.__benchmarks[path_name]
                     
                     with open(path, "r") as file:
                         current = json.load(file)
@@ -341,28 +367,28 @@ class Handler:
                     node = ""
                     
                     tmp = pd.DataFrame(data={
-                            "benchmark"         : benchmarks["id"],
-                            "run config"        : str(benchmarks["run_config"]), 
+                            "benchmark"         : benchmark["id"],
+                            "run config"        : str(benchmark["run_config"]), 
                             "time taken"        : current,
-                            "throughput"        : benchmarks["total_filesize"] / mean,
-                            "engine"            : benchmarks["engine"],
-                            "var to bm"         : str(benchmarks["var_to_bm"]),
-                            "total filesize"    : benchmarks["total_filesize"],
-                            "unit"              : benchmarks["unit"],
-                            "filesize per var"  : str(benchmarks["filesize_var"]),
-                            "filesize per chunk": str(benchmarks["chunksize_var"]),
-                            "parallel"          : benchmarks["parallel"],
-                            "parallel backend"  : benchmarks["par_backend"],
-                            "collective"        : benchmarks["collective"],
-                            "ranks"             : benchmarks["ranks"],
-                            "language"          : benchmarks["language"], 
-                            "format"            : str(benchmarks["format"]), 
+                            "throughput"        : benchmark["total_filesize"] / mean,
+                            "engine"            : benchmark["engine"],
+                            "var to bm"         : str(benchmark["var_to_bm"]),
+                            "total filesize"    : benchmark["total_filesize"],
+                            "unit"              : benchmark["unit"],
+                            "filesize per var"  : str(benchmark["filesize_var"]),
+                            "filesize per chunk": str(benchmark["chunksize_var"]),
+                            "parallel"          : benchmark["parallel"],
+                            "parallel backend"  : benchmark["par_backend"],
+                            "collective"        : benchmark["collective"],
+                            "ranks"             : benchmark["ranks"],
+                            "language"          : benchmark["language"], 
+                            "format"            : str(benchmark["format"]), 
                             "mean time"         : mean,
                             "standard deviation": std,
                             "relative std"      : rsd,
                             "error bar"         : error,
                             "anomaly"           : anomaly,
-                            "nodes"             : str(benchmarks["nodes"]),
+                            "nodes"             : str(benchmark["nodes"]),
                             "node"              : node,
                             "node count"        : 0,
                             })

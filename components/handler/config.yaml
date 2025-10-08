@@ -1,11 +1,16 @@
 formats:
 - netcdf4
+- hdf5
+- hdf5: subfiling
+- hdf5: async
+- zarr
 languages:
 - c
+- py
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_tmp: components/tmp
-  path_to_config: components/handler/
+  path_to_config: components/handler
   path_to_visuals: components/visualize
   path_to_root: /work/ku0598/k203191/dkrz_dev
   path_to_results: components/results
@@ -15,18 +20,40 @@ runs:
     X:
     - - 134217728
     - []
-parallel: false
+parallel: Both
 par_backend: MPI
 ranks:
 - 2
 variable_to_benchmark:
 - X
 only data: false
+use spack env: true
 max processes: 20
-slurm options: "\n#SBATCH --wait\n#SBATCH --partition=compute\n#SBATCH --account=ku0598\n\
-  #SBATCH --constraint=\"[cell02]\"\n#SBATCH --mem=0\n#SBATCH --cpu-freq=High\n#SBATCH\
-  \ --distribution=block:cyclic\n#SBATCH --time=02:00:00\n#SBATCH --exclusive\n#SBATCH\
-  \ --output=log/log-%j/log.%j.txt\n#SBATCH --error=log/log-%j/log.%j.err\n    "
+slurm options: '
+
+  #SBATCH --wait
+
+  #SBATCH --partition=compute
+
+  #SBATCH --account=ku0598
+
+  #SBATCH --constraint="[cell02]"
+
+  #SBATCH --mem=0
+
+  #SBATCH --cpu-freq=High
+
+  #SBATCH --distribution=block:cyclic
+
+  #SBATCH --time=02:00:00
+
+  #SBATCH --exclusive
+
+  #SBATCH --output=log/log-%j/log.%j.txt
+
+  #SBATCH --error=log/log-%j/log.%j.err
+
+  '
 spack env:
   test-env-1:
     target:
@@ -69,10 +96,8 @@ spack env:
       py-netcdf4:
         versions:
         - 1.7.1
-      py-pip:
-        versions:
-        - 23.1.2
     compiler: gcc@11.2.0
+    additional: pip install zarr==3.0.5
   test-env-async:
     target:
     - hdf5: async

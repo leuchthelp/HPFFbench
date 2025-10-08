@@ -11,7 +11,7 @@ path_to_config = "components/handler/"
 paths = {
     "path_to_benchmarks": "components/benchmarks",
     "path_to_tmp"       : "components/tmp",
-    "path_to_config"    : "components/handler/",
+    "path_to_config"    : "components/handler",
     "path_to_visuals"   : "components/visualize",
     "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
     "path_to_results"   : "components/results",     
@@ -63,7 +63,7 @@ def main():
 #SBATCH --exclusive
 #SBATCH --output=log/log-%j/log.%j.txt
 #SBATCH --error=log/log-%j/log.%j.err
-    """
+"""
     
     spack_envs = {
         "test-env-1" : {
@@ -100,11 +100,9 @@ def main():
                 
                 "py-netcdf4": {"versions" : ["1.7.1"],
                             },
-                
-                "py-pip": {"versions" : ["23.1.2"],
-                            },
             },
-            "compiler": "gcc@11.2.0"
+            "compiler": "gcc@11.2.0",
+            "additional": "pip install zarr==3.0.5"
             },
         
         "test-env-async" : {
@@ -150,23 +148,25 @@ def main():
     }
     
     new_setup = {
-        "formats"               : ["netcdf4"],
-        "languages"             : ["c"],
+        "formats"               : ["netcdf4", "hdf5", {"hdf5": "subfiling"}, {"hdf5": "async"}, "zarr"],
+        "languages"             : ["c", "py"],
         "paths"                 : paths,
         "iterations"            : 2,
         "runs"                  : tmp,
-        "parallel"              : False,
+        "parallel"              : "Both",
         "par_backend"           : "MPI",
         "ranks"                 : [2],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
+        "use spack env"         : True,
         "max processes"         : 20,
         "slurm options"         : slurm_options,
         "spack env"             : spack_envs,
     }
     
-    with open(f"{path_to_config}config.yaml", "w") as file:
+    with open(f"{path_to_config}/config.yaml", "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
+         
       
     with Profile() as profile:  
         handler = Handler(path_to_config=path_to_config)

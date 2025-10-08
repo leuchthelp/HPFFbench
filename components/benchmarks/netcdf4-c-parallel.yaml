@@ -4,7 +4,7 @@ language: c
 extension: nc
 format: netcdf4
 compile: True
-compile_command: gcc {runnable} -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -Wl,-rpath -Wl,/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/openmpi-5.0.5-xx2fr5yjpd7u4qujted4emfkrwigfhml/lib -lmpi -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/netcdf-c-4.9.2-d33p7zrrtfu5vssi2b4utilk5jyluzsw/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/netcdf-c-4.9.2-d33p7zrrtfu5vssi2b4utilk5jyluzsw/lib -lnetcdf -I/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/include -L/home/dev/spack/opt/spack/linux-ubuntu22.04-x86_64_v4/gcc-11.4.0/hdf5-1.14.5-5tlcfqadprf4tpamuxv4tvn67bcastlj/lib -lhdf5_hl -lhdf5
+compile_command: gcc {runnable} <openmpi> -lmpi <hdf5> -lhdf5_hl -lhdf5 <netcdf-c> -lnetcdf
 create_command: 
     lazy: ["python {runnable}", "py", False]
 create: |
@@ -117,6 +117,7 @@ source: |
 
             if ((retval = nc_close(ncid)))
                 ERR(retval);
+            
 
             if (mpi_rank == 0)
             {

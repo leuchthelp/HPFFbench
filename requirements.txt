@@ -1,9 +1,7 @@
-zarr==3.0.5
-gprof2dot==2024.6.6
-xarray==2025.1.2
-matplotlib==3.10.1
-pandas==2.2.3
-schedule==1.2.2
-plotly==6.0.0
-kaleido==0.2.1
-nbclean==0.3.2
+setuptools==80.9.0
+pyyaml==6.0.3
+pathos==0.3.4
+tqdm==4.67.1
+pandas==2.3.3
+plotly==6.3.1
+./components
