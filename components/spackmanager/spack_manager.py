@@ -11,14 +11,16 @@ import shutil
 @dataclass
 class SpackManager:
     
-    handler_id  : str
-    spack_env   : dict
-    env_name    : str
-    target      : list
-    language    : list
-    packages    : dict
-    additional  : str
-    env_location: Path
+    handler_id       : str
+    spack_env        : dict
+    env_name         : str
+    target           : list
+    language         : list
+    packages         : dict
+    additional       : str
+    env_location     : Path
+    package_locations: dict
+    initialized      : bool
     
     
     def __init__(self,
@@ -26,18 +28,23 @@ class SpackManager:
                  env_name       : str,
                  spack_env      : dict,
                  use_spack_env  : bool,
+                 only_data      = False,
                  install        = False,
                  ):
         
-        self.handler_id = handler_id
-        self.spack_env  = spack_env
-        self.env_name   = env_name
-        self.use_spack_env = use_spack_env
+        self.initialized    = False
+        self.handler_id     = handler_id
+        self.spack_env      = spack_env
+        self.env_name       = env_name
+        self.__use_spack_env= use_spack_env
+        self.__only_data    = only_data
+        self.install        = install
         
-        self.compiler   = self.spack_env["compiler"]
-        self.target     = self.spack_env["target"]
-        self.language   = self.spack_env["language"]
-        self.packages   = self.spack_env["packages"]
+        self.compiler       = self.spack_env["compiler"]
+        self.target         = self.spack_env["target"]
+        self.language       = self.spack_env["language"]
+        self.packages       = self.spack_env["packages"]
+        self.package_locations = {}
         self.python_version = "python"
         
         self.additional = ""
@@ -53,21 +60,45 @@ class SpackManager:
         self.env_location.mkdir(parents=True, exist_ok=True)
         
         self.file_location = Path(f"{self.env_location.absolute()}/env-{self.env_name}.sh")
+        
+        
+        for name, info in self.packages.items():
+
+            versions = info["versions"] if type(info["versions"]) != str else [info["versions"]]
+            variants = [""]
+
+            if "variants" in info:
+                variants = info["variants"] if type(info["variants"]) != str else [info["variants"]]
+
+            combinations = itertools.product(*[versions, variants, [self.compiler]])
+                
+            for combination in combinations:
+                package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
+                    
+                if name == "python":
+                    self.python_version = package
+                
+                if self.__only_data == False:
+                    p = subprocess.run(f"spack location -i {package}".split(), text=True, check=True, capture_output=True)
+                    self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+                    
+            self.loadables[name] = deepcopy(combinations)
+        
+        
+        if Path(f"{self.env_location}/.venv").is_dir() == True:
+            self.initialized = True
+        
+
+    def initialize_env(self):
         with open(self.file_location, "w") as file:
             file.write(f"#!/bin/bash \n")
             
             first = True
             for index, (name, info) in enumerate(self.packages.items()):
 
-                versions    = info["versions"] if type(info["versions"]) != str else [info["versions"]]
-                variants = [""]
+                combinations = self.loadables[name]
 
-                if "variants" in info:
-                    variants= info["variants"] if type(info["variants"]) != str else [info["variants"]]
-
-                combinations = itertools.product(*[versions, variants, [self.compiler]])
-
-                if install == True:
+                if self.install == True:
 
                     fresh = ""
                     if "fresh" in info:
@@ -84,8 +115,7 @@ class SpackManager:
                 
                 if index == len(self.packages.items())-1:
                     file.write(f"spack -e {self.env_name} install\n")
-                
-                self.loadables[name] = deepcopy(combinations)
+                    
             
             file.write("spack env list\n")
             file.write(f"spack env activate {self.env_name}\n")
@@ -103,14 +133,17 @@ class SpackManager:
         
         print(bcolors.OKCYAN + f"Initialize environment {self.env_name}" + bcolors.ENDC)
         
-        if self.use_spack_env == True:
+        if self.__use_spack_env == True:
             p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             #for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
             #    sys.stdout.buffer.write(line)
             p.wait()
+            if p.returncode != 0:
+                raise RuntimeError(bcolors.FAIL + "Environment creation has failed" + bcolors.ENDC)
+            
         print(bcolors.OKGREEN + "Finish Initialize environment" + bcolors.ENDC)
-
-             
+        self.initialized = True
+          
         self.file_location.unlink()
    
    
@@ -119,8 +152,7 @@ class SpackManager:
 
         for name, combinations in self.loadables.items():
             loadable = self.__load_packages(loadable=loadable, combinations=deepcopy(combinations), package_name=name)
-         
-        #print(loadable)   
+          
         return loadable
         
         
@@ -135,14 +167,7 @@ class SpackManager:
         for combination in combinations:
             
             #print(f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}")
-            package  = f"{package_name}@{combination[0]} {combination[1]} %{combination[2]}"
-            file.write(f"spack -e {self.env_name} add {package}\n")  
-            
-            if package_name == "python":
-                self.python_version = package
-            
-            p = subprocess.run(f"spack location -i {package}".split(), text=True, check=True, capture_output=True)
-            self.packages[package_name]["location"] = (f"{package}", p.stdout.rstrip())
+            file.write(f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}\n")  
             
 
     def __load_packages(self, loadable: str, combinations, package_name: str):
@@ -155,17 +180,22 @@ class SpackManager:
             
            
     def delete(self):
-        with open(self.file_location, "w") as file:
-            file.write("#!/bin/bash  \n")
-            file.write(f"spack env activate {self.env_name} -p \n")   
-            file.write(f"spack remove --all \n")   
-            file.write(f"spack env deactivate\n")    
-            file.write(f"spack env remove {self.env_name} -y \n")
-                       
         
-        p = subprocess.run(["bash", self.file_location], capture_output=True, check=True)
-        #print(p.stderr)
-        print(p.stdout)
-        
-        self.file_location.unlink()
-        shutil.rmtree(path=self.env_location.absolute())
+        if self.initialized == True:
+            with open(self.file_location, "w") as file:
+                file.write("#!/bin/bash  \n")
+                file.write(f"spack env activate {self.env_name} -p \n")   
+                file.write(f"spack remove --all \n")   
+                file.write(f"spack env deactivate\n")    
+                file.write(f"spack env remove {self.env_name} -y \n")
+
+
+            p = subprocess.run(["bash", self.file_location], capture_output=True, check=True)
+            #print(p.stderr)
+            print(p.stdout)
+
+            self.file_location.unlink()
+            shutil.rmtree(path=self.env_location.absolute())
+            
+        else: 
+            print(bcolors.WARNING + f"{self.env_name} has not been initialized, nothing to delete" + bcolors.ENDC)

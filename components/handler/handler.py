@@ -5,13 +5,13 @@ from spackmanager import SpackManager
 from pathlib import Path
 from pathos.pools import _ProcessPool as ProcessPool
 from copy import deepcopy
+from collections import Counter
 import pandas as pd
 import numpy as np
 import itertools
 import yaml
 import json
 import hashlib
-import random
 import tqdm
 import sys
 import os
@@ -38,14 +38,14 @@ class Handler:
         self.__benchmarks = []
         
         
+        self.__load_config(path_to_config)
+        
+        
         self.__delete_envs = True
         try:
             self.__delete_envs = self.config["delete envs"]
         except:
             pass
-        
-        
-        self.__load_config(path_to_config)
         
         if bool(self.config["runs"]) == False:
             raise ValueError(bcolors.FAIL + "No runs specified, please add some." + bcolors.ENDC)
@@ -86,7 +86,7 @@ class Handler:
         
         self.spack_manager = []
         for env_name, spack_env in self.config["spack env"].items():
-            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env))
+            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env, only_data=self.__only_data))
         
         
         if parallel == "Both":
@@ -289,6 +289,12 @@ class Handler:
                         for manager in self.spack_manager:
                             
                             if requested["format"] in manager.target and requested["language"] in manager.language:
+                                
+                                if manager.initialized == False:
+                                    manager.initialize_env()
+                                else:
+                                    print(bcolors.OKGREEN + f"Environment: {manager.env_name} already initialized" + bcolors.ENDC)
+                                
                                 bm = BenchmarkManager(
                                         handler_id=self.__id, 
                                         run_config=run_config,
@@ -315,11 +321,11 @@ class Handler:
 
     def __start(self):
         try:
+            self.__benchmarks = []
             bm_list = [x for xs in self.__tasks for x in xs]
             pool = ProcessPool(processes=self.__max_processes)
-            for _ in tqdm.tqdm(pool.imap_unordered(self.__run_benchmark, bm_list, chunksize=self.__bm_per_processes), total=len(bm_list), unit="benchmarks", colour="green", file=sys.stdout, desc="Benchmarks still to run"):
-                pass 
-            
+            for result in tqdm.tqdm(pool.imap_unordered(self.__run_benchmark, bm_list, chunksize=self.__bm_per_processes), total=len(bm_list), unit="benchmarks", colour="green", file=sys.stdout, desc="Benchmarks still to run"):
+                self.__benchmarks.append(result)
             
             if self.__delete_envs == True: 
                 for manager in self.spack_manager:
@@ -345,6 +351,7 @@ class Handler:
             if not path.is_dir(): 
                 
                 path_name = path.name.replace(".json", "")
+                
                 if path_name in self.__benchmarks:
                     
                     print(f"currently on {path_name}")
@@ -353,62 +360,78 @@ class Handler:
                     
                     with open(path, "r") as file:
                         current = json.load(file)
+                        
+                    location_nodes = Path(f"{root}/{path_name}-nodes.json")
+                    with open(location_nodes.absolute(), "r") as file:
+                        used_nodes = json.load(file)
                     
                     mean = np.mean(current)
                     std  = np.std(current)
                     rsd  = std / mean
                     
                     error= std / np.sqrt(len(current))
-        
-                    anomaly = False
+                        
+                        
+                    for index, value in enumerate(current):
+                        
+                        count = Counter()
+                        string = used_nodes[index].replace("[", "")
+                        string = string.replace("]", "")
+                        node = string.split(",")
+                        count.update(node)
+                        
+                        anomaly = False
+                        if value >= mean + mean * rsd:
+                            anomaly = True
+                            
+                        tmp = pd.DataFrame(data={
+                                "benchmark"         : benchmark["id"],
+                                "run config"        : [benchmark["run_config"]], 
+                                "time taken"        : value,
+                                "throughput"        : benchmark["total_filesize"] / mean,
+                                "engine"            : benchmark["engine"],
+                                "var to bm"         : [benchmark["var_to_bm"]],
+                                "total filesize"    : benchmark["total_filesize"],
+                                "unit"              : benchmark["unit"],
+                                "filesize per var"  : [benchmark["filesize_var"]],
+                                "filesize per chunk": [benchmark["chunksize_var"]],
+                                "parallel"          : benchmark["parallel"],
+                                "parallel backend"  : benchmark["par_backend"],
+                                "collective"        : benchmark["collective"],
+                                "ranks"             : benchmark["ranks"],
+                                "language"          : benchmark["language"], 
+                                "format"            : [benchmark["format"]], 
+                                "mean time"         : mean,
+                                "standard deviation": std,
+                                "relative std"      : rsd,
+                                "error bar"         : error,
+                                "anomaly"           : anomaly,
+                                "nodes"             : benchmark["nodes"],
+                                "used nodes"        : used_nodes[index],
+                                "node count"        : [count],
+                                "total node count"  : [Counter()]
+                                })
                     
                     
-                    # demo code, do not use in future
-                    node = ""
-                    
-                    tmp = pd.DataFrame(data={
-                            "benchmark"         : benchmark["id"],
-                            "run config"        : str(benchmark["run_config"]), 
-                            "time taken"        : current,
-                            "throughput"        : benchmark["total_filesize"] / mean,
-                            "engine"            : benchmark["engine"],
-                            "var to bm"         : str(benchmark["var_to_bm"]),
-                            "total filesize"    : benchmark["total_filesize"],
-                            "unit"              : benchmark["unit"],
-                            "filesize per var"  : str(benchmark["filesize_var"]),
-                            "filesize per chunk": str(benchmark["chunksize_var"]),
-                            "parallel"          : benchmark["parallel"],
-                            "parallel backend"  : benchmark["par_backend"],
-                            "collective"        : benchmark["collective"],
-                            "ranks"             : benchmark["ranks"],
-                            "language"          : benchmark["language"], 
-                            "format"            : str(benchmark["format"]), 
-                            "mean time"         : mean,
-                            "standard deviation": std,
-                            "relative std"      : rsd,
-                            "error bar"         : error,
-                            "anomaly"           : anomaly,
-                            "nodes"             : str(benchmark["nodes"]),
-                            "node"              : node,
-                            "node count"        : 0,
-                            })
-                    
-                    for i, rows in tmp.iterrows():
-                        if rows["relative std"] > 0.35:
-                            tmp.at[i, "anomaly"] = True  # type: ignore
-                            tmp.at[i, "node"] = f"l{random.randint(10485, 10490)}"  # type: ignore
-                        else:
-                            tmp.at[i, "node"] = f"l{random.randint(10420, 10484)}" # type: ignore
-                    
-                    df = pd.concat([df, tmp], ignore_index=True)
+                        df = pd.concat([df, tmp], ignore_index=True)
                     
         
         tmp = self.config["paths"]["path_to_results"]  # type: ignore
         
         # there is probably a better method for doing this, will look into it later
-        for node, count in df["node"].value_counts().to_dict().items():
-            df.loc[df["node"] == node, "node count"] = count
+        total_node_counter = Counter()
+        for count in df["node count"]:
+            total_node_counter.update(count)
+
         
+        for index, _ in df.iterrows():
+            df.at[index, "total node count"] = total_node_counter
+            
+            for nodes, count in total_node_counter.items():
+                if nodes in df.at[index,"node count"]:
+                    df.at[index,"node count"][nodes] = count
+            
+            
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 

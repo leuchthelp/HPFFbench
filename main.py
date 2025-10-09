@@ -37,11 +37,11 @@ def main():
     tmp = {
             #"run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
             #"run02": {"X": [[1 * 134217728], [], "f8"]},
-            "run03": {"X": [[1 * 134217728], []],},
+            #"run03": {"X": [[1 * 134217728], []],},
             
-            #"run04": {"X": [[10 * 134217728], []]},
-            #"run05": {"X": [[20 * 134217728], []]},
-            #"run06": {"X": [[30 * 134217728], []]},
+            "run04": {"X": [[10 * 134217728], []]},
+            "run05": {"X": [[20 * 134217728], []]},
+            "run06": {"X": [[30 * 134217728], []]},
             #"run07": {"X": [[40 * 134217728], []]},
             #"run08": {"X": [[50 * 134217728], []]},
             #"run09": {"X": [[60 * 134217728], []]},
@@ -148,20 +148,22 @@ def main():
     }
     
     new_setup = {
-        "formats"               : ["netcdf4", "hdf5", {"hdf5": "subfiling"}, {"hdf5": "async"}, "zarr"],
-        "languages"             : ["c", "py"],
+        "formats"               : ["hdf5", {"hdf5": "subfiling"}, {"hdf5": "async"}, "netcdf4", "zarr"],
+        "languages"             : ["py", "c"],
         "paths"                 : paths,
-        "iterations"            : 2,
+        "iterations"            : 5,
         "runs"                  : tmp,
         "parallel"              : "Both",
         "par_backend"           : "MPI",
-        "ranks"                 : [2],
+        "ranks"                 : [8, 16, 32],
+        "nodes"                 : [1, 2, 4],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
         "use spack env"         : True,
         "max processes"         : 20,
         "slurm options"         : slurm_options,
         "spack env"             : spack_envs,
+        "delete envs"           : False,
     }
     
     with open(f"{path_to_config}/config.yaml", "w") as file:

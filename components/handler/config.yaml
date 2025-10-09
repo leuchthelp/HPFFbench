@@ -1,12 +1,12 @@
 formats:
-- netcdf4
 - hdf5
 - hdf5: subfiling
 - hdf5: async
+- netcdf4
 - zarr
 languages:
-- c
 - py
+- c
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_tmp: components/tmp
@@ -14,16 +14,30 @@ paths:
   path_to_visuals: components/visualize
   path_to_root: /work/ku0598/k203191/dkrz_dev
   path_to_results: components/results
-iterations: 2
+iterations: 5
 runs:
-  run03:
+  run04:
     X:
-    - - 134217728
+    - - 1342177280
+    - []
+  run05:
+    X:
+    - - 2684354560
+    - []
+  run06:
+    X:
+    - - 4026531840
     - []
 parallel: Both
 par_backend: MPI
 ranks:
+- 8
+- 16
+- 32
+nodes:
+- 1
 - 2
+- 4
 variable_to_benchmark:
 - X
 only data: false
@@ -139,3 +153,4 @@ spack env:
         versions:
         - 1.7.1
     compiler: gcc@11.2.0
+delete envs: false
