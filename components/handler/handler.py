@@ -271,7 +271,7 @@ class Handler:
             
             
             # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
-            if  "SLURM_JOB_ID" in os.environ:
+            if  "SLURM_JOB_ID" in os.environ or self.__only_data == True:
                 slurm_options= self.config["slurm options"]  # type: ignore
                 
                 try:
@@ -322,7 +322,7 @@ class Handler:
     def __start(self):
         try:
             self.__benchmarks = []
-            bm_list = [x for xs in self.__tasks for x in xs]
+            bm_list = list(itertools.chain.from_iterable(self.__tasks))
             pool = ProcessPool(processes=self.__max_processes)
             for result in tqdm.tqdm(pool.imap_unordered(self.__run_benchmark, bm_list, chunksize=self.__bm_per_processes), total=len(bm_list), unit="benchmarks", colour="green", file=sys.stdout, desc="Benchmarks still to run"):
                 self.__benchmarks.append(result)
@@ -351,7 +351,6 @@ class Handler:
             if not path.is_dir(): 
                 
                 path_name = path.name.replace(".json", "")
-                
                 if path_name in self.__benchmarks:
                     
                     print(f"currently on {path_name}")
@@ -360,7 +359,7 @@ class Handler:
                     
                     with open(path, "r") as file:
                         current = json.load(file)
-                        
+                    
                     location_nodes = Path(f"{root}/{path_name}-nodes.json")
                     with open(location_nodes.absolute(), "r") as file:
                         used_nodes = json.load(file)
@@ -375,10 +374,24 @@ class Handler:
                     for index, value in enumerate(current):
                         
                         count = Counter()
-                        string = used_nodes[index].replace("[", "")
-                        string = string.replace("]", "")
-                        node = string.split(",")
-                        count.update(node)
+                        string = used_nodes[index]
+                        symbol = string[0]
+                        string = string.replace(symbol, "")
+                        nodes = string.split(",")
+                        
+                        
+                        for index, node in enumerate(nodes):
+                            if "-" in node:
+                                hold = node.split("-")
+                                
+                                node = [str(additional) for additional in range(int(hold[0]), int(hold[1])+1)]
+                                nodes[index] = node
+                                
+                            elif type(node) != list:
+                                nodes[index] = [node]
+
+
+                        count.update(list(itertools.chain.from_iterable(nodes)))
                         
                         anomaly = False
                         if value >= mean + mean * rsd:
@@ -400,7 +413,7 @@ class Handler:
                                 "collective"        : benchmark["collective"],
                                 "ranks"             : benchmark["ranks"],
                                 "language"          : benchmark["language"], 
-                                "format"            : [benchmark["format"]], 
+                                "format"            : str(benchmark["format"]), 
                                 "mean time"         : mean,
                                 "standard deviation": std,
                                 "relative std"      : rsd,
@@ -419,19 +432,20 @@ class Handler:
         tmp = self.config["paths"]["path_to_results"]  # type: ignore
         
         # there is probably a better method for doing this, will look into it later
+        
         total_node_counter = Counter()
         for count in df["node count"]:
             total_node_counter.update(count)
 
         
         for index, _ in df.iterrows():
-            df.at[index, "total node count"] = total_node_counter
+            df.at[index, "total node count"] = total_node_counter # type: ignore
             
             for nodes, count in total_node_counter.items():
-                if nodes in df.at[index,"node count"]:
-                    df.at[index,"node count"][nodes] = count
+                if nodes in df.at[index,"node count"]:  # type: ignore
+                    df.at[index,"node count"][nodes] = count  # type: ignore
             
-            
+        print(df)
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 

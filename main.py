@@ -38,10 +38,10 @@ def main():
             #"run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
             #"run02": {"X": [[1 * 134217728], [], "f8"]},
             #"run03": {"X": [[1 * 134217728], []],},
-            
+        
             "run04": {"X": [[10 * 134217728], []]},
             "run05": {"X": [[20 * 134217728], []]},
-            "run06": {"X": [[30 * 134217728], []]},
+            #"run06": {"X": [[30 * 134217728], []]},
             #"run07": {"X": [[40 * 134217728], []]},
             #"run08": {"X": [[50 * 134217728], []]},
             #"run09": {"X": [[60 * 134217728], []]},
@@ -148,15 +148,16 @@ def main():
     }
     
     new_setup = {
-        "formats"               : ["hdf5", {"hdf5": "subfiling"}, {"hdf5": "async"}, "netcdf4", "zarr"],
-        "languages"             : ["py", "c"],
+        "formats"               : [{"hdf5": "subfiling"}, {"hdf5": "async"}, "hdf5", "netcdf4", "zarr"],
+        #"formats"               : ["hdf5"],
+        "languages"             : ["c", "py"],
         "paths"                 : paths,
         "iterations"            : 5,
         "runs"                  : tmp,
         "parallel"              : "Both",
         "par_backend"           : "MPI",
         "ranks"                 : [8, 16, 32],
-        "nodes"                 : [1, 2, 4],
+        "nodes"                 : [2, 4],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,
         "use spack env"         : True,
