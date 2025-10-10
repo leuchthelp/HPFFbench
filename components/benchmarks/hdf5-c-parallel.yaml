@@ -6,7 +6,7 @@ format: hdf5
 compile: True
 compile_command: gcc {runnable} <openmpi> -lmpi <hdf5> -lhdf5_hl -lhdf5
 create_command: 
-    MPI: "mpiexec -n {runnable}"
+    MPI: mpiexec -n {runnable}
 create: |
     #include <stdio.h>
     #include <stdlib.h>

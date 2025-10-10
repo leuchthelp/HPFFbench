@@ -5,9 +5,9 @@ extension: h5
 format: 
     hdf5: async
 compile: True
-compile_command: gcc {runnable} <openmpi> -lmpi <hdf5> -lhdf5_hl -lhdf5 <hdf5-vol-async>  -lasynchdf5
+compile_command: gcc {runnable} <openmpi> -lmpi <hdf5> -lhdf5_hl -lhdf5 <hdf5-vol-async> -lasynchdf5
 create_command: 
-    MPI: "mpiexec -n {runnable}"
+    MPI: mpiexec -n {runnable}
 create: |
     #include <stdio.h>
     #include <stdlib.h>

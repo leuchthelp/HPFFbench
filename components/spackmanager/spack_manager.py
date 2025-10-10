@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 from dev_utils import bcolors
-from copy import deepcopy
 import subprocess
 import itertools
-import sys
 import shutil
 
 
@@ -70,7 +68,9 @@ class SpackManager:
             if "variants" in info:
                 variants = info["variants"] if type(info["variants"]) != str else [info["variants"]]
 
-            combinations = itertools.product(*[versions, variants, [self.compiler]])
+            combinations = list(itertools.product(*[versions, variants, [self.compiler]]))
+            
+            self.loadables[name] = combinations
                 
             for combination in combinations:
                 package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
@@ -81,8 +81,6 @@ class SpackManager:
                 if self.__only_data == False:
                     p = subprocess.run(f"spack location -i {package}".split(), text=True, check=True, capture_output=True)
                     self.package_locations[name] = (f"{package}", p.stdout.rstrip())
-                    
-            self.loadables[name] = deepcopy(combinations)
         
         
         if Path(f"{self.env_location}/.venv").is_dir() == True:
@@ -104,14 +102,14 @@ class SpackManager:
                     if "fresh" in info:
                         fresh = "--fresh "
 
-                    self.__install(file=file, combinations=deepcopy(combinations), package_name=name, fresh=fresh)
+                    self.__install(file=file, combinations=list(combinations), package_name=name, fresh=fresh)
 
                 if first == True:
                     file.write(f"spack env create {self.env_name}\n")
                     file.write("spack env list\n")
                     first = False
                     
-                self.__add_packages(file=file, combinations=deepcopy(combinations), package_name=name)
+                self.__add_packages(file=file, combinations=list(combinations), package_name=name)
                 
                 if index == len(self.packages.items())-1:
                     file.write(f"spack -e {self.env_name} install\n")
@@ -135,6 +133,7 @@ class SpackManager:
         
         if self.__use_spack_env == True:
             p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            #import sys
             #for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
             #    sys.stdout.buffer.write(line)
             p.wait()
@@ -151,8 +150,8 @@ class SpackManager:
         loadable = f"spack env activate {self.env_name}\n"
 
         for name, combinations in self.loadables.items():
-            loadable = self.__load_packages(loadable=loadable, combinations=deepcopy(combinations), package_name=name)
-          
+            loadable = self.__load_packages(loadable=loadable, combinations=list(combinations), package_name=name)
+        
         return loadable
         
         

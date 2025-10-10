@@ -380,15 +380,15 @@ class Handler:
                         nodes = string.split(",")
                         
                         
-                        for index, node in enumerate(nodes):
+                        for i, node in enumerate(nodes):
                             if "-" in node:
                                 hold = node.split("-")
                                 
                                 node = [str(additional) for additional in range(int(hold[0]), int(hold[1])+1)]
-                                nodes[index] = node
+                                nodes[i] = node
                                 
                             elif type(node) != list:
-                                nodes[index] = [node]
+                                nodes[i] = [node]
 
 
                         count.update(list(itertools.chain.from_iterable(nodes)))
