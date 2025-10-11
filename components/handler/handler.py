@@ -445,7 +445,7 @@ class Handler:
                 if nodes in df.at[index,"node count"]:  # type: ignore
                     df.at[index,"node count"][nodes] = count  # type: ignore
             
-        print(df)
+        #print(df)
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 
