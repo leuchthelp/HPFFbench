@@ -3,6 +3,7 @@ from cProfile import Profile
 from pstats import SortKey, Stats
 import yaml
 import os
+import logging
 
 
 #paths
@@ -150,7 +151,7 @@ def main():
     new_setup = {
         "formats"               : ["hdf5", "netcdf4", "zarr"],
         #"formats"               : ["hdf5"],
-        "languages"             : ["py"],
+        "languages"             : ["c", "py"],
         "paths"                 : paths,
         "iterations"            : 5,
         "runs"                  : tmp,
@@ -169,10 +170,13 @@ def main():
     
     with open(f"{path_to_config}/config.yaml", "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
-         
-      
+
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
+    
+    
     with Profile() as profile:  
-        handler = Handler(path_to_config=path_to_config)
+        handler = Handler(path_to_config=path_to_config, logger=logger)
         stats = Stats(profile).strip_dirs()
         stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
         stats.sort_stats(SortKey.CALLS).print_stats(20)

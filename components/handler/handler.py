@@ -15,6 +15,7 @@ import hashlib
 import tqdm
 import sys
 import os
+import logging
 
 @dataclass
 class Handler:
@@ -31,8 +32,9 @@ class Handler:
     path_to_config: str
     
     
-    def __init__(self, path_to_config: str):
+    def __init__(self, path_to_config: str, logger: logging.Logger):
         
+        self.logger = logger
         self.__id = ""
         self.config = {}
         self.__benchmarks = []
@@ -81,12 +83,12 @@ class Handler:
             if parallel != "Both" and type(parallel) != bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
             
         except KeyError:
-            print(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
+            self.logger.info(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
         
         self.spack_manager = []
         for env_name, spack_env in self.config["spack env"].items():
-            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env, only_data=self.__only_data))
+            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env, only_data=self.__only_data, logger=self.logger))
         
         
         if parallel == "Both":
@@ -99,36 +101,36 @@ class Handler:
         if self.__only_data == False:
             self.__start()
         else:
-            print(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
+            self.logger.info(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
         
         self.__prepare_dataframe()
                       
 
     def __load_config(self, path_to_config):
         
-        print(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
+        self.logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
         try:
             file = open(f"{path_to_config}/config.yaml", "r")
             self.config = yaml.safe_load(stream=file)
             self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
-            print(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
+            self.logger.info(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
             
         except FileNotFoundError as e:
-            print(bcolors.FAIL + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}" + bcolors.ENDC)
+            FileNotFoundError(bcolors.FAIL + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}" + bcolors.ENDC)
         except OSError as e:
-            print(bcolors.FAIL + f"Path to config.yaml could not found, please check it is valid! Additional details: {e}" + bcolors.ENDC) 
+            OSError(bcolors.FAIL + f"Path to config.yaml could not found, please check it is valid! Additional details: {e}" + bcolors.ENDC) 
         except yaml.YAMLError as e:
-            print(bcolors.FAIL + f"Error loading config.yaml! Additional details: {e}" + bcolors.ENDC)
+            yaml.YAMLError(bcolors.FAIL + f"Error loading config.yaml! Additional details: {e}" + bcolors.ENDC)
     
     
     def __check_paths(self):
-        print(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
+        self.logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
         for key, path in self.config["paths"].items(): # type: ignore
             if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
         
-        print(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
+        self.logger.info(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
         
-        print(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
+        self.logger.info(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
     
     
     def __determine_capabilities(self):
@@ -226,7 +228,7 @@ class Handler:
             requested = dict(requested)
             
             if str(requested) in determined_cap:
-                print(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
+                self.logger.info(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
                 
                 tasks.append(self.__create_benchmark_manager(parallel=parallel, requested=requested, bm_config=determined_cap[str(requested)]))
         
@@ -293,7 +295,7 @@ class Handler:
                                 if manager.initialized == False:
                                     manager.initialize_env()
                                 else:
-                                    print(bcolors.OKGREEN + f"Environment: {manager.env_name} already initialized" + bcolors.ENDC)
+                                    self.logger.info(bcolors.OKGREEN + f"Environment: {manager.env_name} already initialized" + bcolors.ENDC)
                                 
                                 bm = BenchmarkManager(
                                         handler_id=self.__id, 
@@ -311,6 +313,7 @@ class Handler:
                                         root_path=root_path,
                                         results_path=results_path,
                                         spack_manager=manager,
+                                        logger=self.logger,
                                         )
 
                                 self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
@@ -329,9 +332,9 @@ class Handler:
             
             if self.__delete_envs == True: 
                 for manager in self.spack_manager:
-                    print(f"remove environment: {manager.env_name}")
+                    self.logger.info(f"remove environment: {manager.env_name}")
                     manager.delete()
-                print("finish removing environments")       
+                self.logger.info("finish removing environments")       
             
         except TypeError as e:     
             raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC) from e
@@ -353,7 +356,7 @@ class Handler:
                 path_name = path.name.replace(".json", "")
                 if path_name in self.__benchmarks:
                     
-                    print(f"currently on {path_name}")
+                    self.logger.info(f"currently on {path_name}")
                     
                     benchmark = self.__benchmarks[path_name]
                     
@@ -422,7 +425,8 @@ class Handler:
                                 "nodes"             : benchmark["nodes"],
                                 "used nodes"        : used_nodes[index],
                                 "node count"        : [count],
-                                "total node count"  : [Counter()]
+                                "total node count"  : [Counter()],
+                                "total nc match"    : [Counter()],
                                 })
                     
                     
@@ -443,9 +447,9 @@ class Handler:
             
             for nodes, count in total_node_counter.items():
                 if nodes in df.at[index,"node count"]:  # type: ignore
-                    df.at[index,"node count"][nodes] = count  # type: ignore
+                    df.at[index,"total nc match"][nodes] = count  # type: ignore
             
-        #print(df)
+        self.logger.debug(df)
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 

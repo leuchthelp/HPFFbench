@@ -3,6 +3,7 @@ formats:
 - netcdf4
 - zarr
 languages:
+- c
 - py
 paths:
   path_to_benchmarks: components/benchmarks
@@ -11,7 +12,7 @@ paths:
   path_to_visuals: components/visualize
   path_to_root: /work/ku0598/k203191/dkrz_dev
   path_to_results: components/results
-iterations: 5
+iterations: 1
 runs:
   run04:
     X:
@@ -65,7 +66,7 @@ nodes:
 - 1
 variable_to_benchmark:
 - X
-only data: false
+only data: true
 use spack env: true
 max processes: 20
 slurm options: '
