@@ -285,39 +285,46 @@ class Handler:
             var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
             iterations  = self.config["iterations"]  # type: ignore
             
-            for node in nodes:
-                for state in collective:
-                    for rank in ranks:      
-                        for manager in self.spack_manager:
-                            
-                            if requested["format"] in manager.target and requested["language"] in manager.language:
+            spack_manager = []
+            for manager in self.spack_manager:
+                if requested["format"] in manager.target and requested["language"] in manager.language:
+                    spack_manager.append(manager)
+            
+            combinations = itertools.product(nodes, ranks, collective, spack_manager)
+            
+            for combination in combinations:
+                
+                node    = combination[0]
+                rank    = combination[1]
+                state   = combination[2]
+                manager = combination[3]
                                 
-                                if manager.initialized == False:
-                                    manager.initialize_env()
-                                else:
-                                    self.logger.info(bcolors.OKGREEN + f"Environment: {manager.env_name} already initialized" + bcolors.ENDC)
-                                
-                                bm = BenchmarkManager(
-                                        handler_id=self.__id, 
-                                        run_config=run_config,
-                                        bm_config=bm_config,
-                                        nodes=node,
-                                        slurm_options=slurm_options,
-                                        requested=requested,
-                                        parallel=parallel, 
-                                        collective=state,
-                                        ranks=rank,
-                                        var_to_bm=var_to_bm,
-                                        iterations=iterations, 
-                                        use_path=use_path, 
-                                        root_path=root_path,
-                                        results_path=results_path,
-                                        spack_manager=manager,
-                                        logger=self.logger,
-                                        )
-
-                                self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
-                                benchmarks.append(bm)  
+                if manager.initialized == False:
+                    manager.initialize_env()
+                else:
+                    self.logger.info(bcolors.OKGREEN + f"Environment: {manager.env_name} already initialized" + bcolors.ENDC)
+                
+                bm = BenchmarkManager(
+                        handler_id=self.__id, 
+                        run_config=run_config,
+                        bm_config=bm_config,
+                        nodes=node,
+                        slurm_options=slurm_options,
+                        requested=requested,
+                        parallel=parallel, 
+                        collective=state,
+                        ranks=rank,
+                        var_to_bm=var_to_bm,
+                        iterations=iterations, 
+                        use_path=use_path, 
+                        root_path=root_path,
+                        results_path=results_path,
+                        spack_manager=manager,
+                        logger=self.logger,
+                        )
+                
+                self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
+                benchmarks.append(bm)  
         
         return benchmarks
 
