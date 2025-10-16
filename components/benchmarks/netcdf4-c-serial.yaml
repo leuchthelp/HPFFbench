@@ -9,7 +9,6 @@ create_command:
 create: |
     from func import datastruct as ds
     from dev_utils import bcolors as color
-    import json
     import argparse
 
     def create_ds(form, parallel=False, path=None, collective=False):

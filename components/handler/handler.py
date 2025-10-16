@@ -394,11 +394,11 @@ class Handler:
                             if "-" in node:
                                 hold = node.split("-")
                                 
-                                node = [str(additional) for additional in range(int(hold[0]), int(hold[1])+1)]
+                                node = [symbol + str(additional) for additional in range(int(hold[0]), int(hold[1])+1)]
                                 nodes[i] = node
                                 
                             elif type(node) != list:
-                                nodes[i] = [node]
+                                nodes[i] = [symbol + node]
 
 
                         count.update(list(itertools.chain.from_iterable(nodes)))

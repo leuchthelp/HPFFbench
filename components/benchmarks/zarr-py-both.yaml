@@ -9,7 +9,6 @@ create_command:
 create: |
     from func import datastruct as ds
     from dev_utils import bcolors as color
-    import json
     import argparse
 
     def create_ds(form, parallel=False, path=None, collective=False):
@@ -33,18 +32,9 @@ run_command:
     MPI: mpiexec -n python {runnable} -v
 source: | 
     from func import datastruct as ds
-    import json
     import argparse
 
     def bench(iterations, variable: None, parallel=False, path=None, collective=False):
-
-        if variable == None:
-            variable = []
-            with open("run_config.json") as yaml_file:
-                tmp = json.load(yaml_file) 
-
-                for keys in tmp.keys():
-                  variable.append(keys)
 
         ds_zarr = ds.Datastruct()
         ds_zarr.open(mode="r", engine="zarr", path=path)
