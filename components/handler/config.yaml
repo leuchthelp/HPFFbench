@@ -10,20 +10,16 @@ paths:
   path_to_root: /work/ku0598/k203191/dkrz_dev
   path_to_results: components/results
   path_profiling: components/profiling
-iterations: 5
+iterations: 2
 runs:
   run03:
     X:
     - - 134217728
     - []
-parallel: false
+parallel: true
 par_backend: MPI
 ranks:
-- 8
-- 16
-- 32
-- 64
-- 128
+- 1
 nodes:
 - 1
 variable_to_benchmark:
@@ -142,5 +138,4 @@ spack env:
         - 1.7.1
     compiler: gcc@11.2.0
 delete envs: false
-profiler:
-  py: py-spy record --full-filenames -F -n --format speedscope -o <path>.json --
+profiler: true

@@ -348,9 +348,19 @@ class Handler:
         for path in root.rglob("*"):
             if not path.is_dir(): 
                 
-                path_name = path.name.replace(".json", "")
+                path_name = ""
+                path_date = ""
+                if "nodes" not in path.name:
+                    tmp = path.name.replace(".json", "").split("-")
+                    path_name = tmp[0]
+                    
+                    if len(tmp) > 1:
+                        path_date = "-" + tmp[1]
+                
                 if path_name in self.__benchmarks:
                     
+                    self.logger.debug(f"full path {path}")
+                    self.logger.debug(f"date of file @ {path_date}")
                     self.logger.info(f"currently on {path_name}")
                     
                     benchmark = self.__benchmarks[path_name]
@@ -358,7 +368,7 @@ class Handler:
                     with open(path, "r") as file:
                         current = json.load(file)
                     
-                    location_nodes = Path(f"{root}/{path_name}-nodes.json")
+                    location_nodes = Path(f"{root.absolute()}/{path_name}{path_date}-nodes.json")
                     with open(location_nodes.absolute(), "r") as file:
                         used_nodes = json.load(file)
                     
@@ -391,12 +401,25 @@ class Handler:
 
                         count.update(list(itertools.chain.from_iterable(nodes)))
                         
+                        profile_path = Path(self.config["paths"]["path_profiling"])
+                        location_profiling = Path(f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json")
+                        
+                        profiling = None
+                        try:
+                            with open(location_profiling.absolute(), "r") as file:
+                                profiling = json.load(file)
+                            
+                            self.logger.debug(f"loads {location_profiling} for iteration {index}")
+                        except:
+                            pass
+                        
                         anomaly = False
                         if value >= mean + mean * rsd:
                             anomaly = True
                             
                         tmp = pd.DataFrame(data={
                                 "benchmark"         : benchmark["id"],
+                                "date run"          : path_date,
                                 "run config"        : [benchmark["run_config"]], 
                                 "time taken"        : value,
                                 "throughput"        : benchmark["total_filesize"] / mean,
@@ -422,6 +445,7 @@ class Handler:
                                 "node count"        : [count],
                                 "total node count"  : [Counter()],
                                 "total nc match"    : [Counter()],
+                                "profiling"         : [profiling]
                                 })
                     
                     
@@ -446,6 +470,4 @@ class Handler:
             
         self.logger.debug(df)
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True, ignore_index=True)
-        df.to_json(Path(f"{tmp}/results.json"))                                          
-
-        
+        df.to_json(Path(f"{tmp}/results.json"))
