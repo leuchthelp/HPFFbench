@@ -11,5 +11,6 @@ build
 components/results/
 components/tmp/
 components/build
+components/profiling
 environments
 components/visualize/res-before-13-10-2025

@@ -265,11 +265,6 @@ class Handler:
 
                 except KeyError as e:
                     raise e
-                
-                
-            use_path    = Path(self.config["paths"]["path_to_tmp"] )  # type: ignore
-            root_path   = Path(self.config["paths"]["path_to_root"] )  # type: ignore
-            results_path= Path(self.config["paths"]["path_to_results"])  # type: ignore
             
             
             # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
@@ -280,10 +275,6 @@ class Handler:
                     nodes = self.config["nodes"] if type(self.config["nodes"]) == list else [self.config["nodes"]] # type: ignore
                 except:
                     pass
-            
-            
-            var_to_bm   = self.config["variable_to_benchmark"]  # type: ignore
-            iterations  = self.config["iterations"]  # type: ignore
             
             spack_manager = []
             for manager in self.spack_manager:
@@ -308,19 +299,16 @@ class Handler:
                         handler_id=self.__id, 
                         run_config=run_config,
                         bm_config=bm_config,
+                        global_config=self.config,
                         nodes=node,
                         slurm_options=slurm_options,
                         requested=requested,
                         parallel=parallel, 
                         collective=state,
                         ranks=rank,
-                        var_to_bm=var_to_bm,
-                        iterations=iterations, 
-                        use_path=use_path, 
-                        root_path=root_path,
-                        results_path=results_path,
                         spack_manager=manager,
                         logger=self.logger,
+                        paths=self.config["paths"],
                         )
                 
                 self.__benchmarks.append((bm.id, asdict(bm))) # type: ignore
@@ -457,7 +445,7 @@ class Handler:
                     df.at[index,"total nc match"][nodes] = count  # type: ignore
             
         self.logger.debug(df)
-        df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True)
+        df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True, ignore_index=True)
         df.to_json(Path(f"{tmp}/results.json"))                                          
 
         

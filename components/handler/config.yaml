@@ -1,10 +1,7 @@
 formats:
 - hdf5
-- netcdf4
-- zarr
 languages:
 - py
-- c
 paths:
   path_to_benchmarks: components/benchmarks
   path_to_tmp: components/tmp
@@ -12,49 +9,14 @@ paths:
   path_to_visuals: components/visualize
   path_to_root: /work/ku0598/k203191/dkrz_dev
   path_to_results: components/results
+  path_profiling: components/profiling
 iterations: 5
 runs:
-  run04:
+  run03:
     X:
-    - - 1342177280
+    - - 134217728
     - []
-  run05:
-    X:
-    - - 2684354560
-    - []
-  run06:
-    X:
-    - - 4026531840
-    - []
-  run07:
-    X:
-    - - 5368709120
-    - []
-  run08:
-    X:
-    - - 6710886400
-    - []
-  run09:
-    X:
-    - - 8053063680
-    - []
-  run10:
-    X:
-    - - 9395240960
-    - []
-  run11:
-    X:
-    - - 10737418240
-    - []
-  run12:
-    X:
-    - - 12079595520
-    - []
-  run13:
-    X:
-    - - 13421772800
-    - []
-parallel: Both
+parallel: false
 par_backend: MPI
 ranks:
 - 8
@@ -66,7 +28,7 @@ nodes:
 - 1
 variable_to_benchmark:
 - X
-only data: true
+only data: false
 use spack env: true
 max processes: 20
 slurm options: '
@@ -137,7 +99,7 @@ spack env:
         versions:
         - 1.7.1
     compiler: gcc@11.2.0
-    additional: pip install zarr==3.0.5
+    additional: pip install zarr==3.0.5 py-spy
   test-env-async:
     target:
     - hdf5: async
@@ -180,3 +142,5 @@ spack env:
         - 1.7.1
     compiler: gcc@11.2.0
 delete envs: false
+profiler:
+  py: py-spy record --full-filenames -F -n --format speedscope -o <path>.json --

@@ -15,7 +15,8 @@ paths = {
     "path_to_config"    : "components/handler",
     "path_to_visuals"   : "components/visualize",
     "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
-    "path_to_results"   : "components/results",     
+    "path_to_results"   : "components/results", 
+    "path_profiling"    : "components/profiling",   
 }
    
 def main():
@@ -38,18 +39,18 @@ def main():
     tmp = {
             #"run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
             #"run02": {"X": [[1 * 134217728], [], "f8"]},
-            #"run03": {"X": [[1 * 134217728], []],},
+            "run03": {"X": [[1 * 134217728], []],},
         
-            "run04": {"X": [[10 * 134217728], []]},
-            "run05": {"X": [[20 * 134217728], []]},
-            "run06": {"X": [[30 * 134217728], []]},
-            "run07": {"X": [[40 * 134217728], []]},
-            "run08": {"X": [[50 * 134217728], []]},
-            "run09": {"X": [[60 * 134217728], []]},
-            "run10": {"X": [[70 * 134217728], []]},
-            "run11": {"X": [[80 * 134217728], []]},
-            "run12": {"X": [[90 * 134217728], []]},
-            "run13": {"X": [[100 * 134217728], []]},
+            #"run04": {"X": [[10 * 134217728], []]},
+            #"run05": {"X": [[20 * 134217728], []]},
+            #"run06": {"X": [[30 * 134217728], []]},
+            #"run07": {"X": [[40 * 134217728], []]},
+            #"run08": {"X": [[50 * 134217728], []]},
+            #"run09": {"X": [[60 * 134217728], []]},
+            #"run10": {"X": [[70 * 134217728], []]},
+            #"run11": {"X": [[80 * 134217728], []]},
+            #"run12": {"X": [[90 * 134217728], []]},
+            #"run13": {"X": [[100 * 134217728], []]},
     }
     
     slurm_options = """
@@ -103,7 +104,7 @@ def main():
                             },
             },
             "compiler": "gcc@11.2.0",
-            "additional": "pip install zarr==3.0.5"
+            "additional": "pip install zarr==3.0.5 py-spy"
             },
         
         "test-env-async" : {
@@ -149,29 +150,30 @@ def main():
     }
     
     new_setup = {
-        "formats"               : ["hdf5", "netcdf4", "zarr"],
-        #"formats"               : ["hdf5"],
-        "languages"             : ["py", "c"],
+        #"formats"               : ["hdf5", "netcdf4", "zarr"],
+        "formats"               : ["hdf5"],
+        "languages"             : ["py"],
         "paths"                 : paths,
         "iterations"            : 5,
         "runs"                  : tmp,
-        "parallel"              : "Both",
+        "parallel"              : False,
         "par_backend"           : "MPI",
         "ranks"                 : [8, 16, 32, 64, 128],
         "nodes"                 : [1],
         "variable_to_benchmark" : ["X"],
-        "only data"             : True,
+        "only data"             : False,
         "use spack env"         : True,
         "max processes"         : 20,
         "slurm options"         : slurm_options,
         "spack env"             : spack_envs,
         "delete envs"           : False,
+        "profiler"              : {"py": "py-spy record --full-filenames -F -n --format speedscope -o <path>.json --"},
     }
     
     with open(f"{path_to_config}/config.yaml", "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
     
     
