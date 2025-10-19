@@ -10,16 +10,16 @@ paths:
   path_to_root: /work/ku0598/k203191/dkrz_dev
   path_to_results: components/results
   path_profiling: components/profiling
-iterations: 2
+iterations: 5
 runs:
   run03:
     X:
     - - 134217728
     - []
-parallel: true
+parallel: false
 par_backend: MPI
 ranks:
-- 1
+- 8
 nodes:
 - 1
 variable_to_benchmark:
@@ -138,4 +138,3 @@ spack env:
         - 1.7.1
     compiler: gcc@11.2.0
 delete envs: false
-profiler: true

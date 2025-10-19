@@ -6,8 +6,8 @@ format: hdf5
 create_command: 
     serial     : python {runnable}
     MPI        : mpiexec -n python {runnable}
-    profile    : py-spy record --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
-    profile-MPI: mpiexec -n py-spy record --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
+    profile    : py-spy record --rate 100 --format speedscope -o <profile_path>.json -- python {runnable}
+    profile-MPI: mpiexec -n py-spy record --rate 100 --format speedscope -o <profile_path>.json -- python {runnable}
 create: |
     from func import datastruct as ds
     from dev_utils import bcolors as color
@@ -32,8 +32,8 @@ create: |
 run_command:  
     serial     : python {runnable} -v
     MPI        : mpiexec -n python {runnable} -v
-    profile    : py-spy record --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
-    profile-MPI: mpiexec -n py-spy record --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+    profile    : py-spy record --rate 100 --gil --idle --native --threads --function --subprocesses --format speedscope -o <profile_path>.json -- python {runnable} -v
+    profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
 source: | 
     from func import datastruct as ds
     import argparse

@@ -3,7 +3,7 @@ from dev_utils import bcolors
 from benchmarkmanager import BenchmarkManager
 from spackmanager import SpackManager
 from pathlib import Path
-from pathos.pools import _ProcessPool as ProcessPool
+from pathos.pools import ProcessPool
 from copy import deepcopy
 from collections import Counter
 import pandas as pd
@@ -71,10 +71,6 @@ class Handler:
         except:
             self.__max_processes = None
             
-        try:
-            self.__bm_per_processes = self.config["bm per process"]  # type: ignore
-        except:
-            self.__bm_per_processes = 1
         
         parallel = False
         try:
@@ -322,7 +318,7 @@ class Handler:
             self.__benchmarks = []
             bm_list = list(itertools.chain.from_iterable(self.__tasks))
             pool = ProcessPool(processes=self.__max_processes)
-            for result in tqdm.tqdm(pool.imap_unordered(self.__run_benchmark, bm_list, chunksize=self.__bm_per_processes), total=len(bm_list), unit="benchmarks", colour="green", file=sys.stdout, desc="Benchmarks still to run"):
+            for result in tqdm.tqdm(pool.uimap(self.__run_benchmark, bm_list), total=len(bm_list), unit="benchmarks", colour="green", file=sys.stdout, desc="Benchmarks still to run"):
                 self.__benchmarks.append(result)
             
             if self.__delete_envs == True: 
