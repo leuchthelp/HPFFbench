@@ -16,7 +16,7 @@ runs:
     X:
     - - 134217728
     - []
-parallel: false
+parallel: true
 par_backend: MPI
 ranks:
 - 8

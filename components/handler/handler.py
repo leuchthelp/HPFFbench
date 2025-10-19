@@ -6,6 +6,7 @@ from pathlib import Path
 from pathos.pools import ProcessPool
 from copy import deepcopy
 from collections import Counter
+from sklearn.neighbors import LocalOutlierFactor
 import pandas as pd
 import numpy as np
 import itertools
@@ -409,9 +410,32 @@ class Handler:
                         except:
                             pass
                         
+                        
                         anomaly = False
-                        if value >= mean + mean * rsd:
+                        
+                        clusters = []
+                        eps = 0.12
+                        points_sorted = sorted(current)
+                        curr_point = points_sorted[0]
+                        curr_cluster = [curr_point]
+                        
+                        for point in points_sorted[1:]:
+                            if point <= curr_point + curr_point * eps:
+                                curr_cluster.append(point)
+                            else:
+                                clusters.append(curr_cluster)
+                                curr_cluster = [point]
+                            curr_point = point
+                            
+                        clusters.append(curr_cluster)
+
+                        
+                        if value not in clusters[0]:
                             anomaly = True
+                            
+                        self.logger.debug(f"clusters: {clusters}, value: {value}, anomaly: {anomaly}")
+                            
+                        
                             
                         tmp = pd.DataFrame(data={
                                 "benchmark"         : benchmark["id"],
