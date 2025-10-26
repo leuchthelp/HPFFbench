@@ -58,15 +58,15 @@ def main():
             "target"    : ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
             "language"  : ["py", "c"],
             "packages"  : {
-                "python": {"versions" : ["3.11.9"],
+                "python": {"versions" : ["3.11"],
                            "fresh"    : True
                             },
                 
-                "openmpi": {"versions" : ["5.0.5"],
+                "openmpi": {"versions" : ["5.0.8"],
                             "fresh"    : True
                             },
                 
-                "hdf5": {"versions" : ["1.14.5"],
+                "hdf5": {"versions" : ["1.14.6"],
                          "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
                          "fresh"    : True
                          },
@@ -89,7 +89,7 @@ def main():
                 "py-netcdf4": {"versions" : ["1.7.1"],
                             },
             },
-            "compiler": "gcc@11.4.0",
+            "compiler": "gcc@13",
             "additional": "pip install zarr==3.0.5 py-spy",
             "install": True
             },
@@ -98,11 +98,11 @@ def main():
             "target"    : [{"hdf5": "async"}],
             "language"  : ["c"],
             "packages"  : {
-                "python": {"versions" : ["3.11.9"],
+                "python": {"versions" : ["3.11"],
                            "fresh"    : True
                             },
                 
-                "openmpi": {"versions" : ["5.0.5"],
+                "openmpi": {"versions" : ["5.0.8"],
                             "fresh"    : True
                             },
                 
@@ -132,7 +132,7 @@ def main():
                 "py-netcdf4": {"versions" : ["1.7.1"],
                             },
             },
-            "compiler": "gcc@11.4.0",
+            "compiler": "gcc@13",
             "install": True
             }
     }
