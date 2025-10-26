@@ -6,7 +6,6 @@ from pathlib import Path
 from pathos.pools import ProcessPool
 from copy import deepcopy
 from collections import Counter
-from sklearn.neighbors import LocalOutlierFactor
 import pandas as pd
 import numpy as np
 import itertools
@@ -85,7 +84,7 @@ class Handler:
         
         self.spack_manager = []
         for env_name, spack_env in self.config["spack env"].items():
-            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env, only_data=self.__only_data, logger=self.logger))
+            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env, only_data=self.__only_data, paths=self.config["paths"], logger=self.logger))
         
         
         if parallel == "Both":

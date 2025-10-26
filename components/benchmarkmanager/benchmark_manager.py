@@ -214,7 +214,6 @@ class BenchmarkManager:
         self.use_path       = Path(paths["path_to_tmp"])
         self.root_path      = Path(paths["path_to_root"])
         self.results_path   = Path(paths["path_to_results"])
-        self.profiling_path = Path(paths["path_profiling"]) 
         self.dir_path       = Path(f"{self.use_path}/{str(self.id)}")
         
         
@@ -236,13 +235,14 @@ class BenchmarkManager:
         
         # Environment config
         self.__checkpoint   = yaml
-        self.__node         = int
-        self.__node_info    = yaml
         self.__profiler     = False
         try:
             self.__profiler = self.global_config["profiler"]
         except:
             pass
+        
+        if self.__profiler == True:
+            self.profiling_path = Path(paths["path_profiling"]) 
         
         self.logger.info(bcolors.OKBLUE +  
                         f"Managing Benchmark with; file-structure: {run_config}, "
@@ -359,7 +359,10 @@ class BenchmarkManager:
                 create_command = create_command + f"-I {self.collective}"
 
 
-        create_command = create_command.replace("<profile_path>", f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}", count=1)
+        if self.__profiler == True:
+            create_command = create_command.replace("<profile_path>", f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}", count=1)
+        
+
         create_command = create_command.replace("{runnable}", f"{create_file} ", count=1)
         create_command = create_command.replace(" -p", f" -p {self.parallel} ", count=1)
         
@@ -1156,7 +1159,10 @@ int main(int argc, char *argv[])
             self.slurm_options = self.slurm_options.replace("#SBATCH --nodes=", "#")
             self.slurm_options = self.slurm_options.replace("#SBATCH --job-name=", "#")
             
-            self.slurm_options = self.slurm_options + f"#SBATCH --job-name={self.format.replace(" ", "")}-{self.total_filesize}{self.unit}-{str(self.run_config).replace(" ", "")}\n"
+            if "#SBATCH --wait" not in self.slurm_options:
+                self.slurm_options = self.slurm_options + "#SBATCH --wait\n"
+            
+            self.slurm_options = self.slurm_options + f"#SBATCH --job-name={self.format.replace(' ', '')}-{self.total_filesize}{self.unit}-{str(self.run_config).replace(' ', '')}\n"
 
             if "#SBATCH --nodes=" not in self.slurm_options:
                 self.slurm_options = self.slurm_options + f"#SBATCH --nodes={self.nodes}\n"
@@ -1176,6 +1182,9 @@ ls -lh
 
 #sbcast -f "$bin" /tmp/bin
 #export $bin="/tmp/bin"
+
+. {self.root_path}/spack/share/spack/setup-env.sh
+. $(spack location -i lmod)/lmod/lmod/init/profile
 
 source {self.spack_manager.env_location.absolute()}/.venv/bin/activate
 

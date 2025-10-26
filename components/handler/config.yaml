@@ -7,19 +7,22 @@ paths:
   path_to_tmp: components/tmp
   path_to_config: components/handler
   path_to_visuals: components/visualize
-  path_to_root: /work/ku0598/k203191/dkrz_dev
+  path_to_root: /home/dev/hpffbench
   path_to_results: components/results
-  path_profiling: components/profiling
 iterations: 5
 runs:
   run03:
     X:
     - - 134217728
     - []
-parallel: true
+parallel: false
 par_backend: MPI
 ranks:
 - 8
+- 16
+- 32
+- 64
+- 128
 nodes:
 - 1
 variable_to_benchmark:
@@ -94,8 +97,9 @@ spack env:
       py-netcdf4:
         versions:
         - 1.7.1
-    compiler: gcc@11.2.0
+    compiler: gcc@11.4.0
     additional: pip install zarr==3.0.5 py-spy
+    install: true
   test-env-async:
     target:
     - hdf5: async
@@ -136,5 +140,6 @@ spack env:
       py-netcdf4:
         versions:
         - 1.7.1
-    compiler: gcc@11.2.0
+    compiler: gcc@11.4.0
+    install: true
 delete envs: false

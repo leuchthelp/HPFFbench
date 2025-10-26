@@ -27,9 +27,9 @@ class SpackManager:
                  env_name       : str,
                  spack_env      : dict,
                  use_spack_env  : bool,
+                 paths          : dict,
                  logger         : logging.Logger,
                  only_data      = False,
-                 install        = False,
                  ):
         
         self.logger         = logger
@@ -39,12 +39,13 @@ class SpackManager:
         self.env_name       = env_name
         self.__use_spack_env= use_spack_env
         self.__only_data    = only_data
-        self.install        = install
+        self.__root_path    = paths["path_to_root"]
         
         self.compiler       = self.spack_env["compiler"]
         self.target         = self.spack_env["target"]
         self.language       = self.spack_env["language"]
         self.packages       = self.spack_env["packages"]
+        self.install        = self.spack_env["install"]
         self.package_locations = {}
         self.python_version = "python"
         
@@ -71,9 +72,29 @@ class SpackManager:
             if "variants" in info:
                 variants = info["variants"] if type(info["variants"]) != str else [info["variants"]]
 
+
             combinations = list(itertools.product(*[versions, variants, [self.compiler]]))
             
             self.loadables[name] = combinations
+            
+            self.logger.debug(f"install: {self.install}")
+            if self.install == True:
+                
+                fresh = ""
+                if "fresh" in info:
+                    fresh = "--fresh "
+                
+                file = open(f"{self.env_location.absolute()}/install.sh", "w")
+                file.write("#!/bin/bash\n")
+                file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
+                
+                self.__install(file=file, combinations=list(combinations), package_name=name, fresh=fresh)
+                
+                p = subprocess.run(["bash", f"{self.env_location.absolute()}/install.sh"], check=True, capture_output=True)
+                self.logger.debug(p.stdout)
+                self.logger.error(p.stderr)
+                
                 
             for combination in combinations:
                 package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
@@ -82,7 +103,13 @@ class SpackManager:
                     self.python_version = package
                 
                 if self.__only_data == False:
-                    p = subprocess.run(f"spack location -i {package}".split(), text=True, check=True, capture_output=True)
+                    file = open(f"{self.env_location.absolute()}/check-location.sh", "w")
+                    file.write("#!/bin/bash\n")
+                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                    file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
+                    file.write(f"spack location -i {package}\n")
+                    
+                    p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, check=True, capture_output=True)
                     self.package_locations[name] = (f"{package}", p.stdout.rstrip())
         
         
@@ -92,20 +119,14 @@ class SpackManager:
 
     def initialize_env(self):
         with open(self.file_location, "w") as file:
-            file.write(f"#!/bin/bash \n")
+            file.write("#!/bin/bash\n")
+            file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh")
+            file.write(". $(spack location -i lmod)/lmod/lmod/init/profile")
             
             first = True
-            for index, (name, info) in enumerate(self.packages.items()):
+            for index, (name, _) in enumerate(self.packages.items()):
 
                 combinations = self.loadables[name]
-
-                if self.install == True:
-
-                    fresh = ""
-                    if "fresh" in info:
-                        fresh = "--fresh "
-
-                    self.__install(file=file, combinations=list(combinations), package_name=name, fresh=fresh)
 
                 if first == True:
                     file.write(f"spack env create {self.env_name}\n")
@@ -136,9 +157,6 @@ class SpackManager:
         
         if self.__use_spack_env == True:
             p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            #import sys
-            #for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
-            #    sys.stdout.buffer.write(line)
             p.wait()
             self.logger.debug(p.stderr)
             self.logger.error(p.stderr)
@@ -188,6 +206,8 @@ class SpackManager:
         if self.initialized == True:
             with open(self.file_location, "w") as file:
                 file.write("#!/bin/bash  \n")
+                file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh")
+                file.write(". $(spack location -i lmod)/lmod/lmod/init/profile")
                 file.write(f"spack env activate {self.env_name} -p \n")   
                 file.write(f"spack remove --all \n")   
                 file.write(f"spack env deactivate\n")    

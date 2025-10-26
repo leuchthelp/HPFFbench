@@ -4,6 +4,8 @@
 *.nc
 *.zarr
 *.config
+*.pyc
+*.cpython-311.pyc
 *.Identifier
 .idea/
 .venv/
@@ -14,3 +16,4 @@ components/build
 components/profiling
 environments
 components/visualize/res-before-13-10-2025
+spack
