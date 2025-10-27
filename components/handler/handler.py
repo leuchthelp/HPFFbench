@@ -14,7 +14,7 @@ import json
 import hashlib
 import tqdm
 import sys
-import os
+import subprocess
 import logging
 
 @dataclass
@@ -46,6 +46,17 @@ class Handler:
         self.__delete_envs = True
         try:
             self.__delete_envs = self.config["delete envs"]
+        except:
+            pass
+        
+        
+        self.slurm_avail    = False
+        try:
+            p = subprocess.run("sinfo", check=True)
+            self.logger.debug("Check if slurm is available")
+            self.logger.debug(p.stdout)
+            self.logger.error(p.stderr)
+            self.slurm_avail = True
         except:
             pass
         
@@ -264,7 +275,7 @@ class Handler:
             
             
             # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
-            if  "SLURM_JOB_ID" in os.environ or self.__only_data == True:
+            if  self.slurm_avail == True or self.__only_data == True:
                 slurm_options= self.config["slurm options"]  # type: ignore
                 
                 try:

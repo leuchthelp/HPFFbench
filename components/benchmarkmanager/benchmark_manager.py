@@ -7,7 +7,6 @@ import shutil
 import yaml
 import hashlib
 import subprocess
-import os
 import re
 import logging
 
@@ -235,6 +234,19 @@ class BenchmarkManager:
         
         # Environment config
         self.__checkpoint   = yaml
+        
+        self.slurm_avail    = False
+        
+        try:
+            p = subprocess.run("sinfo", check=True)
+            self.logger.debug("Check if slurm is available")
+            self.logger.debug(p.stdout)
+            self.logger.error(p.stderr)
+            self.slurm_avail = True
+        except:
+            pass
+            
+        
         self.__profiler     = False
         try:
             self.__profiler = self.global_config["profiler"]
@@ -399,7 +411,7 @@ class BenchmarkManager:
         create_command = self.__append_flag(flag="-D", command=create_command, data=datatypes)
         
 
-        if  "SLURM_JOB_ID" in os.environ and self.local == False:
+        if  self.slurm_avail == True and self.local == False:
             create_command = ["sbatch", self.__assemble_bash(path=self.bash_location, compile_file_info=compiled_file_info), create_command] # type: ignore
         else: 
             create_command = ["bash", self.__assemble_bash(path=self.bash_location, compile_file_info=compiled_file_info), create_command]
@@ -540,7 +552,7 @@ class BenchmarkManager:
             run_command = run_command + f"-s {sum([sum(x) for x in size])}"
 
 
-        if  "SLURM_JOB_ID" in os.environ and self.local is False:
+        if  self.slurm_avail == True and self.local is False:
             run_command = ["sbatch", self.__assemble_bash(self.bash_location, compile_file_info=compiled_file_info), run_command] # type: ignore
         else:
             run_command = ["bash", self.__assemble_bash(self.bash_location, compile_file_info=compiled_file_info), run_command]
@@ -558,7 +570,7 @@ class BenchmarkManager:
                 self.logger.debug(f"Run command with profiler {run_command}")
                 
                 
-            if  "SLURM_JOB_ID" in os.environ and self.local == False:
+            if  self.slurm_avail == True and self.local == False:
                 p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path, check=True)
                 self.logger.error(p.stderr)
                 self.logger.info(p.stdout)
@@ -1159,7 +1171,7 @@ int main(int argc, char *argv[])
     def __assemble_bash(self, path: str, compile_file_info: tuple):
         
         
-        if  "SLURM_JOB_ID" in os.environ and self.local is False:
+        if  self.slurm_avail == True and self.local is False:
             self.slurm_options = self.slurm_options.replace("#SBATCH --nodes=", "#")
             self.slurm_options = self.slurm_options.replace("#SBATCH --job-name=", "#")
             
