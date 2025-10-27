@@ -397,11 +397,11 @@ class Handler:
 
                         count.update(list(itertools.chain.from_iterable(nodes)))
                         
-                        profile_path = Path(self.config["paths"]["path_profiling"])
-                        location_profiling = Path(f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json")
-                        
                         profiling = None
                         try:
+                            profile_path = Path(self.config["paths"]["path_profiling"])
+                            location_profiling = Path(f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json")
+                            
                             with open(location_profiling.absolute(), "r") as file:
                                 profiling = json.load(file)
                             

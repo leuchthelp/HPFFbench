@@ -353,18 +353,18 @@ class BenchmarkManager:
         
         if self.par_backend != None:
             create_command = create_command + " -p"
-            create_command = create_command.replace(" -n ", f" -n {self.ranks} ", count=1)
+            create_command = create_command.replace(" -n ", f" -n {self.ranks} ", 1)
 
             if self.collective == True:
                 create_command = create_command + f"-I {self.collective}"
 
 
         if self.__profiler == True:
-            create_command = create_command.replace("<profile_path>", f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}", count=1)
+            create_command = create_command.replace("<profile_path>", f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}", 1)
         
 
-        create_command = create_command.replace("{runnable}", f"{create_file} ", count=1)
-        create_command = create_command.replace(" -p", f" -p {self.parallel} ", count=1)
+        create_command = create_command.replace("{runnable}", f"{create_file} ", 1)
+        create_command = create_command.replace(" -p", f" -p {self.parallel} ", 1)
         
         
         if "-c" not in create_command:
@@ -374,7 +374,7 @@ class BenchmarkManager:
         if "-l" not in create_command:
             create_command = create_command + " -l"
                 
-        create_command = create_command.replace(" -l", f" -l {self.location}", count=1)
+        create_command = create_command.replace(" -l", f" -l {self.location}")
         
         
         # Transform run config into 4 lists; variables (list(string)), shape (list(list(int))), chunks (list(list(int))) & datatypes (list(string)) 
@@ -383,7 +383,7 @@ class BenchmarkManager:
             create_command = create_command + f" {flag_variable}"
         
         variables = ",".join(list(self.run_config.keys()))
-        create_command = create_command.replace(f"{flag_variable}", f"{flag_variable} {variables}", count=1)
+        create_command = create_command.replace(f"{flag_variable}", f"{flag_variable} {variables}")
         
         values = list(self.run_config.values())
         shapes = []
@@ -415,7 +415,7 @@ class BenchmarkManager:
             command = command + f" {flag}"
             
         data_str = ",".join(str(x) for x in data)
-        command = command.replace(f"{flag}", f"{flag} {data_str}", count=1)
+        command = command.replace(f"{flag}", f"{flag} {data_str}")
         
         return command
     
@@ -430,7 +430,7 @@ class BenchmarkManager:
         ld_library_path = "export LD_LIBRARY_PATH="
         for package in requested_packages:
             package_location = self.spack_manager.package_locations[package][1]
-            compile_command = compile_command.replace(f"<{package}>", f"-I{package_location}/include -L{package_location}/lib -L{package_location}/lib64", count=1)
+            compile_command = compile_command.replace(f"<{package}>", f"-I{package_location}/include -L{package_location}/lib -L{package_location}/lib64", 1)
             ld_library_path = ld_library_path + f"{package_location}/lib:{package_location}/lib64:"
             
         
@@ -478,7 +478,7 @@ class BenchmarkManager:
         
         
         # Create the executable to run the benchmark on a given file with
-        execute = self.src.replace("#MAIN", self.__replace_main(self.language))
+        execute = self.src.replace("#MAIN", self.__replace_main(self.language), 1)
         
         path_to_tmp_file = Path(f"{self.dir_path}/execute.{self.language}")
         with open(path_to_tmp_file, "w") as file:
@@ -507,15 +507,15 @@ class BenchmarkManager:
         
         if self.par_backend != None:
             run_command = run_command + " -p"
-            run_command = run_command.replace(" -n ", f" -n {self.ranks} ", count=1)
+            run_command = run_command.replace(" -n ", f" -n {self.ranks} ", 1)
 
             if self.collective == True:
                 run_command = run_command + f"-I {self.collective}"
 
         
-        run_command = run_command.replace("{runnable}", f"{tmp_file} ", count=1)
-        run_command = run_command.replace(" -i", f" -i {self.internal_i} ", count=1)
-        run_command = run_command.replace(" -p", f" -p {self.parallel} ", count=1)
+        run_command = run_command.replace("{runnable}", f"{tmp_file} ", 1)
+        run_command = run_command.replace(" -i", f" -i {self.internal_i} ", 1)
+        run_command = run_command.replace(" -p", f" -p {self.parallel} ", 1)
         
         
         if "-b" not in run_command:
@@ -528,7 +528,7 @@ class BenchmarkManager:
         if "-v" not in run_command:
             run_command = run_command + "-v"
             
-        run_command = run_command.replace(" -v", f" -v {vars_to_bm} ", count=1)
+        run_command = run_command.replace(" -v", f" -v {vars_to_bm} ", 1)
         
 
         if self.language == "c":
@@ -1144,14 +1144,15 @@ int main(int argc, char *argv[])
             save_string_list_to_json(nodes, "<nodes-path>.json", iterations);
         }
 """               
+                
                 if self.parallel == True and self.par_backend == "MPI":
-                    tmp = tmp.replace("//MPI_FINALIZE", "MPI_Finalize();", count=1)
-                    tmp = tmp.replace("<result-collection>", case_mpi, count=1)
+                    tmp = tmp.replace("//MPI_FINALIZE", "MPI_Finalize();", 1)
+                    tmp = tmp.replace("<result-collection>", case_mpi, 1)
                 else:
-                    tmp = tmp.replace("<result-collection>", case_serial, count=1)
+                    tmp = tmp.replace("<result-collection>", case_serial, 1)
     
-                tmp = tmp.replace("<result-path>", f"{self.results_path.absolute()}/{self.id}-{self.current_time}", count=1)
-                tmp = tmp.replace("<nodes-path>", f"{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes", count=1)
+                tmp = tmp.replace("<result-path>", f"{self.results_path.absolute()}/{self.id}-{self.current_time}", 1)
+                tmp = tmp.replace("<nodes-path>", f"{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes", 1)
                 return tmp
            
 
@@ -1190,9 +1191,9 @@ module load git
 . {self.root_path}/spack/share/spack/setup-env.sh
 . $(spack location -i lmod)/lmod/lmod/init/profile
 
-source {self.spack_manager.env_location.absolute()}/.venv/bin/activate
-
 {self.spack_manager.load_env()}
+
+source {self.spack_manager.env_location.absolute()}/.venv/bin/activate
 
 {compile_file_info[1]}
 

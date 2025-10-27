@@ -58,7 +58,7 @@ def main():
             "target"    : ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
             "language"  : ["py", "c"],
             "packages"  : {
-                "python": {"versions" : ["3.11"],
+                "python": {"versions" : ["3.11.14"],
                            "fresh"    : True
                             },
                 
@@ -68,7 +68,6 @@ def main():
                 
                 "hdf5": {"versions" : ["1.14.6"],
                          "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
-                         "fresh"    : True
                          },
                 
                 "argobots": {"versions" : ["main"],
@@ -77,13 +76,12 @@ def main():
                 
                 "netcdf-c": {"versions" : ["4.9.2"],
                              "variants" : "build_system=cmake",
-                             "fresh"    : True
                             },
                 
                 "py-mpi4py": {"versions" : ["4.0.1"],
                             },
                 
-                "py-h5py": {"versions" : ["3.12.1"],
+                "py-h5py": {"versions" : ["3.14.0"],
                             },
                 
                 "py-netcdf4": {"versions" : ["1.7.1"],
@@ -91,24 +89,22 @@ def main():
             },
             "compiler": "gcc@13",
             "additional": "pip install zarr==3.0.5 py-spy",
-            "install": True
+            #"install": True
             },
         
         "test-env-async" : {
             "target"    : [{"hdf5": "async"}],
             "language"  : ["c"],
             "packages"  : {
-                "python": {"versions" : ["3.11"],
+                "python": {"versions" : ["3.11.14"],
                            "fresh"    : True
                             },
                 
                 "openmpi": {"versions" : ["5.0.8"],
-                            "fresh"    : True
                             },
                 
-                "hdf5": {"versions" : ["1.14.5"],
+                "hdf5": {"versions" : ["1.14.6"],
                          "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
-                         "fresh"    : True
                          },
                 
                 "hdf5-vol-async": {"versions" : ["develop"],
@@ -120,20 +116,19 @@ def main():
                 
                 "netcdf-c": {"versions" : ["4.9.2"],
                              "variants" : "build_system=cmake",
-                             "fresh"    : True
                             },
                 
                 "py-mpi4py": {"versions" : ["4.0.1"],
                             },
                 
-                "py-h5py": {"versions" : ["3.12.1"],
+                "py-h5py": {"versions" : ["3.14.0"],
                             },
                 
                 "py-netcdf4": {"versions" : ["1.7.1"],
                             },
             },
             "compiler": "gcc@13",
-            "install": True
+            #"install": True
             }
     }
     
@@ -142,7 +137,7 @@ def main():
         "formats"               : ["hdf5"],
         "languages"             : ["py"],
         "paths"                 : paths,
-        "iterations"            : 5,
+        "iterations"            : 1,
         "runs"                  : tmp,
         "parallel"              : False,
         "par_backend"           : "MPI",

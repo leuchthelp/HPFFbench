@@ -1,1 +1,1 @@
-from func.datastruct import Datastruct
+from .datastruct import Datastruct

@@ -9,7 +9,7 @@ paths:
   path_to_visuals: components/visualize
   path_to_root: /work/ku0598/k203191/hpffbench
   path_to_results: components/results
-iterations: 5
+iterations: 1
 runs:
   run03:
     X:
@@ -68,7 +68,7 @@ spack env:
     packages:
       python:
         versions:
-        - '3.11'
+        - 3.11.14
         fresh: true
       openmpi:
         versions:
@@ -78,7 +78,6 @@ spack env:
         versions:
         - 1.14.6
         variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
-        fresh: true
       argobots:
         versions:
         - main
@@ -87,19 +86,17 @@ spack env:
         versions:
         - 4.9.2
         variants: build_system=cmake
-        fresh: true
       py-mpi4py:
         versions:
         - 4.0.1
       py-h5py:
         versions:
-        - 3.12.1
+        - 3.14.0
       py-netcdf4:
         versions:
         - 1.7.1
     compiler: gcc@13
     additional: pip install zarr==3.0.5 py-spy
-    install: true
   test-env-async:
     target:
     - hdf5: async
@@ -108,17 +105,15 @@ spack env:
     packages:
       python:
         versions:
-        - '3.11'
+        - 3.11.14
         fresh: true
       openmpi:
         versions:
         - 5.0.8
-        fresh: true
       hdf5:
         versions:
-        - 1.14.5
+        - 1.14.6
         variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
-        fresh: true
       hdf5-vol-async:
         versions:
         - develop
@@ -130,16 +125,14 @@ spack env:
         versions:
         - 4.9.2
         variants: build_system=cmake
-        fresh: true
       py-mpi4py:
         versions:
         - 4.0.1
       py-h5py:
         versions:
-        - 3.12.1
+        - 3.14.0
       py-netcdf4:
         versions:
         - 1.7.1
     compiler: gcc@13
-    install: true
 delete envs: false
