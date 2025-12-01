@@ -52,7 +52,7 @@ class Handler:
         
         self.slurm_avail    = False
         try:
-            p = subprocess.run("sinfo", check=True)
+            p = subprocess.run("sinfo", check=True, capture_output=True, text=True)
             self.logger.debug("Check if slurm is available")
             self.logger.debug(p.stdout)
             self.logger.error(p.stderr)

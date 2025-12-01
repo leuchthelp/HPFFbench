@@ -28,8 +28,6 @@ use spack env: true
 max processes: 20
 slurm options: '
 
-  #SBATCH --wait
-
   #SBATCH --partition=compute
 
   #SBATCH --account=ku0598

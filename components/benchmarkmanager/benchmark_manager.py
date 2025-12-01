@@ -184,7 +184,7 @@ class BenchmarkManager:
         self.iterations     = self.global_config["iterations"]
         self.internal_i     = 1
         self.no_caching     = False
-        self.local          = True
+        self.local          = False
         
         
         # Assemble ID
@@ -1166,6 +1166,8 @@ int main(int argc, char *argv[])
             
             if "#SBATCH --wait" not in self.slurm_options:
                 self.slurm_options = self.slurm_options + "#SBATCH --wait\n"
+                
+            self.slurm_options = self.slurm_options + f"#SBATCH --ntasks={self.ranks}\n"
             
             self.slurm_options = self.slurm_options + f"#SBATCH --job-name={self.format.replace(' ', '')}-{self.total_filesize}{self.unit}-{str(self.run_config).replace(' ', '')}\n"
 
@@ -1226,5 +1228,5 @@ spack env deactivate
 """
 )
             
-            return bash_location
+        return bash_location
         
