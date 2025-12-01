@@ -9,20 +9,16 @@ paths:
   path_to_visuals: components/visualize
   path_to_root: /work/ku0598/k203191/hpffbench
   path_to_results: components/results
-iterations: 1
+iterations: 2
 runs:
-  run03:
+  run04:
     X:
-    - - 134217728
+    - - 1342177280
     - []
-parallel: false
+parallel: true
 par_backend: MPI
 ranks:
-- 8
-- 16
-- 32
-- 64
-- 128
+- 5
 nodes:
 - 1
 variable_to_benchmark:

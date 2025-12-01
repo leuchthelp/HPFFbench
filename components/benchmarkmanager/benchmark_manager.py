@@ -110,6 +110,7 @@ class BenchmarkManager:
                  bm_config      : dict,
                  global_config  : dict,
                  nodes          : int,
+                 slurm_avail    : bool,
                  slurm_options  : str,
                  parallel       : bool,
                  collective     : None | bool, 
@@ -128,6 +129,7 @@ class BenchmarkManager:
         self.bm_config      = bm_config
         self.global_config  = global_config
         self.bash_location  = "slurm-config"
+        self.slurm_avail    = slurm_avail
         self.slurm_options  = slurm_options
         self.spack_manager  = spack_manager
         
@@ -182,7 +184,7 @@ class BenchmarkManager:
         self.iterations     = self.global_config["iterations"]
         self.internal_i     = 1
         self.no_caching     = False
-        self.local          = False
+        self.local          = True
         
         
         # Assemble ID
@@ -234,19 +236,7 @@ class BenchmarkManager:
         
         # Environment config
         self.__checkpoint   = yaml
-        
-        self.slurm_avail    = False
-        
-        try:
-            p = subprocess.run("sinfo", check=True)
-            self.logger.debug("Check if slurm is available")
-            self.logger.debug(p.stdout)
-            self.logger.error(p.stderr)
-            self.slurm_avail = True
-        except:
-            pass
             
-        
         self.__profiler     = False
         try:
             self.__profiler = self.global_config["profiler"]
@@ -1170,7 +1160,6 @@ int main(int argc, char *argv[])
 
     def __assemble_bash(self, path: str, compile_file_info: tuple):
         
-        
         if  self.slurm_avail == True and self.local is False:
             self.slurm_options = self.slurm_options.replace("#SBATCH --nodes=", "#")
             self.slurm_options = self.slurm_options.replace("#SBATCH --job-name=", "#")
@@ -1188,8 +1177,10 @@ int main(int argc, char *argv[])
             
             
         bash_location = f"{path}.sh"
-        with open(Path(f"{self.dir_path}/{bash_location}"), "w") as file:
-            file.write(f"""#!/bin/bash
+        
+        if not Path(f"{self.dir_path}/{bash_location}").exists():
+            with open(Path(f"{self.dir_path}/{bash_location}"), "w") as file:
+                file.write(f"""#!/bin/bash
 
 {self.slurm_options}
                        

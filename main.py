@@ -24,10 +24,10 @@ def main():
     tmp = {
             #"run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
             #"run02": {"X": [[1 * 134217728], [], "f8"]},
-            "run03": {"X": [[1 * 134217728], []],},
+            #"run03": {"X": [[1 * 134217728], []],},
             #"run03": {"X": [[5 * 134217728], []],},
         
-            #"run04": {"X": [[10 * 134217728], []]},
+            "run04": {"X": [[10 * 134217728], []]},
             #"run05": {"X": [[20 * 134217728], []]},
             #"run06": {"X": [[30 * 134217728], []]},
             #"run07": {"X": [[40 * 134217728], []]},
@@ -40,7 +40,6 @@ def main():
     }
     
     slurm_options = """
-#SBATCH --wait
 #SBATCH --partition=compute
 #SBATCH --account=ku0598
 #SBATCH --constraint="[cell02]"
@@ -137,11 +136,11 @@ def main():
         "formats"               : ["hdf5"],
         "languages"             : ["py"],
         "paths"                 : paths,
-        "iterations"            : 1,
+        "iterations"            : 2,
         "runs"                  : tmp,
-        "parallel"              : False,
+        "parallel"              : True,
         "par_backend"           : "MPI",
-        "ranks"                 : [8, 16, 32, 64, 128],
+        "ranks"                 : [5],
         "nodes"                 : [1],
         "variable_to_benchmark" : ["X"],
         "only data"             : False,

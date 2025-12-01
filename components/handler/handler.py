@@ -308,6 +308,7 @@ class Handler:
                         bm_config=bm_config,
                         global_config=self.config,
                         nodes=node,
+                        slurm_avail=self.slurm_avail,
                         slurm_options=slurm_options,
                         requested=requested,
                         parallel=parallel, 
