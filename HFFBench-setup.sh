@@ -5,8 +5,6 @@
 #sudo apt-get update
 #sudo apt-get install bzip2 ca-certificates g++ gcc gfortran git gzip lsb-release patch python3 tar unzip xz-utils zstd
 
-compiler=gcc@13
-
 # Install spack and add to local shell
 git clone --depth=2 https://github.com/spack/spack.git 
 
@@ -26,7 +24,7 @@ spack compiler find
 spack compilers
 
 # Install and setup "module" and add to local shell
-spack install lmod %$compiler
+spack install --fresh lmod
 . $(spack location -i lmod)/lmod/lmod/init/profile
 . $SPACK_ROOT/share/spack/setup-env.sh
 spack install git %$compiler
