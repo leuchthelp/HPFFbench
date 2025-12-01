@@ -18,6 +18,8 @@ This first major contribution aims to be a starting-point for future development
 
 ## Examples
 
+![Alt text](newplot.png)
+
 ## Installation
 
 The project comes bundled with an initial interface to the [spack](https://spack.io/) package manager often used in HPC and is designed to manage requested package versions for you. However due to spacks quirkiness it is advised to source the spack environment and install packages yourself. This is to ensure dependencies are grouped as required. Spack requires `bzip2 ca-certificates g++ gcc gfortran git gzip lsb-release patch python3 tar unzip xz-utils zstd` to be installed.
