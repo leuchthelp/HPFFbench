@@ -1,8 +1,8 @@
-# HPFFBench
+# HPFFbench
 
 ## Introduction
 
-HPFFBench stands for {H}igh-{P}erformance {F}ile {F}ormat {bench}mark. (Name is debatable)
+HPFFbench stands for {H}igh-{P}erformance {F}ile {F}ormat {bench}mark. (Name is debatable)
 
 It was developed for the   [DKRZ](https://www.dkrz.de/en) to evaluate the performance of different file format used in [High-Performance Computing (HPC)](https://www.nvidia.com/en-us/glossary/high-performance-computing/) like [NetCDF4](https://www.unidata.ucar.edu/software/netcdf), [HDF5](https://www.hdfgroup.org/solutions/hdf5/) & [Zarr](https://zarr.dev/) throughout various language-interfaces.
 
