@@ -6,7 +6,7 @@ HPFFbench stands for {H}igh-{P}erformance {F}ile {F}ormat {bench}mark. (Name is 
 
 It was developed for the   [DKRZ](https://www.dkrz.de/en) to evaluate the performance of different file format used in [High-Performance Computing (HPC)](https://www.nvidia.com/en-us/glossary/high-performance-computing/) like [NetCDF4](https://www.unidata.ucar.edu/software/netcdf), [HDF5](https://www.hdfgroup.org/solutions/hdf5/) & [Zarr](https://zarr.dev/) throughout various language-interfaces.
 
-The main goal was to analyze performance across different cluster environments running [slurm](https://slurm.schedmd.com/overview.html), configured with different runtime variables and produce reliable, reproducible results showcasing influences and potential opportunities for optimization.
+The main goal was to analyze performance across different cluster environments running [slurm](https://slurm.schedmd.com/overview.html), configured with different runtime variables and produce reliable, reproducible results showcasing influences and potential opportunities for optimization. It launches each phase, i.e. `creating` a file & `executing` some function of that file for testing, as a separate, new `node-allocation` within a `slurm` cluster to potentially reduce caching effects by only using fresh nodes for benchmarking.
 
 This first major contribution aims to be a starting-point for future development and establish a baseline concept for how such a benchmark-framework could potentially look like.
 
@@ -124,7 +124,7 @@ To create a file based on the information supplied by the framework a `developer
 
 `create` is the source-code required to create a given file. It is up to the developer to ensure their code can handle any inputs supplied. Within `create` they will also have to supply a `#MAIN` directive similar to a `pragma` in `C`. This will inject a pre-made `main` which calls the code and collects potential results. This is based on the `language` attribute to identify the requested programming language. Please refer to the support matrix for information on the languages currently supported by `HPFFbench`.
 
-`create_command` is a list of commands that a used to execute your code. A single `serial` command is the minimum amount of commands required.
+`create_command` is a list of commands that are used to execute your code. A single `serial` command is the minimum amount of commands required.
 
 #### Benchmarking a file
 
@@ -180,7 +180,7 @@ and if you have any additional packages, like for example python packages, add:
 ```
 
 WARNING:
-Additionally if you want to have the framework install the spack packages for you, you can add `"install": True`. However this will drastically increase the initial start-up time as you will have to run the entire `spack install` process, which builds all required packages from source. Similarly spack can be quite quirky and might not install all packages the exact way you envisioned. For example `netcdf4` depends on `hdf5`. If you want your `netcdf4` install to use the exact version of `hdf5` installed just before, you can request that, however the spack concretizer might not fully respect your wishes and you could end up with two different version of `hdf5` being install, one that `netcdf4` depends on and another that you have specifically requested. This could lead to unintended behavior when running a given benchmark. So it is advised to forego `"install": True` and handle initial installing of packages manually for now.
+Additionally if you want to have the framework install the spack packages for you, you can add `"install": True`. However this will drastically increase the initial start-up time as you will have to run the entire `spack install` process, which builds all required packages from source. Similarly spack can be quite quirky and might not install all packages the exact way you envisioned. For example `netcdf4` depends on `hdf5`. If you want your `netcdf4` install to use the exact version of `hdf5` installed just before, you can request that, however the spack concretizer might not fully respect your wishes and you could end up with two different version of `hdf5` being installed, one that `netcdf4` depends on and another that you have specifically requested. This could lead to unintended behavior when running a given benchmark. So it is advised to forego `"install": True` and handle initial installing of packages manually for now.
 
 ### Slurm Options
 
@@ -188,7 +188,6 @@ You can simply pass necessary slurm options like so:
 
 ```py
 slurm_options = """
-#SBATCH --wait
 #SBATCH --partition=compute
 #SBATCH --account=
 #SBATCH --constraint="[cell02]"
