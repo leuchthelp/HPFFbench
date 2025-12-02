@@ -70,11 +70,6 @@ class SpackManager:
         
         self.file_location = Path(f"{self.env_location.absolute()}/env-{self.env_name}.sh")
         
-        check_installed = Path(f"{self.file_location}/.venv")
-        if self.install == True and not check_installed.exists():
-            self.__full_install()
-        
-        
         for name, info in self.packages.items():
 
             versions = info["versions"] if type(info["versions"]) != str else [info["versions"]]
@@ -123,6 +118,7 @@ class SpackManager:
             file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
             
             first = True
+            check_installed = Path(f"{self.file_location}/.venv")
             for index, (name, _) in enumerate(self.packages.items()):
 
                 combinations = self.loadables[name]
@@ -134,7 +130,7 @@ class SpackManager:
                     
                 self.__add_packages(file=file, combinations=list(combinations), package_name=name)
                 
-                if index == len(self.packages.items())-1:
+                if index == len(self.packages.items())-1 and self.install == True and not check_installed.exists():
                     file.write(f"spack -e {self.env_name} install\n")
                     
             
@@ -177,56 +173,7 @@ class SpackManager:
             loadable = self.__load_packages(loadable=loadable, combinations=list(combinations), package_name=name)
         
         return loadable
-        
- 
-    def __full_install(self):
-        with open(f"{self.env_location.absolute()}/install.sh", "w") as file:
-            file.write("#!/bin/bash\n")
-            
-            try:
-                subprocess.run("git --version".split(), check=True, capture_output=True, text=True)
-            except:
-                file.write("module load git\n")
-            
-            file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-            file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
-        
-            for name, info in self.packages.items():
-
-                versions = info["versions"] if type(info["versions"]) != str else [info["versions"]]
-                variants = [""]
-
-                if "variants" in info:
-                    variants = info["variants"] if type(info["variants"]) != str else [info["variants"]]
-
-
-                combinations = list(itertools.product(*[versions, variants, [self.compiler]]))
-
-                self.loadables[name] = combinations
-
-                fresh = ""
-                if "fresh" in info:
-                    fresh = "--fresh "
-
-                self.__install(file=file, combinations=list(combinations), package_name=name, fresh=fresh)
-
-
-        p = subprocess.Popen(["bash", f"{self.env_location.absolute()}/install.sh"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
-            sys.stdout.buffer.write(line)
-        p.wait()
-        self.logger.debug(p.stderr)
-        self.logger.error(p.stderr)
-        if p.returncode != 0:
-            raise RuntimeError(bcolors.FAIL + f"Install has failed" + bcolors.ENDC)
- 
-        
-    def __install(self, file, combinations, package_name: str, fresh: str):
-        for combination in combinations:
-
-            self.logger.debug(f"spack install {fresh}{package_name}@{combination[0]} {combination[1]} %{combination[2]}")
-            file.write(f"spack install {fresh}{package_name}@{combination[0]} {combination[1]} %{combination[2]}\n")  
-        
+             
         
     def __add_packages(self, file, combinations, package_name: str):     
         for combination in combinations:
