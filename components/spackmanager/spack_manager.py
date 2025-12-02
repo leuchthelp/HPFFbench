@@ -71,7 +71,7 @@ class SpackManager:
         self.file_location = Path(f"{self.env_location.absolute()}/env-{self.env_name}.sh")
         
         check_installed = Path(f"{self.file_location}/.venv")
-        if self.install == True and not check_installed.exists() == False:
+        if self.install == True and not check_installed.exists():
             self.__full_install()
         
         
