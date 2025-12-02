@@ -60,7 +60,7 @@ new_setup = {
     "paths"                 : paths,
     "iterations"            : 10,
     "runs"                  : runs,
-    "parallel"              : True,
+    "parallel"              : True, False or "Both"
     "par_backend"           : ["MPI", "Additional"],
     "ranks"                 : [8, 16, 32, 64, 128],
     "nodes"                 : [1, 2, 4, 8, 100],
