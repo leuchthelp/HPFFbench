@@ -7,7 +7,7 @@ paths:
   path_to_tmp: components/tmp
   path_to_config: components/handler
   path_to_visuals: components/visualize
-  path_to_root: /work/ku0598/k203191/hpffbench
+  path_to_root: /home/dev/hpffbench
   path_to_results: components/results
 iterations: 2
 runs:
@@ -91,6 +91,7 @@ spack env:
         - 1.7.1
     compiler: gcc@13
     additional: pip install zarr==3.0.5 py-spy
+    install: true
   test-env-async:
     target:
     - hdf5: async

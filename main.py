@@ -88,7 +88,7 @@ def main():
             },
             "compiler": "gcc@13",
             "additional": "pip install zarr==3.0.5 py-spy",
-            #"install": True
+            "install": True
             },
         
         "test-env-async" : {
@@ -154,7 +154,7 @@ def main():
     with open(f"{path_to_config}/config.yaml", "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
     
     

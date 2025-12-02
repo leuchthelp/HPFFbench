@@ -112,7 +112,12 @@ class SpackManager:
     def initialize_env(self):
         with open(self.file_location, "w") as file:
             file.write("#!/bin/bash\n")
-            file.write("module load git\n")
+            
+            try:
+                subprocess.run("git --version".split(), check=True, capture_output=True, text=True)
+            except:
+                file.write("module load git\n")
+            
             file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
             file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
             
@@ -176,7 +181,12 @@ class SpackManager:
     def __full_install(self):
         with open(f"{self.env_location.absolute()}/install.sh", "w") as file:
             file.write("#!/bin/bash\n")
-            file.write("module load git\n")
+            
+            try:
+                subprocess.run("git --version".split(), check=True, capture_output=True, text=True)
+            except:
+                file.write("module load git\n")
+            
             file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
             file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
         
@@ -238,7 +248,11 @@ class SpackManager:
         if self.initialized == True:
             with open(self.file_location, "w") as file:
                 file.write("#!/bin/bash  \n")
-                file.write("module load git\n")
+                try:
+                    subprocess.run("git --version".split(), check=True, capture_output=True, text=True)
+                except:
+                    file.write("module load git\n")
+                
                 file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
                 file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
                 file.write(f"spack env activate {self.env_name} -p \n")   

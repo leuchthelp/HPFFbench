@@ -444,7 +444,11 @@ class BenchmarkManager:
         self.logger.debug(f"compile command used: {compile_command}")
         with open(f"{self.dir_path.absolute()}/compile.sh", "w") as file:
             file.write("#!/bin/bash\n")
-            file.write("module load git\n")
+            try:
+                subprocess.run("git --version".split(), check=True, capture_output=True, text=True)
+            except:
+                file.write("module load git\n")
+            
             file.write(f". {self.root_path}/spack/share/spack/setup-env.sh\n")
             file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
             file.write(self.spack_manager.load_env())
@@ -1177,7 +1181,12 @@ int main(int argc, char *argv[])
         else:
             self.slurm_options = ""
             
-            
+        load_git = ""
+        try:
+            subprocess.run("git --version".split(), check=True, capture_output=True, text=True)
+        except:
+            load_git = "module load git" 
+        
         bash_location = f"{path}.sh"
         
         if not Path(f"{self.dir_path}/{bash_location}").exists():
@@ -1192,7 +1201,7 @@ ls -lh
 #sbcast -f "$bin" /tmp/bin
 #export $bin="/tmp/bin"
 
-module load git
+{load_git}
 . {self.root_path}/spack/share/spack/setup-env.sh
 . $(spack location -i lmod)/lmod/lmod/init/profile
 
