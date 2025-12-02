@@ -75,7 +75,7 @@ new_setup = {
 }
 ```
 
-Most of these should be self-explanatory. Please refer to the [documentation]() for more detail.
+Most of these should be self-explanatory. Please refer to the [documentation]() (does not exist yet. sorry D: ) for more detail.
 
 The finished config is then passed to a `Handler` object which handles the associated information and runs any benchmarks found within the `/benchmarks` directory that matches any of the requested information.
 
