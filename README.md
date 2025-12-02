@@ -2,9 +2,11 @@
 
 ## Introduction
 
+Requires: `python >= 3.10` and some form of `git` present, either through direct install or a `module` file
+
 HPFFbench stands for {H}igh-{P}erformance {F}ile {F}ormat {bench}mark. (Name is debatable)
 
-It was developed for the   [DKRZ](https://www.dkrz.de/en) to evaluate the performance of different file format used in [High-Performance Computing (HPC)](https://www.nvidia.com/en-us/glossary/high-performance-computing/) like [NetCDF4](https://www.unidata.ucar.edu/software/netcdf), [HDF5](https://www.hdfgroup.org/solutions/hdf5/) & [Zarr](https://zarr.dev/) throughout various language-interfaces.
+It was developed for the [DKRZ](https://www.dkrz.de/en) to evaluate the performance of different file format used in [High-Performance Computing (HPC)](https://www.nvidia.com/en-us/glossary/high-performance-computing/) like [NetCDF4](https://www.unidata.ucar.edu/software/netcdf), [HDF5](https://www.hdfgroup.org/solutions/hdf5/) & [Zarr](https://zarr.dev/) throughout various language-interfaces.
 
 The main goal was to analyze performance across different cluster environments running [slurm](https://slurm.schedmd.com/overview.html), configured with different runtime variables and produce reliable, reproducible results showcasing influences and potential opportunities for optimization. It launches each phase, i.e. `creating` a file & `executing` some function of that file for testing, as a separate, new `node-allocation` within a `slurm` cluster to potentially reduce caching effects by only using fresh nodes for benchmarking.
 
