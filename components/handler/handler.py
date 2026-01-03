@@ -22,6 +22,12 @@ class Handler:
     
     """Defines handler to read configuration from yaml file and create matching benchmarks. Also configures the benchmark environments and gathers system information.
     
+    Parameters
+    ----------
+    path_to_config: str
+        Path to config.yaml which covers benchmark environments and benchmarks to run.
+    
+    
     Attributes
     ----------
     path_to_config: str
@@ -113,8 +119,24 @@ class Handler:
         self.__prepare_dataframe()
                       
 
-    def __load_config(self, path_to_config):
+    def __load_config(self, path_to_config: str):
+        """
+        Tries to find and load a requested configuration file.
         
+        Parameters
+        ----------
+        path_to_config: str
+        
+        Raises
+        ------
+        FileNotFoundError
+            If `config.yaml` cannot be found.
+        OSError
+            If Path to `config.yaml` cannot be found.
+        YAMLError
+            If there is an error with the `config.yaml`
+        
+        """
         self.logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
         try:
             file = open(f"{path_to_config}/config.yaml", "r")
@@ -131,6 +153,9 @@ class Handler:
     
     
     def __check_paths(self):
+        """
+        Checks if all user requested paths exist. Should also define a couple of defaults to fall back to, currently does not.
+        """
         self.logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
         for key, path in self.config["paths"].items(): # type: ignore
             if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
@@ -140,7 +165,16 @@ class Handler:
         self.logger.info(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
     
     
-    def __determine_capabilities(self):
+    def __determine_capabilities(self) -> dict:
+        """
+        Gather supplied benchmarks at `path_to_benchmarks` and figure out which types of benchmark exist & are potentially runnable within the current environment at runtime.
+        
+        Returns
+        -------
+        
+        dict
+            Contains all capabilities the benchmark-framework has at runtime.
+        """
         root = Path(self.config["paths"]["path_to_benchmarks"])  # type: ignore
         
         determined = {}
@@ -202,12 +236,28 @@ class Handler:
         return determined
         
    
-    def __requested_capabilities(self, parallel: bool):
+    def __requested_capabilities(self, parallel: bool) -> list:
+        """
+        Figures out which benchmarks the user has requested. For this purpose it assembles 
+        a list of requested benchmarks with attributes in order of `(parallel, par_backends, languages, formats)`. 
+        
+        Parameters
+        ----------
+        
+        parallel: bool
+            If the requested capabilities require parallelism to be enabled. Some metadata has to be handles for this to work properly which is skipped otherwise.
+        
+        Returns
+        -------
+        
+        itertools.product
+            Contains all requested benchmarks by the user.
+        """
         requested   = None
         
         languages    = []
-        for langauge in self.config["languages"]:  # type: ignore
-            languages.append(("language", langauge))
+        for language in self.config["languages"]:  # type: ignore
+            languages.append(("language", language))
         
         formats      = []
         for format in self.config["formats"]:  # type: ignore
@@ -223,15 +273,32 @@ class Handler:
                 for par_backend in self.config["par_backend"]:  # type: ignore
                     par_backends.append(("par_backend", par_backend))
         
-        requested = itertools.product(*[[("parallel", parallel)], par_backends, languages, formats])
+        requested = list(itertools.product(*[[("parallel", parallel)], par_backends, languages, formats]))
         return requested   
    
      
     def __create_benchmark(self, parallel: bool, determined_cap: dict) -> list:
+        """
+        Gather tasks to be performed and pass required metadata to configure a single benchmark to be run.
+        Gather the user requested capabilities and compares them to the determined capabilities. If they match
+        create a new BenchmarkManager object. This is the initial check to skip unnecessary comparisons.
+        
+        Parameters
+        ----------
+        parallel: bool
+            If parallelism is going to be used.
+        determined_cap: dict
+            The previously determined capabilities of the benchmark-framework at runtime.
+        
+        Returns
+        -------
+        list
+            List of tasks that will be run in bulk. These tasks are `BenchmarkManager` objects.
+        """
         requested_cap = self.__requested_capabilities(parallel=parallel) 
         
         tasks = []
-        for requested in [*requested_cap]: 
+        for requested in requested_cap: 
             requested = dict(requested)
             
             if str(requested) in determined_cap:
@@ -243,6 +310,26 @@ class Handler:
 
 
     def __create_benchmark_manager(self, parallel: bool, requested: dict, bm_config: dict) -> list:
+        """
+        Gather up additional metadata to create a BenchmarkManager object. 
+        
+        Within this step assembled all combinations of `(nodes, ranks, collective, spack_managers)` requested by the user and create 
+        necessary amount of Managers. 
+        
+        Parameters
+        ----------
+        parallel: bool
+            If parallelism is going to be used.
+        requested: dict
+            What was requested by the user as a dictionary.
+        bm_config:
+            The benchmark configuration defined within a benchmarks `.yaml` as a dictionary.
+            
+        Returns
+        -------
+        list
+            List of BenchmarkManager objects.
+        """
         benchmarks = []
         
         for _, run_config in self.config["runs"].items():  # type: ignore
@@ -326,6 +413,21 @@ class Handler:
 
 
     def __start(self):
+        """
+        Start running the benchmark by called each BenchmarkManagers `.run()` method on each item found within the list of tasks. 
+        This is done as a pool of Processes using the `pathos` module to `pickle` entire BenchmarkManager objects via `dill`. The ProcessPool 
+        performs benchmarks in non-blocking unordered batches of jobs. Specifying `max processes` in the global configuration file controls how 
+        many processes are being used.
+        
+        If `delete envs` is set to `True` will also delete every environment.
+        
+        Raises
+        ------
+        
+        TypeError
+            If any error happens within BenchmarkManager, that isn't caught otherwise. Currently refers to "no matching benchmark found" however catches more
+            errors than intended. Needs to be changed.
+        """
         try:
             self.__benchmarks = []
             bm_list = list(itertools.chain.from_iterable(self.__tasks))
@@ -348,6 +450,10 @@ class Handler:
 
     
     def __prepare_dataframe(self):
+        """
+        Gathers up all generated results, data and metadata and assembles a pandas Dataframe object. Finally exports the results as JSON.
+        Also performs some basic pre-analysis on the data to generate some additional, helpful metrics.
+        """
         root = Path(self.config["paths"]["path_to_results"])  # type: ignore
         df = pd.DataFrame()
         

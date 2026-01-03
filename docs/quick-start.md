@@ -9,8 +9,8 @@ If you want to learn more about the design of HPFFbench to gain a quick overview
 
 HPFFbench ships some basic, prebuilt benchmarks to run on any system. They can be found in [benchmarks](../benchmarks). Once the basic configuration has been performed, simply run the script via `python main.py` or similar.
 
-```python
-new_setup = {
+```py
+new_config = {
     # Required
     "formats"               : ["hdf5"],
     "languages"             : ["py"],
@@ -26,7 +26,7 @@ new_setup = {
     "spack env"             : spack_envs,
 }
 
-Handler(path_to_config=new_setup)
+Handler(path_to_config=path_to_config)
 ```
 
 This will tell the framework to find benchmarks with `hdf5` as the format to use with `python` as the language. It will then execute the code it finds and perform whatever function was defined for 2 iterations, before exiting and collecting the results within a [Pandas](https://pandas.pydata.org/) compatible `JSON` file. For this example a file containing a dataset `X` with a size of `1GB` will be created and benchmarked.
@@ -35,7 +35,7 @@ IMPORTANT:
 
 Before you can run the benchmark-framework you will need to adjust some basic `slurm_options`. These being `--partition` to tell which partition of your system to run the benchmark on and the `--account` to run them with.
 
-```python
+```py
 slurm_options = """
 #SBATCH --partition=compute
 #SBATCH --account=ku0598
@@ -46,7 +46,7 @@ Optional:
 
 The framework includes a basic [spack](https://spack.io/) interface to manage environments, to run benchmarks in, for you. If you set `use spack env` to `False` your systems default packages will be used without spack managing them.
 
-```python
+```py
 spack_envs = {
     "test-env-1" : {
         "target"    : ["hdf5", "zarr"],

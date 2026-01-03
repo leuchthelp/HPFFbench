@@ -11,9 +11,63 @@ import sys
 @dataclass
 class SpackManager:
     
+    """Defines spack manager class which acts as an interface for the benchmark-framework with spack. Creates, initializes & manages a spack environment.  
+    
+    Parameters
+    ----------
+    handler_id: str
+        The handlers id that controls this manager.
+        
+    env_name: str
+    
+    spack_env: dict
+        Dictionary containing the configuration of a environments to be created.
+        
+    use_spack_env: bool
+        If to used the specific environment or to skip it and rely on system installed packages.
+        
+    paths: dict
+        Dictionary of paths. Specifically to identify where to save environment data to.
+        
+    only_data: bool
+        If to run environment initialization, checks, etc. or to skip them entirely. 
+        Since the environment is being hashed at runtime, at least creating basic metadata
+        is required to generate the same hash even when just performing a dry-run to gather data.
+    
+    Attributes
+    ----------
+    handler_id: str
+        The handlers id that controls this manager.
+        
+    env_name: str
+        
+    spack_env: dict
+        Dictionary containing the configuration of a environments to be created. 
+        
+    target: list
+        List of formats this environment is being used for. Formats not in this list will not be used with this environment.
+        
+    language: list
+        Similar to `target` for programming languages.
+        
+    packages: dict
+        Dictionary describing the spack packages to be added or installed to the environment.
+        
+    additional: str
+        Additional python packages to be installed for the environment via pip.
+        
+    env_location: Path
+        The location the environment and related metadata has been saved to.
+        
+    package_locations: dict
+        Dictionary of where every spack packages can be found identified via their spack packages hash.
+        
+    initialized: bool
+    """
+    
     handler_id       : str
-    spack_env        : dict
     env_name         : str
+    spack_env        : dict
     target           : list
     language         : list
     packages         : dict
@@ -27,9 +81,9 @@ class SpackManager:
                  handler_id     : str,
                  env_name       : str,
                  spack_env      : dict,
-                 use_spack_env  : bool,
                  paths          : dict,
                  logger         : logging.Logger,
+                 use_spack_env  = True,
                  only_data      = False,
                  ):
         
@@ -106,6 +160,11 @@ class SpackManager:
         
 
     def initialize_env(self):
+        """
+        Initialized the spack environment, creates a named directory within the environment store path and sets the `initialized` to `True` once finished. 
+        """
+        
+        
         with open(self.file_location, "w") as file:
             file.write("#!/bin/bash\n")
             
@@ -166,23 +225,71 @@ class SpackManager:
         self.file_location.unlink()
    
    
-    def load_env(self):
+    def load_env(self) -> str:
+        """
+        Creates a str of packages to load into the environment.
+        
+        Returns
+        -------
+        str
+            Returns the str containing the packages to load. This string can then be injected into a `bash` or `sbatch` script. 
+        """
         loadable = f"spack env activate {self.env_name}\n"
 
+        self.logger.debug(self.loadables)
         for name, combinations in self.loadables.items():
             loadable = self.__load_packages(loadable=loadable, combinations=list(combinations), package_name=name)
         
         return loadable
              
         
-    def __add_packages(self, file, combinations, package_name: str):     
+    def __add_packages(self, file, combinations: list, package_name: str): 
+        """
+        Assembles the individual add commands for each package to add to the environment.
+        
+        Parameters
+        ----------
+        file : TextIOWrapper[_WrappedBuffer]
+            Bash script that will be executed to facilitated the functionally. 
+            Required commands will be written to the file. 
+        
+        combinations: list
+            List of combinations of packages, variants, versions and compilers to use. 
+            Should be deprecated and renamed to something more fitting as multiple combinations
+            within a single environment is no longer planned and currently not supported.
+        
+        package_name: str
+            Name of the packages to be loaded.
+        """
         for combination in combinations:
             
             self.logger.debug(f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}")
             file.write(f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}\n")  
             
 
-    def __load_packages(self, loadable: str, combinations, package_name: str):
+    def __load_packages(self, loadable: str, combinations: list, package_name: str) -> str:
+        """
+        Assembles the individual load commands for each package.
+        
+        Parameters
+        ----------
+        loadable : str
+            String ot eventually contain all packages that need to be loaded into the environment.
+        
+        combinations: list
+            List of combinations of packages, variants, versions and compilers to use. 
+            Should be deprecated and renamed to something more fitting as multiple combinations
+            within a single environment is no longer planned and currently not supported.
+        
+        package_name: str
+            Name of the packages to be loaded.
+        
+        
+        Returns
+        -------
+        str
+            String containing packages to load by combinations requested.
+        """
         for combination in combinations:
         
             self.logger.debug(f"spack -e {self.env_name} load {package_name}@{combination[0]} {combination[1]} %{combination[2]}")
@@ -192,6 +299,9 @@ class SpackManager:
             
            
     def delete(self):
+        """
+        Deletes the environment and purges associated data & metadata.
+        """
         
         if self.initialized == True:
             with open(self.file_location, "w") as file:

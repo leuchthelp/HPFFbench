@@ -15,6 +15,48 @@ class BenchmarkManager:
     
     """Defines handler to read configuration from yaml file and create matching benchmarks. Also configures the benchmark environments and gathers system information.
     
+    Parameters
+    ----------
+    handler_id: str
+        Unique handler ID to identify the handler assigned to this specific benchmark.
+    
+    run_config: dict
+        The run configuration that was requested, contains the basic structure of a file that will be created.
+        
+    bm_config: dict
+        The configuration of the benchmark file with all it's adjacent information like source code, commands and such.
+        
+    global_config: dict
+        Contains global metadata like the variable to benchmark or number of iterations to perform.
+        
+    nodes: int
+        Number of nodes used with the context of a slurm environment, otherwise always 1.
+        
+    slurm_avail: bool
+        Flag to signal if the benchmark runs within a slurm equipped environment.
+        
+    slurm_options: 
+        Slurm options supplied by the user. Are simply being passed to the eventual `sbatch` script.
+        
+    parallel: bool
+        If parallelism is requested.
+    
+    collective: None | bool
+        If collective MPI I/O is requested, default is "False" for independent I/O. Will be none for serial benchmarks.
+    
+    ranks: int
+        Represents how many cores are used to execute the benchmark following the MPI terminology. Will always be 1 for serial benchmarks.
+    
+    requested: dict
+        Contains metadata on the type of benchmark the user has asked for like language, format or which parallel backend to use.
+    
+    spack_manager: SpackManager
+        The SpackManager object that manages the environment to use while running the benchmark.
+        
+    paths: dict
+        Dictionary of paths. Specifically to identify where to save environment data to.
+
+        
     Attributes
     ----------
     handler_id: str
@@ -33,7 +75,7 @@ class BenchmarkManager:
         Number of nodes used with the context of a slurm environment, otherwise always 1.
         
     parallel: bool
-        If parallelism is enabled.
+        If parallelism is requested.
         
     par_backend: None | str
         What kind of backend is being used to facilitate parallelism. Will be "None" if parallelism is not requested.
@@ -263,6 +305,29 @@ class BenchmarkManager:
     
     
     def run(self):
+        """
+        Runs the benchmark. 
+        
+        Running a benchmark happens in 4 stages:
+        
+        1. Creates a temporary storage location based on the user supplied `path_to_tmp`.
+        2. Creates a `create_file` containing source code for a sample dataset to benchmark with.
+        3. Executes source code containing benchmark logic. 
+        4. Once finished, removes all temporary data for cleanup.
+        
+        Returns
+        -------
+        
+        str
+            The Id of this specific benchmark for later identification.
+            
+        dict
+            Returns the whole BenchmarkManager object as a dictionary to provide general metadata.
+    
+        Raises
+        ------
+        TODO
+        """
         self.dir_path.mkdir(parents=True)
 
         try:
@@ -292,7 +357,15 @@ class BenchmarkManager:
 
  
     def __create_file(self):
+        """
+        Will create a `create_file`. This type of file contains the source code needed `create` a requested file for a given format and language. 
+        This file with either be a `bash` or `sbatch` script depending on the environment the benchmark-framework is being run in. 
         
+        This function also assembles the final `create_command` that is needed to finally execute the given file. Depending on if a compiled language is being requested
+        it also calls `__compile_file()`.  
+        
+        Finally it executes the `create_file` with the `create_command`.
+        """
         # Get create command
         create_commands = self.bm_config["create_command"]
         
@@ -412,7 +485,28 @@ class BenchmarkManager:
         self.logger.info(p.stdout)
     
     
-    def __append_flag(self, flag: str, command: str, data: list):
+    def __append_flag(self, flag: str, command: str, data: list) -> str:
+        """
+        Appends flags internally used by all argument parser written specifically for this benchmark and injected into user source code.
+        
+        Parameters
+        ----------
+        
+        flag: str
+            The flag to append.
+            
+        command: str
+            The command to append the flag to.
+            
+        data: list
+            The data appended with the flag. This is a list containing an encoding of for example the shape of a dataset or chunks.
+
+        Returns
+        -------
+        
+        str
+            The final assembled command to be executed.
+        """
         if flag not in command:
             command = command + f" {flag}"
             
@@ -422,8 +516,25 @@ class BenchmarkManager:
         return command
     
 
-    def __compile_file(self, path: Path):
+    def __compile_file(self, path: Path) -> tuple:
+        """
+        Compiles a file at a given path. Resolves required metadata from self.
         
+        Parameters
+        ----------
+        
+        path: Path
+            Path to file to be compiled by the BenchmarkManager.
+        
+        Returns
+        -------
+        
+        str
+            Location of the compiled file.
+            
+        str
+            String containing `export LD_LIBRARY_PATH=` to be injected later.  
+        """
         compile_command = self.compile_command.replace("{runnable}", f"{path.absolute()}")
         
         pattern = r"\<(.*?)\>"
@@ -462,7 +573,10 @@ class BenchmarkManager:
   
 
     def __execute_file(self):
-        
+        """
+        Similar to `__create_file()`. Creates a `execute` file matching the programming language requested and assembles a `run_command` to execute the file with.
+        If a compiled language is requested, also compiles the necessary file and finally executes it. 
+        """
         # Get run command to execute the code with
         run_commands = self.bm_config["run_command"]
         
@@ -590,7 +704,21 @@ class BenchmarkManager:
                 
         
     def __replace_main(self, language: str) -> str:  # type: ignore
+        """
+        Contains pre-made main methods that can be injected. These methods contain functioning code to achieve feature parity among benchmarks requested. 
         
+        Parameters
+        ----------
+        
+        language: str
+            The programming language requested. Depending on which is requested, a different `main` method will be returned.
+            
+        Returns
+        -------
+        
+        str
+            Source code for a main method that will be injected into either or both the `create_file` or `execute_file`. 
+        """
         match language:
             
             ##################################################################################################
@@ -1162,8 +1290,26 @@ int main(int argc, char *argv[])
                 return tmp
            
 
-    def __assemble_bash(self, path: str, compile_file_info: tuple):
+    def __assemble_bash(self, path: str, compile_file_info: tuple) -> str:
+        """
+        Assembles the final `bash` or `sbatch` file containing all required information to execute whatever source provided.
         
+        Parameters
+        ----------
+        
+        path: str
+            Location where the `bash` or `sbatch` file will be created.
+        
+        compile_file_info: tuple
+            Contains the location of the compiled file and the ld_library_path that will be injected.
+        
+        Returns
+        -------
+        
+        str
+            Name of the final `bash` or `sbatch` script containing all required information like file location, slurm_options, package location, etc.
+        
+        """
         if  self.slurm_avail == True and self.local is False:
             self.slurm_options = self.slurm_options.replace("#SBATCH --nodes=", "#")
             self.slurm_options = self.slurm_options.replace("#SBATCH --job-name=", "#")
