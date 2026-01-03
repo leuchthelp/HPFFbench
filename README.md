@@ -12,7 +12,7 @@ The main goal was to analyze performance across different cluster environments r
 
 This first major contribution aims to be a starting-point for future development and establish a baseline concept for how such a benchmark-framework could potentially look like.
 
-| Languages     | Supported    |
+| Languages | Supported |
 | ------------- | ------------- |
 | Python | &check; |
 | C | &check; |
@@ -20,7 +20,7 @@ This first major contribution aims to be a starting-point for future development
 
 ## Examples
 
-![Alt text](newplot.png)
+![Alt text](/docs/_static/newplot.png)
 
 ## Installation
 
@@ -75,7 +75,7 @@ new_setup = {
 }
 ```
 
-Most of these should be self-explanatory. Please refer to the [documentation]() (does not exist yet. sorry D: ) for more detail.
+Most of these should be self-explanatory. Please refer to the [Documentation](https://hpffbench.readthedocs.io/) (does not exist yet. sorry D: ) for more detail.
 
 The finished config is then passed to a `Handler` object which handles the associated information and runs any benchmarks found within the `/benchmarks` directory that matches any of the requested information.
 

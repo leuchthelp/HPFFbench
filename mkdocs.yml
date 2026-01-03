@@ -3,7 +3,7 @@ repo_name: leuchthelp/HPFFbench
 repo_url: https://github.com/leuchthelp/HPFFbench
 site_description: A file format benchmark framework designed for High Performance Compute (HPC) clusters running slurm. 
 site_author: leuchthelp
-site_url: !ENV [READTHEDOCS_CANONICAL_URL, 'https://tmp.readthedocs.io/']
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, 'https://hpffbench.readthedocs.io/']
 docs_dir: docs
 use_directory_urls: true
 
