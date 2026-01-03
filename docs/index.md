@@ -1,7 +1,5 @@
 # HPFFbench
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
-
 ## Introduction
 
 Requires: `python >= 3.10` and some form of `git` present, either through direct install or a `module` file

@@ -10,3 +10,7 @@ use_directory_urls: true
 nav:
   - "index.md"
   - "quick-start.md"
+  - "design.md"
+watch:
+  - components
+  - docs
