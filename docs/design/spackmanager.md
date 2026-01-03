@@ -1,0 +1,1 @@
+::: components.spackmanager.spack_manager

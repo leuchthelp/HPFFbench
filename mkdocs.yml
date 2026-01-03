@@ -8,9 +8,37 @@ docs_dir: docs
 use_directory_urls: true
 
 nav:
-  - "index.md"
-  - "quick-start.md"
-  - "design.md"
+  - index.md
+  - quick-start.md
+  - visualize.md
+  - Design:
+    - design/overview.md
+    - design/benchmarks.md
+    - design/handler.md
+    - design/spackmanager.md
+    - design/benchmarkmanager.md
+
+
 watch:
   - components
   - docs
+
+
+theme:
+  language: en
+  name: "material"
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - content.code.annotate
+    - content.code.copy
+    - navigation.indexes
+    - navigation.instant
+    - navigation.tracking
+    - search.suggest
+    - search.share
+
+
+plugins:
+  - mkdocstrings

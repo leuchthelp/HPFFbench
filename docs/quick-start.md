@@ -3,11 +3,11 @@
 
 This section will cover how to quickly get HPFFbench up and running.
 
-If you want to learn more about the design of HPFFbench to gain a quick overview, please refer to the [Design](design.md) section.
+If you want to learn more about the design of HPFFbench to gain a quick overview, please refer to the [Design](design/overview.md) section.
 
 ## Simple run
 
-HPFFbench ships some basic, prebuild benchmarks to run on any system. They can be found in [components/benchmarks](../components/benchmarks). Once the basic configuration has been performed, simply run the script via `python main.py` or similar.
+HPFFbench ships some basic, prebuilt benchmarks to run on any system. They can be found in [benchmarks](../benchmarks). Once the basic configuration has been performed, simply run the script via `python main.py` or similar.
 
 ```python
 new_setup = {
@@ -44,7 +44,7 @@ slurm_options = """
 
 Optional:
 
-The framework includes a basic [Spack](https://spack.io/) interface to manage environments, to run benchmarks in, for you. If you set `use spack env` to `False` your systems default packages will be used without Spack managing them.
+The framework includes a basic [spack](https://spack.io/) interface to manage environments, to run benchmarks in, for you. If you set `use spack env` to `False` your systems default packages will be used without spack managing them.
 
 ```python
 spack_envs = {
@@ -64,8 +64,8 @@ spack_envs = {
 },
 ```
 
-A Spack environment is identified by it's name e.g. `test-env-1` targeting specific formats like `hdf5` or `zarr` for different languages. You will have to make sure all required packages are available and mentioned within the Spack environment under `packages`. You can specify a single `compiler` to be used by Spack for the all packages within the environment. If you required `additional` python packages you can add them like shown.
+A spack environment is identified by it's name e.g. `test-env-1` targeting specific formats like `hdf5` or `zarr` for different languages. You will have to make sure all required packages are available and mentioned within the spack environment under `packages`. You can specify a single `compiler` to be used by spack for the all packages within the environment. If you required `additional` python packages you can add them like shown.
 
 IMPORTANT
 
-Setting `install` to `True` will tell the spack interface to perform the installation phase when setting up the environment. This will take a long time, depending on the specific package you want to install and the amount of packages to be installed. Setting `install` to `False` let's the interface assume the package has already been installed within the Spack environment and just add the reference to the environment without checking if the package has actually been installed. This behavior might change with future versions of Spack.
+Setting `install` to `True` will tell the spack interface to perform the installation phase when setting up the environment. This will take a long time, depending on the specific package you want to install and the amount of packages to be installed. Setting `install` to `False` let's the interface assume the package has already been installed within the spack environment and just add the reference to the environment without checking if the package has actually been installed. This behavior might change with future versions of spack.

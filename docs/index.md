@@ -20,7 +20,7 @@ This first major contribution aims to be a starting-point for future development
 
 ## Examples
 
-![Alt text](/docs/_static/newplot.png)
+![Alt text](_static/newplot.png)
 
 ## Installation
 

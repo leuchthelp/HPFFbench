@@ -10,7 +10,7 @@ import logging
 path_to_config = "components/handler/"
 
 paths = {
-    "path_to_benchmarks": "components/benchmarks",
+    "path_to_benchmarks": "benchmarks",
     "path_to_tmp"       : "components/tmp",
     "path_to_config"    : "components/handler",
     "path_to_visuals"   : "components/visualize",
