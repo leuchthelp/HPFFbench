@@ -55,7 +55,7 @@ source: |
     #MAIN
 ```
 
-The order in which the value are specified does not matter.
+The order in which the values are specified does not matter.
 
 1. parallel: either `True`, `False` or `configurable`.
 2. par_backend: (Optional) `str`, if requested needs to match in global config.
