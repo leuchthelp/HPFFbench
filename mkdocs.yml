@@ -41,8 +41,18 @@ theme:
 
 
 plugins:
+  search:
+  autorefs:
+    link_titles: external
   mkdocstrings:
     handlers:
       python:
         options:
           docstring_style: numpy
+  privacy:
+    links_attr_map:
+      target: _blank
+
+
+markdown_extensions:
+- attr_list

@@ -3,11 +3,11 @@
 
 This section will cover how to quickly get HPFFbench up and running.
 
-If you want to learn more about the design of HPFFbench to gain a quick overview, please refer to the [Design](design/overview.md) section.
+If you want to learn more about the design of HPFFbench to gain a quick overview, please refer to the [Design][overview] section.
 
 ## Simple run
 
-HPFFbench ships some basic, prebuilt benchmarks to run on any system. They can be found in [benchmarks](../benchmarks). Once the basic configuration has been performed, simply run the script via `python main.py` or similar.
+HPFFbench ships some basic, prebuilt [benchmarks][benchmarks] to run on any system. They can be found in [benchmarks directory](https://github.com/leuchthelp/HPFFbench/tree/refactor/benchmarks). Once the basic configuration has been performed, simply run the script via `python main.py` or similar.
 
 ```py
 new_config = {
@@ -17,7 +17,7 @@ new_config = {
     "paths"                 : paths,
     "iterations"            : 2,
     "runs"                  : {"run": {"X": [[1 * 134217728], []]}},
-    "parallel"              : False,
+    "parallel"              : False, # can also be "Both"
     "variable_to_benchmark" : ["X"],
     "use spack env"         : True,
     "slurm options"         : slurm_options,
@@ -44,7 +44,7 @@ slurm_options = """
 
 Optional:
 
-The framework includes a basic [spack](https://spack.io/) interface to manage environments, to run benchmarks in, for you. If you set `use spack env` to `False` your systems default packages will be used without spack managing them.
+The framework includes a basic [spack](https://spack.io/) interface to manage environments, to run benchmarks in, for you. If you set `use spack env` to `False` your systems default packages will be used without spack managing them. For more details please refer to the information on the [Spackmanager][spackmanager].
 
 ```py
 spack_envs = {

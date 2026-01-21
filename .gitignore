@@ -17,3 +17,5 @@ components/profiling
 environments
 components/visualize/res-before-13-10-2025
 spack
+.cache
+.vscode

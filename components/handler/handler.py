@@ -38,7 +38,7 @@ class Handler:
     path_to_config: str
     
     
-    def __init__(self, path_to_config: str, logger: logging.Logger):
+    def __init__(self, path_to_config: str | dict, logger: logging.Logger):
         
         self.logger = logger
         self.__id = ""
@@ -74,24 +74,24 @@ class Handler:
         self.__capabilities = self.__determine_capabilities()
         
         try:
-            self.__only_data = self.config["only data"]  # type: ignore
+            self.__only_data = self.config["only data"]
         except:
             self.__only_data = False
             
         try:
-            self.__use_spack_env = self.config["use spack env"]  # type: ignore
+            self.__use_spack_env = self.config["use spack env"]
         except:
             self.__use_spack_env = True
             
         try:
-            self.__max_processes = self.config["max processes"]  # type: ignore
+            self.__max_processes = self.config["max processes"]
         except:
             self.__max_processes = None
             
         
         parallel = False
         try:
-            parallel = self.config["parallel"]  # type: ignore
+            parallel = self.config["parallel"]
             
             if parallel != "Both" and type(parallel) != bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
             
@@ -119,13 +119,13 @@ class Handler:
         self.__prepare_dataframe()
                       
 
-    def __load_config(self, path_to_config: str):
+    def __load_config(self, path_to_config: str | dict):
         """
         Tries to find and load a requested configuration file.
         
         Parameters
         ----------
-        path_to_config: str
+        path_to_config: str | dict
         
         Raises
         ------
@@ -137,19 +137,23 @@ class Handler:
             If there is an error with the `config.yaml`
         
         """
-        self.logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
-        try:
-            file = open(f"{path_to_config}/config.yaml", "r")
-            self.config = yaml.safe_load(stream=file)
-            self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
-            self.logger.info(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
+        if type(path_to_config) == dict:
+            self.config = path_to_config
             
-        except FileNotFoundError as e:
-            FileNotFoundError(bcolors.FAIL + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}" + bcolors.ENDC)
-        except OSError as e:
-            OSError(bcolors.FAIL + f"Path to config.yaml could not found, please check it is valid! Additional details: {e}" + bcolors.ENDC) 
-        except yaml.YAMLError as e:
-            yaml.YAMLError(bcolors.FAIL + f"Error loading config.yaml! Additional details: {e}" + bcolors.ENDC)
+        else:
+            self.logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
+            try:
+                file = open(f"{path_to_config}/config.yaml", "r")
+                self.config = yaml.safe_load(stream=file)
+                self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
+                self.logger.info(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
+
+            except FileNotFoundError as e:
+                FileNotFoundError(bcolors.FAIL + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}" + bcolors.ENDC)
+            except OSError as e:
+                OSError(bcolors.FAIL + f"Path to config.yaml could not found, please check it is valid! Additional details: {e}" + bcolors.ENDC) 
+            except yaml.YAMLError as e:
+                yaml.YAMLError(bcolors.FAIL + f"Error loading config.yaml! Additional details: {e}" + bcolors.ENDC)
     
     
     def __check_paths(self):
@@ -445,8 +449,8 @@ class Handler:
             raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC) from e
         
 
-    def __run_benchmark(self, benchmarks: BenchmarkManager):
-        return benchmarks.run()
+    def __run_benchmark(self, benchmark: BenchmarkManager):
+        return benchmark.run()
 
     
     def __prepare_dataframe(self):

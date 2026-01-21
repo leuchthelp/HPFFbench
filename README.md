@@ -1,5 +1,7 @@
 # HPFFbench
 
+[Documentation](https://hpffbench.readthedocs.io/en/latest/)
+
 ## Introduction
 
 Requires: `python >= 3.10` and some form of `git` present, either through direct install or a `module` file
@@ -116,7 +118,7 @@ format:
     hdf5: subfiling
 ```
 
-A `developer` would have to create working `source-code` for `creating` and at a minimum `running` a benchmark. For inspiration please look at `components/benchmarks/`.
+A `developer` would have to create working `source-code` for `creating` and at a minimum `running` a benchmark. For inspiration please look at the `benchmarks` directory.
 
 A benchmark is described as `.yaml` containing information on the `format`, `language` &  `file-extension` used as well as which type of `parallelism` may be supported.
 
