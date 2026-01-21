@@ -1,6 +1,6 @@
 # Overview
 
-If you have already read through the [quickstart guide][quick-start], you can skip to [Stages](#stages).
+If you have already read through the [quickstart guide][quick-start], you can skip to [Abstract Interface of "File" & "Datasets"](#abstract-interface-of-file--datasets).
 
 For more information of creating a new [benchmark][benchmarks] and it's defining [benchmark.yaml][benchmarks].
 
