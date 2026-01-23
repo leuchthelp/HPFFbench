@@ -9,7 +9,9 @@ Requires: `python >= 3.10` and some form of `git` present, either through direct
 IMPORTANT
 
 ```text
-Do not expect this to work out of the box by just running the code provided, your compiler will most likely be different. Change it in either `main.py` or `HPFFbench.ipynb`
+Do not expect this to work out of the box when using spack environments by just running the code provided, your compiler will most likely be different. Change it in either `main.py` or `HPFFbench.ipynb`
+
+For more information please look at the spack related sections.
 ```
 
 HPFFbench stands for {H}igh-{P}erformance {F}ile {F}ormat {bench}mark. (Name is debatable)
