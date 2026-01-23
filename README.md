@@ -4,7 +4,11 @@
 
 ## Introduction
 
-Requires: `python >= 3.10` and some form of `git` present, either through direct install or a `module` file
+Requires: `python >= 3.10` and some form of `git` present, either through direct install or a `module` file.
+
+IMPORTANT
+
+    Do not expect this to work out of the box, your compiler will most likely be different. Change it in either `main.py` or `HPFFbench.ipynb`
 
 HPFFbench stands for {H}igh-{P}erformance {F}ile {F}ormat {bench}mark. (Name is debatable)
 
