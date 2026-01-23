@@ -5,6 +5,12 @@ This section will cover how to quickly get HPFFbench up and running.
 
 If you want to learn more about the design of HPFFbench to gain a quick overview, please refer to the [Design][overview] section.
 
+IMPORTANT
+
+```text
+Do not expect this to work out of the box by just running the code provided, your compiler will most likely be different. Change it in either `main.py` or `HPFFbench.ipynb`
+```
+
 ## Simple run
 
 HPFFbench ships some basic, prebuilt [benchmarks][benchmarks] to run on any system. They can be found in [benchmarks directory](https://github.com/leuchthelp/HPFFbench/tree/refactor/benchmarks). Once the basic configuration has been performed, simply run the script via `python main.py` or similar.
