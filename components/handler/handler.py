@@ -17,6 +17,8 @@ import sys
 import subprocess
 import logging
 
+logger = logging.getLogger(__name__)
+
 @dataclass
 class Handler:
     
@@ -38,9 +40,8 @@ class Handler:
     path_to_config: str
     
     
-    def __init__(self, path_to_config: str | dict, logger: logging.Logger):
+    def __init__(self, path_to_config: str | dict):
         
-        self.logger = logger
         self.__id = ""
         self.config = {}
         self.__benchmarks = []
@@ -59,9 +60,9 @@ class Handler:
         self.slurm_avail    = False
         try:
             p = subprocess.run("sinfo", check=True, capture_output=True, text=True)
-            self.logger.debug("Check if slurm is available")
-            self.logger.debug(p.stdout)
-            self.logger.error(p.stderr)
+            logger.debug("Check if slurm is available")
+            logger.debug(p.stdout)
+            logger.error(p.stderr)
             self.slurm_avail = True
         except:
             pass
@@ -96,12 +97,12 @@ class Handler:
             if parallel != "Both" and type(parallel) != bool: raise ValueError(bcolors.FAIL + "\"parallel\" can only either be \"True\", \"False\" or \"Both\"" + bcolors.ENDC)
             
         except KeyError:
-            self.logger.info(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
+            logger.info(bcolors.WARNING + f"\"parallel\" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True." + bcolors.ENDC)   
         
         
         self.spack_manager = []
         for env_name, spack_env in self.config["spack env"].items():
-            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env, only_data=self.__only_data, paths=self.config["paths"], logger=self.logger))
+            self.spack_manager.append(SpackManager(handler_id=self.__id, env_name=env_name, spack_env=spack_env, use_spack_env=self.__use_spack_env, only_data=self.__only_data, paths=self.config["paths"]))
         
         
         if parallel == "Both":
@@ -114,7 +115,7 @@ class Handler:
         if self.__only_data == False:
             self.__start()
         else:
-            self.logger.info(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
+            logger.info(bcolors.UNDERLINE + f"Just collecting results of matching benchmarks if they exist since \"only_data\" is set to {self.__only_data}." + bcolors.ENDC)
         
         self.__prepare_dataframe()
                       
@@ -140,33 +141,41 @@ class Handler:
         if type(path_to_config) == dict:
             self.config = path_to_config
             
-        else:
-            self.logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
+        elif type(path_to_config) == str:
+            logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
             try:
-                file = open(f"{path_to_config}/config.yaml", "r")
+                if ".yaml" or ".yml" not in path_to_config:
+                    for file in itertools.chain(Path(path_to_config).glob("*.yaml"), Path(path_to_config).glob("*.yml")):
+                        path_to_config = str(file)
+                        break
+                    
+                file = open(f"{path_to_config}", "r")
                 self.config = yaml.safe_load(stream=file)
                 self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
-                self.logger.info(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
+                logger.info(bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC)
 
-            except FileNotFoundError as e:
+            except FileNotFoundError or IsADirectoryError as e:
                 FileNotFoundError(bcolors.FAIL + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}" + bcolors.ENDC)
             except OSError as e:
                 OSError(bcolors.FAIL + f"Path to config.yaml could not found, please check it is valid! Additional details: {e}" + bcolors.ENDC) 
             except yaml.YAMLError as e:
                 yaml.YAMLError(bcolors.FAIL + f"Error loading config.yaml! Additional details: {e}" + bcolors.ENDC)
+        
+        else:
+            raise ValueError(bcolors.FAIL + f"path_to_config is of type: {type(path_to_config)} - needs to be either dict or str" + bcolors.ENDC)
     
     
     def __check_paths(self):
         """
         Checks if all user requested paths exist. Should also define a couple of defaults to fall back to, currently does not.
         """
-        self.logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
+        logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
         for key, path in self.config["paths"].items(): # type: ignore
             if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
         
-        self.logger.info(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
+        logger.info(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
         
-        self.logger.info(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
+        logger.info(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
     
     
     def __determine_capabilities(self) -> dict:
@@ -306,7 +315,7 @@ class Handler:
             requested = dict(requested)
             
             if str(requested) in determined_cap:
-                self.logger.info(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
+                logger.info(bcolors.OKGREEN + f"Success" + bcolors.ENDC)
                 
                 tasks.append(self.__create_benchmark_manager(parallel=parallel, requested=requested, bm_config=determined_cap[str(requested)]))
         
@@ -391,7 +400,7 @@ class Handler:
                 if manager.initialized == False:
                     manager.initialize_env()
                 else:
-                    self.logger.info(bcolors.OKGREEN + f"Environment: {manager.env_name} already initialized" + bcolors.ENDC)
+                    logger.info(bcolors.OKGREEN + f"Environment: {manager.env_name} already initialized" + bcolors.ENDC)
                 
                 bm = BenchmarkManager(
                         handler_id=self.__id, 
@@ -406,7 +415,6 @@ class Handler:
                         collective=state,
                         ranks=rank,
                         spack_manager=manager,
-                        logger=self.logger,
                         paths=self.config["paths"],
                         )
                 
@@ -441,9 +449,9 @@ class Handler:
             
             if self.__delete_envs == True: 
                 for manager in self.spack_manager:
-                    self.logger.info(f"remove environment: {manager.env_name}")
+                    logger.info(f"remove environment: {manager.env_name}")
                     manager.delete()
-                self.logger.info("finish removing environments")       
+                logger.info("finish removing environments")       
             
         except TypeError as e:     
             raise NameError(bcolors.FAIL + f"No matching benchmark found that fits configuration" + bcolors.ENDC) from e
@@ -477,9 +485,9 @@ class Handler:
                 
                 if path_name in self.__benchmarks:
                     
-                    self.logger.debug(f"full path {path}")
-                    self.logger.debug(f"date of file @ {path_date}")
-                    self.logger.info(f"currently on {path_name}")
+                    logger.debug(f"full path {path}")
+                    logger.debug(f"date of file @ {path_date}")
+                    logger.info(f"currently on {path_name}")
                     
                     benchmark = self.__benchmarks[path_name]
                     
@@ -527,7 +535,7 @@ class Handler:
                             with open(location_profiling.absolute(), "r") as file:
                                 profiling = json.load(file)
                             
-                            self.logger.debug(f"loads {location_profiling} for iteration {index}")
+                            logger.debug(f"loads {location_profiling} for iteration {index}")
                         except:
                             pass
                         
@@ -554,7 +562,7 @@ class Handler:
                         if value not in clusters[0]:
                             anomaly = True
                             
-                        self.logger.debug(f"clusters: {clusters}, value: {value}, anomaly: {anomaly}")
+                        logger.debug(f"clusters: {clusters}, value: {value}, anomaly: {anomaly}")
                             
                         
                             
@@ -609,6 +617,6 @@ class Handler:
                 if nodes in df.at[index,"node count"]:  # type: ignore
                     df.at[index,"total nc match"][nodes] = count  # type: ignore
             
-        self.logger.debug(df)
+        logger.debug(df)
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True, ignore_index=True)
         df.to_json(Path(f"{tmp}/results.json"))

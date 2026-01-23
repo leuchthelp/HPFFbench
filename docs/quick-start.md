@@ -29,7 +29,22 @@ new_config = {
 Handler(path_to_config=path_to_config)
 ```
 
+The config can either be ingested from a `YAML` file if you wish to build up it or can take the `dict` directly. If the `path_to_config` does not include the `.yaml` file, the framework will try to find the first match in that location. Both `.yaml` and `.yml` are supported.
+
 This will tell the framework to find benchmarks with `hdf5` as the format to use with `python` as the language. It will then execute the code it finds and perform whatever function was defined for 2 iterations, before exiting and collecting the results within a [Pandas](https://pandas.pydata.org/) compatible `JSON` file. For this example a file containing a dataset `X` with a size of `1GB` will be created and benchmarked.
+
+```py
+paths = {
+        "path_to_benchmarks": "benchmarks",
+        "path_to_tmp"       : "components/tmp",
+        "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
+        "path_to_results"   : "components/results", 
+        #"path_to_visuals"   : "components/visualize",
+        #"path_profiling"    : "components/profiling",   
+    }
+```
+
+Paths should be a dictionary of `path_name`: `location`. All uncommented paths are required to be passed and every path added is checked upon start.
 
 IMPORTANT:
 

@@ -28,7 +28,22 @@ new_config = {
 Handler(path_to_config=path_to_config)
 ```
 
+The config can either be ingested from a `YAML` file if you wish to build up it or can take the `dict` directly. If the `path_to_config` does not include the `.yaml` file, the framework will try to find the first match in that location. Both `.yaml` and `.yml` are supported.
+
 This will tell the framework to find benchmarks with `hdf5` as the format to use with `python` as the language. It will then execute the code it finds and perform whatever function was defined for 2 iterations, before exiting and collecting the results within a [Pandas](https://pandas.pydata.org/) compatible `JSON` file. For this example a file containing a dataset `X` with a size of `1GB` will be created and benchmarked.
+
+```py
+paths = {
+        "path_to_benchmarks": "benchmarks",
+        "path_to_tmp"       : "components/tmp",
+        "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
+        "path_to_results"   : "components/results", 
+        #"path_to_visuals"   : "components/visualize",
+        #"path_profiling"    : "components/profiling",   
+    }
+```
+
+Paths should be a dictionary of `path_name`: `location`. All uncommented paths are required to be passed and every path added is checked upon start.
 
 ### Abstract Interface of "File" & "Datasets"
 
@@ -98,7 +113,7 @@ Once the initial setup is concluded and passed on, the [Handler](handler.md) wor
 
 ### Spackmanager
 
-A [Spackmanager](spackmanager.md) encapsulated all defining information of a specific spack environment requested by the user. The environment will be create once upon being requested. If you define multiple spack environments but end up runnings benchmarks not `targeted` by that specific environment, it will not be created to save on time and resources.
+A [Spackmanager](spackmanager.md) encapsulated all defining traits of a specific spack environment requested by the user. The environment will be create once upon being requested. If you define multiple spack environments but end up runnings benchmarks not `targeted` by that specific environment, it will not be created to save on time and resources.
 
 Be aware creating a spack environment can take a considerable amount of time upon first launch, as the [spack package manager](https://spack.io/) builds all packages from source for this specific system. To reduce the time complexity for subsequent runs existing environments are kept and reused. If you want to delete all environments upon exit set the `delete envs` flag in the initial config.
 
@@ -136,7 +151,7 @@ What a variation of a packages might look like is show with the `hdf5` package. 
 
 ### Benchmarkmanager
 
-The benchmark manager is what ultimately receives all metadata, source-code and alike from what the framework ingests.
+The [Benchmarkmanager](benchmarkmanager.md) is what ultimately receives all metadata, source-code and alike from what the framework ingests.
 
 With this information it:
 

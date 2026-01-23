@@ -5,38 +5,34 @@ import yaml
 import os
 import logging
 
-
-#paths
-path_to_config = "components/handler/"
-
-paths = {
-    "path_to_benchmarks": "benchmarks",
-    "path_to_tmp"       : "components/tmp",
-    "path_to_config"    : "components/handler",
-    "path_to_visuals"   : "components/visualize",
-    "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
-    "path_to_results"   : "components/results", 
-    #"path_profiling"    : "components/profiling",   
-}
    
 def main():
+    
+    paths = {
+        "path_to_benchmarks": "benchmarks",
+        "path_to_tmp"       : "components/tmp",
+        "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
+        "path_to_results"   : "components/results", 
+        #"path_to_visuals"   : "components/visualize",
+        #"path_profiling"    : "components/profiling",   
+    }
 
     tmp = {
-            #"run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
-            #"run02": {"X": [[1 * 134217728], [], "f8"]},
-            #"run03": {"X": [[1 * 134217728], []],},
-            #"run03": {"X": [[5 * 134217728], []],},
-        
-            "run04": {"X": [[10 * 134217728], []]},
-            #"run05": {"X": [[20 * 134217728], []]},
-            #"run06": {"X": [[30 * 134217728], []]},
-            #"run07": {"X": [[40 * 134217728], []]},
-            #"run08": {"X": [[50 * 134217728], []]},
-            #"run09": {"X": [[60 * 134217728], []]},
-            #"run10": {"X": [[70 * 134217728], []]},
-            #"run11": {"X": [[80 * 134217728], []]},
-            #"run12": {"X": [[90 * 134217728], []]},
-            #"run13": {"X": [[100 * 134217728], []]},
+        #"run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
+        #"run02": {"X": [[1 * 134217728], [], "f8"]},
+        #"run03": {"X": [[1 * 134217728], []],},
+        #"run03": {"X": [[5 * 134217728], []],},
+    
+        "run04": {"X": [[10 * 134217728], []]},
+        #"run05": {"X": [[20 * 134217728], []]},
+        #"run06": {"X": [[30 * 134217728], []]},
+        #"run07": {"X": [[40 * 134217728], []]},
+        #"run08": {"X": [[50 * 134217728], []]},
+        #"run09": {"X": [[60 * 134217728], []]},
+        #"run10": {"X": [[70 * 134217728], []]},
+        #"run11": {"X": [[80 * 134217728], []]},
+        #"run12": {"X": [[90 * 134217728], []]},
+        #"run13": {"X": [[100 * 134217728], []]},
     }
     
     slurm_options = """
@@ -151,15 +147,17 @@ def main():
         "delete envs"           : False,
     }
     
-    with open(f"{path_to_config}/config.yaml", "w") as file:
+    path_to_config = "components/handler/config.yaml"
+    
+    with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
     
     
     with Profile() as profile:  
-        handler = Handler(path_to_config=path_to_config, logger=logger)
+        handler = Handler(path_to_config=path_to_config)
         stats = Stats(profile).strip_dirs()
         #stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
         #stats.sort_stats(SortKey.CALLS).print_stats(20)

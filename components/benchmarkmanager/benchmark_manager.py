@@ -10,6 +10,8 @@ import subprocess
 import re
 import logging
 
+logger = logging.getLogger(__name__)
+
 @dataclass
 class BenchmarkManager:
     
@@ -159,14 +161,12 @@ class BenchmarkManager:
                  ranks          : int, 
                  requested      : dict, 
                  spack_manager  : SpackManager,
-                 logger         : logging.Logger,
                  paths          : dict,
                  ):
         
         
         # Object config
         self.current_time   = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        self.logger         = logger
         self.handler_id     = handler_id
         self.bm_config      = bm_config
         self.global_config  = global_config
@@ -288,7 +288,7 @@ class BenchmarkManager:
         if self.__profiler == True:
             self.profiling_path = Path(paths["path_profiling"]) 
         
-        self.logger.info(bcolors.OKBLUE +  
+        logger.info(bcolors.OKBLUE +  
                         f"Managing Benchmark with; file-structure: {run_config}, "
                         f"nodes: {self.nodes}, "
                         f"datatype: {self.datatype}, "
@@ -389,7 +389,7 @@ class BenchmarkManager:
                     try:
                         create_command = create_commands["profile"]
                     except:
-                        self.logger.warning("Profiler was set to \"True\" on create, but no valid profile command supplied - continuing without profiling")
+                        logger.warning("Profiler was set to \"True\" on create, but no valid profile command supplied - continuing without profiling")
                     
             except KeyError as e:
                 if self.bm_config["parallel"] == True:
@@ -423,7 +423,7 @@ class BenchmarkManager:
                 if check_profiling in create_commands:
                     create_command = create_commands[check_profiling]
                 else:
-                    self.logger.warning(f"Profiler was set to \"True\" on create with {self.par_backend}, but no valid profile command supplied - continuing without profiling")
+                    logger.warning(f"Profiler was set to \"True\" on create with {self.par_backend}, but no valid profile command supplied - continuing without profiling")
         
         
         if self.par_backend != None:
@@ -479,10 +479,10 @@ class BenchmarkManager:
         else: 
             create_command = ["bash", self.__assemble_bash(path=self.bash_location, compile_file_info=compiled_file_info), create_command]
 
-        self.logger.debug(f"create command used: {create_command}")
+        logger.debug(f"create command used: {create_command}")
         p = subprocess.run(create_command, capture_output=True, text=True, check=True, cwd=self.dir_path)
-        self.logger.error(p.stderr)
-        self.logger.info(p.stdout)
+        logger.error(p.stderr)
+        logger.info(p.stdout)
     
     
     def __append_flag(self, flag: str, command: str, data: list) -> str:
@@ -552,7 +552,7 @@ class BenchmarkManager:
         compile_command = compile_command + " -Wl,--unresolved-symbols=ignore-in-object-files" + f" -o {compiled_file}"
         
         
-        self.logger.debug(f"compile command used: {compile_command}")
+        logger.debug(f"compile command used: {compile_command}")
         with open(f"{self.dir_path.absolute()}/compile.sh", "w") as file:
             file.write("#!/bin/bash\n")
             try:
@@ -566,8 +566,8 @@ class BenchmarkManager:
             file.write(compile_command)
             
         p = subprocess.run(["bash", "compile.sh"], check=True, capture_output=True, cwd=self.dir_path)
-        self.logger.error(p.stderr)
-        self.logger.debug(p.stdout)
+        logger.error(p.stderr)
+        logger.debug(p.stdout)
         
         return compiled_file, ld_library_path
   
@@ -588,7 +588,7 @@ class BenchmarkManager:
                 try:
                     run_command = run_commands["profile"]
                 except:
-                    self.logger.warning("Profiler was set to \"True\" on run, but no valid profile command supplied - continuing without profiling")
+                    logger.warning("Profiler was set to \"True\" on run, but no valid profile command supplied - continuing without profiling")
             
         except KeyError as e:
             if self.bm_config["parallel"] == True:
@@ -622,7 +622,7 @@ class BenchmarkManager:
                 if check_profiling in run_commands:
                     run_command = run_commands[check_profiling]
                 else:
-                    self.logger.warning(f"Profiler was set to \"True\" on run with {self.par_backend}, but no valid profile command supplied - continuing without profiling")
+                    logger.warning(f"Profiler was set to \"True\" on run with {self.par_backend}, but no valid profile command supplied - continuing without profiling")
         
         
         if self.par_backend != None:
@@ -667,7 +667,7 @@ class BenchmarkManager:
 
         self.used_nodes = []
         
-        self.logger.debug(f"run command used: {run_command}")
+        logger.debug(f"run command used: {run_command}")
         original_run_command = run_command[2]
         for i in range(self.iterations):
             
@@ -675,17 +675,17 @@ class BenchmarkManager:
                 tmp_command     = original_run_command
                 tmp_command     = tmp_command.replace("<profile_path>", f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}-{i}", count=1)
                 run_command[2]  = tmp_command
-                self.logger.debug(f"Run command with profiler {run_command}")
+                logger.debug(f"Run command with profiler {run_command}")
                 
                 
             if  self.slurm_avail == True and self.local == False:
                 p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path, check=True)
-                self.logger.error(p.stderr)
-                self.logger.info(p.stdout)
+                logger.error(p.stderr)
+                logger.info(p.stdout)
             else: 
                 p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path, check=True)   # type: ignore
-                self.logger.error(p.stderr)
-                self.logger.info(p.stdout)
+                logger.error(p.stderr)
+                logger.info(p.stdout)
                 #if self.no_caching == True:
                 #    new_path = Path(f"{self.dir_path}/{i}")
                 #    new_path.mkdir(parents=True)
