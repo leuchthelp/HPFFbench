@@ -23,9 +23,9 @@ spack config add "modules:default:enable:[tcl]"
 spack compilers
 
 # Install and setup "module" and add to local shell
-spack install --fresh lmod
-. $(spack location -i lmod)/lmod/lmod/init/profile
-. $HPFF_SPACK_ROOT/share/spack/setup-env.sh
+#spack install --fresh lmod
+#. $(spack location -i lmod)/lmod/lmod/init/profile
+#. $HPFF_SPACK_ROOT/share/spack/setup-env.sh
 
 python3 -m venv .venv
 source .venv/bin/activate

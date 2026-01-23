@@ -148,7 +148,6 @@ class SpackManager:
                     with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
                         file.write("#!/bin/bash\n")
                         file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-                        file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
                         file.write(f"spack location -i {package}\n")
 
                         p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, check=True, capture_output=True)
@@ -174,7 +173,6 @@ class SpackManager:
                 file.write("module load git\n")
             
             file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-            file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
             
             first = True
             check_installed = Path(f"{self.file_location}/.venv")
@@ -201,9 +199,7 @@ class SpackManager:
             file.write(f"source {self.env_location.absolute()}/.venv/bin/activate\n")
             file.write("pip install --upgrade pip \n")
             file.write(f"{self.additional}\n")
-            #file.write(f"cd components\n")
             file.write(f"pip install -e {self.__root_path}/components\n")
-            #file.write("cd -\n")
             file.write("pip list\n")
             file.write(f"spack env deactivate\n")
         
@@ -312,7 +308,6 @@ class SpackManager:
                     file.write("module load git\n")
                 
                 file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-                file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
                 file.write(f"spack env activate {self.env_name} -p \n")   
                 file.write(f"spack remove --all \n")   
                 file.write(f"spack env deactivate\n")    

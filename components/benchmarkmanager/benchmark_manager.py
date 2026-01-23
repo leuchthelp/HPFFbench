@@ -561,7 +561,6 @@ class BenchmarkManager:
                 file.write("module load git\n")
             
             file.write(f". {self.root_path}/spack/share/spack/setup-env.sh\n")
-            file.write(". $(spack location -i lmod)/lmod/lmod/init/profile\n")
             file.write(self.spack_manager.load_env())
             file.write(compile_command)
             
@@ -1349,7 +1348,7 @@ ls -lh
 
 {load_git}
 . {self.root_path}/spack/share/spack/setup-env.sh
-. $(spack location -i lmod)/lmod/lmod/init/profile
+
 
 {self.spack_manager.load_env()}
 
