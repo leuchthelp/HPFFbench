@@ -8,7 +8,9 @@ If you want to learn more about the design of HPFFbench to gain a quick overview
 IMPORTANT
 
 ```text
-Do not expect this to work out of the box by just running the code provided, your compiler will most likely be different. Change it in either `main.py` or `HPFFbench.ipynb`
+Do not expect this to work out of the box when using spack environments by just running the code provided, your compiler will most likely be different. Change it in either `main.py` or `HPFFbench.ipynb`
+
+For more information please look at the spack related sections.
 ```
 
 ## Simple run
