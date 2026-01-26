@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from dev_utils import bcolors
+from copy import deepcopy
 import subprocess
 import itertools
 import shutil
@@ -101,9 +102,10 @@ class SpackManager:
         self.language       = self.spack_env["language"]
         self.packages       = self.spack_env["packages"]
         
+        self.env_name_present= False
         self.install        = False
         try:
-            self.install        = self.spack_env["install"]
+            self.install    = self.spack_env["install"]
         except:
             pass
             
@@ -131,12 +133,23 @@ class SpackManager:
 
             if "variants" in info:
                 variants = info["variants"] if type(info["variants"]) != str else [info["variants"]]
-
+                
 
             combinations = list(itertools.product(*[versions, variants, [self.compiler]]))
-            
             self.loadables[name] = combinations
-     
+
+            
+            # Check if environment exits, reuse if it does. Will usually exist, even if downstream processes fail. Hence further checks
+            with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
+                file.write("#!/bin/bash\n")
+                file.write("set -e\n")
+                file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                file.write(f"spack env activate {self.env_name}\n")
+                
+            p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, capture_output=True)
+        
+            if p.returncode == 0:
+                self.env_name_present = True
                 
             for combination in combinations:
                 package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
@@ -144,37 +157,37 @@ class SpackManager:
                 if name == "python":
                     self.python_version = package
                 
+
                 if self.__only_data == False:
-                    with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
-                        file.write("#!/bin/bash\n")
-                        file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-                        file.write(f"spack location -i {package}\n")
+                    # Check if package can be found in environment, usually fails if version or compiler is mismatched with what is available in spack at the time.    
+                    
+                    if self.env_name_present == True: 
+                        with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
+                            file.write("#!/bin/bash\n")
+                            file.write("set -e\n")
+                            file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                            file.write(f"spack -e {self.env_name} find {package}\n")
 
-                        p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, check=True, capture_output=True)
-                        self.package_locations[name] = (f"{package}", p.stdout.rstrip())
-        
-        
-        if Path(f"{self.env_location}/.venv").is_dir() == True:
-            try:
-                subprocess.run([f". {self.__root_path}/spack/share/spack/setup-env.sh", *f"spack env activate {self.env_name}"], check=True, shell=True)
-
-                for package, combinations in self.loadables.items():
-                    for combination in combinations:
-                        command = [f". {self.__root_path}/spack/share/spack/setup-env.sh", *f"spack -e {self.env_name} find {package}@{combination[0]} {combination[1]} %{combination[2]}"]
-                        p = subprocess.run(command, shell=True)
-                        logger.error(p.returncode)
+                        p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, capture_output=True)
                         if p.returncode != 0:
-                            raise RuntimeError
+                            raise RuntimeError(bcolors.FAIL + f"At least one package \"{package}\" failed installing. Usually due to spack package / compiler version mismatch" + bcolors.ENDC)
+                    
+                    
+                        if Path(f"{self.env_location}/.venv").is_dir() == False:
+                            raise OSError(bcolors.FAIL + f"additional pip packages have not installed properly" + bcolors.ENDC)
 
-                
-                self.initialized = True
 
-            except OSError as e:
-                raise OSError(bcolors.FAIL + f"additional pip packages have not installed properly {e}" + bcolors.ENDC)
-            except RuntimeError as e:
-                raise RuntimeError(bcolors.FAIL + f"At least one package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(bcolors.FAIL + f"spack environment does not exist, either call Spackmanager.initialize_env() if you haven't or a package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
+                        with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
+                            file.write("#!/bin/bash\n")
+                            file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                            file.write(f"spack -e {self.env_name} location -i {package}\n")
+
+                        p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, capture_output=True)
+                        if p.returncode != 0:
+                            raise RuntimeError(bcolors.FAIL + f"{package}, unknown cause {p.stderr}" + bcolors.ENDC)
+                        self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+
+                        self.initialized = True
         
 
     def initialize_env(self):
@@ -226,16 +239,32 @@ class SpackManager:
         logger.info(bcolors.OKCYAN + f"Initialize environment {self.env_name}" + bcolors.ENDC)
         
         if self.__use_spack_env == True:
-            p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE)
             for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
                 sys.stdout.buffer.write(line)
                     
             p.wait()
-            if p.returncode != 0:
-                raise RuntimeError(bcolors.FAIL + f"Environment creation has failed, please check above for which package failed!" + bcolors.ENDC) 
+            if p.returncode != 0 and self.env_name_present == False:
+                raise RuntimeError(bcolors.FAIL + f"Environment creation has failed, most likely due to compiler or version mismatch, please check above for which package failed!" + bcolors.ENDC) 
             
         logger.info(bcolors.OKGREEN + "Finish Initialize environment" + bcolors.ENDC)
         self.initialized = True
+        
+        # Check if location to package can be found, usually fails if the package has not been installed
+        for name, combinations in self.loadables.items():
+            for combination in combinations:
+                package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
+                
+                
+                with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
+                    file.write("#!/bin/bash\n")
+                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                    file.write(f"spack -e {self.env_name} location -i {package}\n")
+                    
+                p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, capture_output=True)
+                if p.returncode != 0:
+                    raise RuntimeError(bcolors.FAIL + f"{package}, has not been installed yet. Either pass \"install\" flag or install it manually." + bcolors.ENDC)
+                self.package_locations[name] = (f"{package}", p.stdout.rstrip())
           
         self.file_location.unlink()
    
