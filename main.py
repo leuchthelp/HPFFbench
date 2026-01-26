@@ -23,7 +23,7 @@ def main():
         #"run03": {"X": [[1 * 134217728], []],},
         #"run03": {"X": [[5 * 134217728], []],},
     
-        "run04": {"X": [[10 * 134217728], []]},
+        "run04": {"X": [[1 * 134217728], []]},
         #"run05": {"X": [[20 * 134217728], []]},
         #"run06": {"X": [[30 * 134217728], []]},
         #"run07": {"X": [[40 * 134217728], []]},
@@ -49,7 +49,7 @@ def main():
 """
     
     spack_envs = {
-        "test-env-1" : {
+        "test-env-test4" : {
             "target"    : ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
             "language"  : ["py", "c"],
             "packages"  : {
@@ -132,7 +132,7 @@ def main():
         "formats"               : ["hdf5"],
         "languages"             : ["py"],
         "paths"                 : paths,
-        "iterations"            : 2,
+        "iterations"            : 1,
         "runs"                  : tmp,
         "parallel"              : True,
         "par_backend"           : "MPI",

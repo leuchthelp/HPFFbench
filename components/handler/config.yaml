@@ -7,11 +7,11 @@ paths:
   path_to_tmp: components/tmp
   path_to_root: /home/dev/hpffbench
   path_to_results: components/results
-iterations: 2
+iterations: 1
 runs:
   run04:
     X:
-    - - 1342177280
+    - - 134217728
     - []
 parallel: true
 par_backend: MPI
@@ -48,7 +48,7 @@ slurm options: '
 
   '
 spack env:
-  test-env-failure:
+  test-env-test4:
     target:
     - hdf5
     - hdf5: subfiling
@@ -87,7 +87,7 @@ spack env:
       py-netcdf4:
         versions:
         - 1.7.1
-    compiler: gcc@8.4
+    compiler: gcc@11.4
     additional: pip install zarr==3.0.5 py-spy
     install: true
   test-env-async:

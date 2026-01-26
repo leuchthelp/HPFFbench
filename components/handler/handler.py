@@ -170,7 +170,7 @@ class Handler:
         Checks if all user requested paths exist. Should also define a couple of defaults to fall back to, currently does not.
         """
         logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
-        for key, path in self.config["paths"].items(): # type: ignore
+        for key, path in self.config["paths"].items():
             if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
         
         logger.info(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
@@ -188,7 +188,7 @@ class Handler:
         dict
             Contains all capabilities the benchmark-framework has at runtime.
         """
-        root = Path(self.config["paths"]["path_to_benchmarks"])  # type: ignore
+        root = Path(self.config["paths"]["path_to_benchmarks"]) 
         
         determined = {}
         
@@ -201,20 +201,20 @@ class Handler:
                     additional = []
                     
                     try:
-                        tmp.append(("parallel", current["parallel"]))  # type: ignore
+                        tmp.append(("parallel", current["parallel"])) 
                     except KeyError:
                         tmp.append(("parallel", False))
                     
                     try:
-                        if current["par_backend"] != None and current["parallel"] == True:  # type: ignore
-                            tmp.append(("par_backend", current["par_backend"]))  # type: ignore
+                        if current["par_backend"] != None and current["parallel"] == True: 
+                            tmp.append(("par_backend", current["par_backend"])) 
                             
-                        elif current["parallel"] == "configurable":  # type: ignore
+                        elif current["parallel"] == "configurable": 
                             
-                            if type(current["par_backend"]) == list:  # type: ignore
-                                additional = current["par_backend"]  # type: ignore
+                            if type(current["par_backend"]) == list: 
+                                additional = current["par_backend"] 
                             else:
-                                additional.append(current["par_backend"])  # type: ignore   
+                                additional.append(current["par_backend"])    
                             raise KeyError
                                     
                         else:
@@ -223,12 +223,12 @@ class Handler:
                         tmp.append(("par_backend", None))
                     
                     try:
-                        tmp.append(("language", current["language"]))  # type: ignore
+                        tmp.append(("language", current["language"])) 
                     except yaml.YAMLError as e:
                         raise e
                      
                     try: 
-                        tmp.append(("format", current["format"]))  # type: ignore
+                        tmp.append(("format", current["format"])) 
                     except KeyError as e:
                         raise e
                     
@@ -269,21 +269,21 @@ class Handler:
         requested   = None
         
         languages    = []
-        for language in self.config["languages"]:  # type: ignore
+        for language in self.config["languages"]: 
             languages.append(("language", language))
         
         formats      = []
-        for format in self.config["formats"]:  # type: ignore
+        for format in self.config["formats"]: 
             formats.append(("format", format))
             
         par_backends = [("par_backend", None)]
         
         if parallel == True:
             par_backends = []
-            if type(self.config["par_backend"]) != list:  # type: ignore
-                    par_backends.append(("par_backend", self.config["par_backend"]))  # type: ignore
+            if type(self.config["par_backend"]) != list: 
+                    par_backends.append(("par_backend", self.config["par_backend"])) 
             else:
-                for par_backend in self.config["par_backend"]:  # type: ignore
+                for par_backend in self.config["par_backend"]: 
                     par_backends.append(("par_backend", par_backend))
         
         requested = list(itertools.product(*[[("parallel", parallel)], par_backends, languages, formats]))
@@ -345,7 +345,7 @@ class Handler:
         """
         benchmarks = []
         
-        for _, run_config in self.config["runs"].items():  # type: ignore
+        for _, run_config in self.config["runs"].items(): 
             
             slurm_options= ""
             nodes       = [1]
@@ -355,13 +355,13 @@ class Handler:
             if parallel == True:
                 try:
                     
-                    ranks = self.config["ranks"]  # type: ignore
+                    ranks = self.config["ranks"] 
 
                     if type(ranks) == int:
                         ranks = [ranks]
                         
                     try: 
-                        config_collective = [self.config["collective"]] # type: ignore
+                        config_collective = [self.config["collective"]]
                         
                         if config_collective == "Both":
                             collective = [False, True]
@@ -376,10 +376,10 @@ class Handler:
             
             # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
             if  self.slurm_avail == True or self.__only_data == True:
-                slurm_options= self.config["slurm options"]  # type: ignore
+                slurm_options= self.config["slurm options"] 
                 
                 try:
-                    nodes = self.config["nodes"] if type(self.config["nodes"]) == list else [self.config["nodes"]] # type: ignore
+                    nodes = self.config["nodes"] if type(self.config["nodes"]) == list else [self.config["nodes"]]
                 except:
                     pass
             
@@ -466,7 +466,7 @@ class Handler:
         Gathers up all generated results, data and metadata and assembles a pandas Dataframe object. Finally exports the results as JSON.
         Also performs some basic pre-analysis on the data to generate some additional, helpful metrics.
         """
-        root = Path(self.config["paths"]["path_to_results"])  # type: ignore
+        root = Path(self.config["paths"]["path_to_results"]) 
         df = pd.DataFrame()
         
         self.__benchmarks = dict(self.__benchmarks)
@@ -601,7 +601,7 @@ class Handler:
                         df = pd.concat([df, tmp], ignore_index=True)
                     
         
-        tmp = self.config["paths"]["path_to_results"]  # type: ignore
+        tmp = self.config["paths"]["path_to_results"] 
         
         # there is probably a better method for doing this, will look into it later
         
@@ -611,11 +611,11 @@ class Handler:
 
         
         for index, _ in df.iterrows():
-            df.at[index, "total node count"] = total_node_counter # type: ignore
+            df.at[index, "total node count"] = total_node_counter
             
             for nodes, count in total_node_counter.items():
-                if nodes in df.at[index,"node count"]:  # type: ignore
-                    df.at[index,"total nc match"][nodes] = count  # type: ignore
+                if nodes in df.at[index,"node count"]: 
+                    df.at[index,"total nc match"][nodes] = count 
             
         logger.debug(df)
         df.sort_values(by=["total filesize", "ranks", "engine", "format"], ascending=[True, True, True, False], inplace=True, ignore_index=True)
