@@ -49,7 +49,7 @@ def main():
 """
     
     spack_envs = {
-        "test-env-test4" : {
+        "test-env-1" : {
             "target"    : ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
             "language"  : ["py", "c"],
             "packages"  : {
