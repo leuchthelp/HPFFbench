@@ -153,24 +153,28 @@ class SpackManager:
                         p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, check=True, capture_output=True)
                         self.package_locations[name] = (f"{package}", p.stdout.rstrip())
         
-        try:
-            subprocess.run(f". {self.__root_path}/spack/share/spack/setup-env.sh\n spack env activate {self.env_name}".split(), check=True, shell=True)
-            
-            for package, combinations in self.loadables.items():
-                for combination in combinations:
-                    command = f". {self.__root_path}/spack/share/spack/setup-env.sh\n eval $(spack -e {self.env_name} find --sh {package}@{combination[0]} {combination[1]} %{combination[2]})"
-                    if subprocess.run(command.split(), shell=True).returncode != 0:
-                        raise RuntimeError
-            
-            if Path(f"{self.env_location}/.venv").is_dir() == True:
+        
+        if Path(f"{self.env_location}/.venv").is_dir() == True:
+            try:
+                subprocess.run([f". {self.__root_path}/spack/share/spack/setup-env.sh", *f"spack env activate {self.env_name}"], check=True, shell=True)
+
+                for package, combinations in self.loadables.items():
+                    for combination in combinations:
+                        command = [f". {self.__root_path}/spack/share/spack/setup-env.sh", *f"spack -e {self.env_name} find {package}@{combination[0]} {combination[1]} %{combination[2]}"]
+                        p = subprocess.run(command, shell=True)
+                        logger.error(p.returncode)
+                        if p.returncode != 0:
+                            raise RuntimeError
+
+                
                 self.initialized = True
-            
-        except OSError as e:
-            raise OSError(bcolors.FAIL + f"additional pip packages have not installed properly {e}" + bcolors.ENDC)
-        except RuntimeError as e:
-            raise RuntimeError(bcolors.FAIL + f"At least one package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(bcolors.FAIL + f"spack environment does not exist, either call Spackmanager.initialize_env() if you haven't or a package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
+
+            except OSError as e:
+                raise OSError(bcolors.FAIL + f"additional pip packages have not installed properly {e}" + bcolors.ENDC)
+            except RuntimeError as e:
+                raise RuntimeError(bcolors.FAIL + f"At least one package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(bcolors.FAIL + f"spack environment does not exist, either call Spackmanager.initialize_env() if you haven't or a package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
         
 
     def initialize_env(self):
