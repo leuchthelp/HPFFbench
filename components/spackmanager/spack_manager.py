@@ -153,9 +153,24 @@ class SpackManager:
                         p = subprocess.run(["bash", f"{self.env_location.absolute()}/check-location.sh"], text=True, check=True, capture_output=True)
                         self.package_locations[name] = (f"{package}", p.stdout.rstrip())
         
-        
-        if Path(f"{self.env_location}/.venv").is_dir() == True:
-            self.initialized = True
+        try:
+            subprocess.run(f". {self.__root_path}/spack/share/spack/setup-env.sh\n spack env activate {self.env_name}".split(), check=True, shell=True)
+            
+            for package, combinations in self.loadables.items():
+                for combination in combinations:
+                    command = f". {self.__root_path}/spack/share/spack/setup-env.sh\n eval $(spack -e {self.env_name} find --sh {package}@{combination[0]} {combination[1]} %{combination[2]})"
+                    if subprocess.run(command.split(), shell=True).returncode != 0:
+                        raise RuntimeError
+            
+            if Path(f"{self.env_location}/.venv").is_dir() == True:
+                self.initialized = True
+            
+        except OSError as e:
+            raise OSError(bcolors.FAIL + f"additional pip packages have not installed properly {e}" + bcolors.ENDC)
+        except RuntimeError as e:
+            raise RuntimeError(bcolors.FAIL + f"At least one package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(bcolors.FAIL + f"spack environment does not exist, either call Spackmanager.initialize_env() if you haven't or a package failed installing. Usually due to spack package / compiler version mismatch. Additional: {e}" + bcolors.ENDC)
         
 
     def initialize_env(self):
@@ -166,6 +181,7 @@ class SpackManager:
         
         with open(self.file_location, "w") as file:
             file.write("#!/bin/bash\n")
+            file.write("set -e\n")
             
             try:
                 subprocess.run("git --version".split(), check=True, capture_output=True, text=True)
@@ -209,11 +225,10 @@ class SpackManager:
             p = subprocess.Popen(["bash", self.file_location], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             for line in iter(lambda: p.stdout.readline(1), b""): # type: ignore
                 sys.stdout.buffer.write(line)
+                    
             p.wait()
-            logger.debug(p.stderr)
-            logger.error(p.stderr)
             if p.returncode != 0:
-                raise RuntimeError(bcolors.FAIL + "Environment creation has failed" + bcolors.ENDC)
+                raise RuntimeError(bcolors.FAIL + f"Environment creation has failed, please check above for which package failed!" + bcolors.ENDC) 
             
         logger.info(bcolors.OKGREEN + "Finish Initialize environment" + bcolors.ENDC)
         self.initialized = True

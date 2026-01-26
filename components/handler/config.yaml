@@ -48,7 +48,7 @@ slurm options: '
 
   '
 spack env:
-  test-env-1:
+  test-env-failure:
     target:
     - hdf5
     - hdf5: subfiling
@@ -87,7 +87,7 @@ spack env:
       py-netcdf4:
         versions:
         - 1.7.1
-    compiler: gcc@11.4
+    compiler: gcc@8.4
     additional: pip install zarr==3.0.5 py-spy
     install: true
   test-env-async:
