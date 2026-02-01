@@ -726,6 +726,7 @@ class BenchmarkManager:
             
             case "py":
                 return f"""
+import argparse
 import ast
 import os
             
