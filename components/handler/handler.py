@@ -171,8 +171,20 @@ class Handler:
         """
         logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
         for key, path in self.config["paths"].items():
-            if not Path(path).exists(): raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
-        
+            skip = False
+            
+            if type(path) == dict:
+                skip = path["skip"]
+                path = path["path"]   
+                self.config["paths"][key] = path
+
+            
+            if not skip:
+                if not Path(path).exists(): 
+                    raise ValueError(bcolors.FAIL + f"Configured path: {path} for key: {key} does not exist. Please create it." + bcolors.ENDC)
+            else:
+                logger.warning(bcolors.WARNING + f"{path} was skipped, proceed with caution" + bcolors.ENDC)
+            
         logger.info(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
         
         logger.info(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)

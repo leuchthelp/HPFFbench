@@ -7,6 +7,7 @@ import shutil
 import yaml
 import hashlib
 import subprocess
+import os
 import re
 import logging
 
@@ -225,7 +226,10 @@ class BenchmarkManager:
         self.var_to_bm      = self.global_config["variable_to_benchmark"]
         self.iterations     = self.global_config["iterations"]
         self.internal_i     = 1
-        self.no_caching     = False
+        
+        self.no_caching = False
+        if "no caching" in self.global_config:
+            self.no_caching     = self.global_config["no caching"]
         self.local          = False
         
         
@@ -328,6 +332,9 @@ class BenchmarkManager:
         ------
         TODO
         """
+        if self.dir_path.exists():
+            shutil.rmtree(self.dir_path)
+        
         self.dir_path.mkdir(parents=True)
 
         try:
@@ -399,7 +406,7 @@ class BenchmarkManager:
                 
             
         # Create the file that contains code to create the given dataset
-        create = self.create.replace("#MAIN", self.__replace_main(language))
+        create = self.create.replace("#MAIN", self.__replace_main(language)) # type: ignore
         
         path_to_create_file = Path(f"{self.dir_path}/create.{language}")
         with open(path_to_create_file, "w") as file:
@@ -667,42 +674,50 @@ class BenchmarkManager:
         self.used_nodes = []
         
         logger.debug(f"run command used: {run_command}")
-        original_run_command = run_command[2]
+        original_run_command = str(run_command[-1])
         for i in range(self.iterations):
             
-            if self.__profiler == True:
+            if self.__profiler:
                 tmp_command     = original_run_command
                 tmp_command     = tmp_command.replace("<profile_path>", f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}-{i}", count=1)
-                run_command[2]  = tmp_command
+                run_command[-1]  = tmp_command
                 logger.debug(f"Run command with profiler {run_command}")
+            
+            if self.no_caching:    
+                new_path = Path(f"{self.dir_path}/{i}")
+                new_path.mkdir(parents=True)
                 
+                current_path = Path()
+                for path in self.dir_path.rglob(f"*.{self.extension}"):
+                    current_path = path
+                    
+                    
+                with open(current_path, "r+") as file:
+                    file.flush()
+                    os.fsync(file.fileno())
+                    os.posix_fadvise(file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
+                    
+                    
+                new_file_location = shutil.move(current_path.absolute(), f"{new_path.absolute()}/{i}.{self.extension}")  
+                logger.debug(f"current location: {self.location} -> new location: {new_file_location}")
                 
-            if  self.slurm_avail == True and self.local == False:
-                p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path, check=True)
-                logger.error(p.stderr)
-                logger.info(p.stdout)
-            else: 
-                p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path, check=True)   # type: ignore
-                logger.error(p.stderr)
-                logger.info(p.stdout)
-                #if self.no_caching == True:
-                #    new_path = Path(f"{self.dir_path}/{i}")
-                #    new_path.mkdir(parents=True)
-                #    
-                #    current_path = Path()
-                #    for path in self.dir_path.rglob(f"*.{self.extension}"):
-                #        current_path = path
-                #        
-                #    new_file_location = shutil.move(current_path.absolute(), f"{new_path.absolute()}/{i}.{self.extension}")  
-                #    
-                #    #print(f"current location: {self.location} -> new location: {new_file_location}")
-                #    
-                #    run_command = run_command.replace(f"-l {self.location}", f"-l {new_file_location}")   # type: ignore
-                #    #print(f"new run command: {run_command}")
-                #    self.location = new_file_location
+                tmp_command = str(run_command[-1]).replace(f"-l {self.location}", f"-l {new_file_location}") 
+                run_command[-1] = tmp_command
+                
+                logger.debug(f"new run command: {run_command}")
+                self.location = new_file_location
+                
+                with open(self.location, "r+") as file:
+                    file.flush()
+                    os.fsync(file.fileno())
+                    os.posix_fadvise(file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
+                    
+            p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path, check=True)
+            logger.error(p.stderr)
+            logger.info(p.stdout)
                 
         
-    def __replace_main(self, language: str) -> str:  # type: ignore
+    def __replace_main(self, language: str) -> str | None:
         """
         Contains pre-made main methods that can be injected. These methods contain functioning code to achieve feature parity among benchmarks requested. 
         
