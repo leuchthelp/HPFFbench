@@ -229,7 +229,7 @@ class BenchmarkManager:
         
         self.no_caching = False
         if "no caching" in self.global_config:
-            self.no_caching     = self.global_config["no caching"]
+            self.no_caching = self.global_config["no caching"]
         self.local          = False
         
         
@@ -690,12 +690,20 @@ class BenchmarkManager:
                 current_path = Path()
                 for path in self.dir_path.rglob(f"*.{self.extension}"):
                     current_path = path
-                    
-                    
-                with open(current_path, "r+") as file:
-                    file.flush()
-                    os.fsync(file.fileno())
-                    os.posix_fadvise(file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
+
+                # Need to just pass on failure thanks to zarr file being directories full of metadata ...  
+                purge_files = []
+                if current_path.is_file():
+                    purge_files.append(current_path)
+                else:
+                    purge_files = current_path.rglob("*")
+
+                for path in purge_files:
+                    if path.is_file():
+                        with open(path, "r+") as file:
+                            file.flush()
+                            os.fsync(file.fileno())
+                            os.posix_fadvise(file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
                     
                     
                 new_file_location = shutil.move(current_path.absolute(), f"{new_path.absolute()}/{i}.{self.extension}")  
@@ -707,10 +715,21 @@ class BenchmarkManager:
                 logger.debug(f"new run command: {run_command}")
                 self.location = new_file_location
                 
-                with open(self.location, "r+") as file:
-                    file.flush()
-                    os.fsync(file.fileno())
-                    os.posix_fadvise(file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
+                # Need to just pass on failure thanks to zarr file being directories full of metadata ...
+                purge_files = []
+                current_path = Path(self.location)
+                if current_path.is_file():
+                    purge_files.append(current_path)
+                else:
+                    purge_files = current_path.rglob("*")
+
+                for path in purge_files:
+                    if path.is_file():
+                        with open(path, "r+") as file:
+                            file.flush()
+                            os.fsync(file.fileno())
+                            os.posix_fadvise(file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
+ 
                     
             p = subprocess.run(run_command, capture_output=True, text=True, cwd=self.dir_path, check=True)
             logger.error(p.stderr)
