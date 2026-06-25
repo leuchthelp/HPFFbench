@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/</loc>
+      </url>
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/quick-start/</loc>
+      </url>
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/visualize/</loc>
+      </url>
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/design/benchmarkmanager/</loc>
+      </url>
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/design/benchmarks/</loc>
+      </url>
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/design/handler/</loc>
+      </url>
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/design/overview/</loc>
+      </url>
+      <url>
+        <loc>https://leuchthelp.github.io/HPFFbench/design/spackmanager/</loc>
+      </url>
+</urlset>

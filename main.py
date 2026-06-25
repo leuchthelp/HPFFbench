@@ -1,20 +1,21 @@
-from components.handler import Handler
 from cProfile import Profile
-from pstats import SortKey, Stats
+from pstats import Stats
 import yaml
 import os
 import logging
+
+from HPFFbench.handler import Handler
 
    
 def main():
     
     paths = {
         "path_to_benchmarks": "benchmarks",
-        "path_to_tmp"       : "components/tmp",
+        "path_to_tmp"       : "tmp",
         "path_to_root"      : os.path.dirname(os.path.realpath(__file__)),
-        "path_to_results"   : "components/results", 
-        #"path_to_visuals"   : "components/visualize",
-        #"path_profiling"    : "components/profiling",   
+        "path_to_results"   : "results", 
+        #"path_to_visuals"   : "visualize",
+        #"path_profiling"    : "profiling",   
     }
 
     tmp = {
@@ -53,15 +54,15 @@ def main():
             "target"    : ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
             "language"  : ["py", "c"],
             "packages"  : {
-                "python": {"versions" : ["3.11.14"],
+                "python": {"versions" : ["3.14.5"],
                            "fresh"    : True
                             },
                 
-                "openmpi": {"versions" : ["5.0.8"],
+                "openmpi": {"versions" : ["5.0.10"],
                             "fresh"    : True
                             },
                 
-                "hdf5": {"versions" : ["1.14.6"],
+                "hdf5": {"versions" : ["2.1.0"],
                          "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
                          },
                 
@@ -69,21 +70,21 @@ def main():
                              "fresh"    : True
                             },
                 
-                "netcdf-c": {"versions" : ["4.9.2"],
+                "netcdf-c": {"versions" : ["4.10.0"],
                              "variants" : "build_system=cmake",
                             },
                 
-                "py-mpi4py": {"versions" : ["4.0.1"],
+                "py-mpi4py": {"versions" : ["4.1.1"],
                             },
                 
-                "py-h5py": {"versions" : ["3.14.0"],
+                "py-h5py": {"versions" : ["3.16.0"],
                             },
                 
-                "py-netcdf4": {"versions" : ["1.7.1"],
+                "py-netcdf4": {"versions" : ["1.7.2"],
                             },
             },
-            "compiler": "gcc@11.4",
-            "additional": "pip install zarr==3.0.5 py-spy",
+            "compiler": "gcc@11.5.0",
+            "additional": "pip install zarr==3.2.1",
             "install": True
             },
         
@@ -91,14 +92,14 @@ def main():
             "target"    : [{"hdf5": "async"}],
             "language"  : ["c"],
             "packages"  : {
-                "python": {"versions" : ["3.11.14"],
+                "python": {"versions" : ["3.14.5"],
                            "fresh"    : True
                             },
                 
-                "openmpi": {"versions" : ["5.0.8"],
+                "openmpi": {"versions" : ["5.0.10"],
                             },
                 
-                "hdf5": {"versions" : ["1.14.6"],
+                "hdf5": {"versions" : ["2.1.0"],
                          "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
                          },
                 
@@ -109,20 +110,20 @@ def main():
                              "fresh"    : True
                             },
                 
-                "netcdf-c": {"versions" : ["4.9.2"],
+                "netcdf-c": {"versions" : ["4.10.0"],
                              "variants" : "build_system=cmake",
                             },
                 
-                "py-mpi4py": {"versions" : ["4.0.1"],
+                "py-mpi4py": {"versions" : ["4.1.1"],
                             },
                 
-                "py-h5py": {"versions" : ["3.14.0"],
+                "py-h5py": {"versions" : ["3.16.0"],
                             },
                 
-                "py-netcdf4": {"versions" : ["1.7.1"],
+                "py-netcdf4": {"versions" : ["1.7.2"],
                             },
             },
-            "compiler": "gcc@11.4",
+            "compiler": "gcc@11.5.0",
             #"install": True
             }
     }
@@ -147,18 +148,18 @@ def main():
         "delete envs"           : False,
     }
     
-    path_to_config = "components/handler/config.yaml"
+    path_to_config = "src/HPFFbench/handler/config.yaml"
     
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.getLogger(__name__)
     
     
     with Profile() as profile:  
-        handler = Handler(path_to_config=path_to_config)
-        stats = Stats(profile).strip_dirs()
+        Handler(path_to_config=path_to_config)
+        Stats(profile).strip_dirs()
         #stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
         #stats.sort_stats(SortKey.CALLS).print_stats(20)
         #stats.sort_stats(SortKey.TIME).print_stats(20)

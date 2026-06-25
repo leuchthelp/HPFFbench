@@ -1,1 +1,1 @@
-::: components.benchmarkmanager.benchmark_manager
+::: src.HPFFbench.benchmarkmanager.benchmark_manager

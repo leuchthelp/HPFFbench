@@ -1,1 +1,1 @@
-::: components.spackmanager.spack_manager
+::: src.HPFFbench.spackmanager.spack_manager

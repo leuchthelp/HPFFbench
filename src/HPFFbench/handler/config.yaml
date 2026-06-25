@@ -1,0 +1,126 @@
+formats:
+- hdf5
+languages:
+- py
+paths:
+  path_to_benchmarks: benchmarks
+  path_to_tmp: tmp
+  path_to_root: /Users/leucht/Documents/HPFFbench
+  path_to_results: results
+iterations: 1
+runs:
+  run04:
+    X:
+    - - 134217728
+    - []
+parallel: true
+par_backend: MPI
+ranks:
+- 5
+nodes:
+- 1
+variable_to_benchmark:
+- X
+only data: false
+use spack env: true
+max processes: 20
+slurm options: '
+
+  #SBATCH --partition=compute
+
+  #SBATCH --account=ku0598
+
+  #SBATCH --constraint="[cell02]"
+
+  #SBATCH --mem=0
+
+  #SBATCH --cpu-freq=High
+
+  #SBATCH --distribution=block:cyclic
+
+  #SBATCH --time=02:00:00
+
+  #SBATCH --exclusive
+
+  #SBATCH --output=log/log-%j/log.%j.txt
+
+  #SBATCH --error=log/log-%j/log.%j.err
+
+  '
+spack env:
+  test-env-1:
+    target:
+    - hdf5
+    - hdf5: subfiling
+    - netcdf4
+    - zarr
+    language:
+    - py
+    - c
+    packages:
+      python:
+        versions:
+        - 3.14.5
+      openmpi:
+        versions:
+        - 5.0.10
+      hdf5:
+        versions:
+        - 2.1.0
+        variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
+      argobots:
+        versions:
+        - main
+      netcdf-c:
+        versions:
+        - 4.10.0
+        variants: build_system=cmake
+      py-mpi4py:
+        versions:
+        - 4.1.1
+      py-h5py:
+        versions:
+        - 3.16.0
+      py-netcdf4:
+        versions:
+        - 1.7.2
+    compiler: gcc@11.5.0
+    additional: pip install zarr==3.2.1
+    install: true
+  test-env-async:
+    target:
+    - hdf5: async
+    language:
+    - c
+    packages:
+      python:
+        versions:
+        - 3.14.5
+      openmpi:
+        versions:
+        - 5.0.10
+      hdf5:
+        versions:
+        - 2.1.0
+        variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
+      hdf5-vol-async:
+        versions:
+        - develop
+      argobots:
+        versions:
+        - main
+      netcdf-c:
+        versions:
+        - 4.10.0
+        variants: build_system=cmake
+      py-mpi4py:
+        versions:
+        - 4.1.1
+      py-h5py:
+        versions:
+        - 3.16.0
+      py-netcdf4:
+        versions:
+        - 1.7.2
+    compiler: gcc@11.5.0
+delete envs: false

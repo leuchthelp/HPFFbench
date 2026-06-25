@@ -1,8 +1,0 @@
-setuptools
-pyyaml
-pathos
-tqdm
-pandas
-plotly
-nbformat
-./components
