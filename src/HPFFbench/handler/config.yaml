@@ -61,16 +61,19 @@ spack env:
       python:
         versions:
         - 3.14.5
+        fresh: true
       openmpi:
         versions:
         - 5.0.10
+        fresh: true
       hdf5:
         versions:
-        - 2.1.0
+        - 1.14.6
         variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
       argobots:
         versions:
         - main
+        fresh: true
       netcdf-c:
         versions:
         - 4.10.0
@@ -84,7 +87,7 @@ spack env:
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: gcc@11.5.0
+    compiler: llvm@22.1.5
     additional: pip install zarr==3.2.1
     install: true
   test-env-async:
@@ -96,12 +99,13 @@ spack env:
       python:
         versions:
         - 3.14.5
+        fresh: true
       openmpi:
         versions:
         - 5.0.10
       hdf5:
         versions:
-        - 2.1.0
+        - 1.14.6
         variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
       hdf5-vol-async:
         versions:
@@ -109,6 +113,7 @@ spack env:
       argobots:
         versions:
         - main
+        fresh: true
       netcdf-c:
         versions:
         - 4.10.0
@@ -122,5 +127,5 @@ spack env:
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: gcc@11.5.0
+    compiler: llvm@22.1.5
 delete envs: false

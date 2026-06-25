@@ -62,7 +62,7 @@ def main():
                             "fresh"    : True
                             },
                 
-                "hdf5": {"versions" : ["2.1.0"],
+                "hdf5": {"versions" : ["1.14.6"],
                          "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
                          },
                 
@@ -83,7 +83,7 @@ def main():
                 "py-netcdf4": {"versions" : ["1.7.2"],
                             },
             },
-            "compiler": "gcc@11.5.0",
+            "compiler": "llvm@22.1.5",
             "additional": "pip install zarr==3.2.1",
             "install": True
             },
@@ -99,7 +99,7 @@ def main():
                 "openmpi": {"versions" : ["5.0.10"],
                             },
                 
-                "hdf5": {"versions" : ["2.1.0"],
+                "hdf5": {"versions" : ["1.14.6"],
                          "variants" : "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
                          },
                 
@@ -123,7 +123,7 @@ def main():
                 "py-netcdf4": {"versions" : ["1.7.2"],
                             },
             },
-            "compiler": "gcc@11.5.0",
+            "compiler": "llvm@22.1.5",
             #"install": True
             }
     }
