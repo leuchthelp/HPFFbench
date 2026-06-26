@@ -6,7 +6,7 @@ import logging
 import shutil
 import sys
 
-from HPFFbench.dev_utils import bcolors
+from hpffbench.dev_utils import bcolors
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +278,7 @@ class SpackManager:
             file.write(f"source {self.env_location.absolute()}/.venv/bin/activate\n")
             file.write("pip install --upgrade pip \n")
             file.write(f"{self.additional}\n")
-            file.write(f"pip install -e {self.__root_path}/components\n")
+            file.write(f"pip install -e {self.__root_path}\n")
             file.write("pip list\n")
             file.write("spack env deactivate\n")
 

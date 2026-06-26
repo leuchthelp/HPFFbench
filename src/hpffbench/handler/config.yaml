@@ -5,7 +5,7 @@ languages:
 paths:
   path_to_benchmarks: benchmarks
   path_to_tmp: tmp
-  path_to_root: /Users/leucht/Documents/HPFFbench
+  path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_results: results
 iterations: 1
 runs:

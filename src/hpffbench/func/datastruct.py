@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from HPFFbench.dev_utils import bcolors
+from hpffbench.dev_utils import bcolors
 from mpi4py import MPI
 import netCDF4
 import time

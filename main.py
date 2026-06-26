@@ -4,7 +4,7 @@ import yaml
 import os
 import logging
 
-from HPFFbench.handler import Handler
+from hpffbench.handler import Handler
 
    
 def main():
@@ -148,7 +148,7 @@ def main():
         "delete envs"           : False,
     }
     
-    path_to_config = "src/HPFFbench/handler/config.yaml"
+    path_to_config = "src/hpffbench/handler/config.yaml"
     
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)

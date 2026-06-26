@@ -9,8 +9,8 @@ import yaml
 import os
 import re
 
-from HPFFbench.dev_utils import calc_size_unit, bcolors
-from HPFFbench.spackmanager import SpackManager
+from hpffbench.dev_utils import calc_size_unit, bcolors
+from hpffbench.spackmanager import SpackManager
 
 logger = logging.getLogger(__name__)
 

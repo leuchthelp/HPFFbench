@@ -16,9 +16,9 @@ from pathos.pools import ProcessPool
 import pandas as pd
 import numpy as np
 
-from HPFFbench.benchmarkmanager import BenchmarkManager
-from HPFFbench.spackmanager import SpackManager
-from HPFFbench.dev_utils import bcolors
+from hpffbench.benchmarkmanager import BenchmarkManager
+from hpffbench.spackmanager import SpackManager
+from hpffbench.dev_utils import bcolors
 
 logger = logging.getLogger(__name__)
 

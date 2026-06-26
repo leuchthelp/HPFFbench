@@ -21,3 +21,4 @@ spack
 .vscode
 *.err
 *.txt
+site
