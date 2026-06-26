@@ -140,12 +140,12 @@ def main():
         "ranks"                 : [5],
         "nodes"                 : [1],
         "variable_to_benchmark" : ["X"],
-        "only data"             : False,
-        "use spack env"         : True,
-        "max processes"         : 20,
-        "slurm options"         : slurm_options,
-        "spack env"             : spack_envs,
-        "delete envs"           : False,
+        "only_data"             : False,
+        "use_spack_env"         : True,
+        "max_processes"         : 20,
+        "slurm_options"         : slurm_options,
+        "spack_env"             : spack_envs,
+        "delete_envs"           : False,
     }
     
     path_to_config = "src/hpffbench/handler/config.yaml"

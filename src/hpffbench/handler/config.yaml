@@ -21,10 +21,10 @@ nodes:
 - 1
 variable_to_benchmark:
 - X
-only data: false
-use spack env: true
-max processes: 20
-slurm options: '
+only_data: false
+use_spack_env: true
+max_processes: 20
+slurm_options: '
 
   #SBATCH --partition=compute
 
@@ -47,7 +47,7 @@ slurm options: '
   #SBATCH --error=log/log-%j/log.%j.err
 
   '
-spack env:
+spack_env:
   test-env-1:
     target:
     - hdf5
@@ -128,4 +128,4 @@ spack env:
         versions:
         - 1.7.2
     compiler: llvm@22.1.5
-delete envs: false
+delete_envs: false
