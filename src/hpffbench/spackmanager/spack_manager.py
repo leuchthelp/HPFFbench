@@ -83,7 +83,7 @@ class SpackManager:
         handler_id: str,
         env_name: str,
         spack_env: dict,
-        paths: dict,
+        paths: dict[str, str],
         use_spack_env=True,
         only_data=False,
     ):

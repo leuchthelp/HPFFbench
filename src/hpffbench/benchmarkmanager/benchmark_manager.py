@@ -1,3 +1,4 @@
+from hpffbench.configloader import ConfigLoader
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -154,7 +155,7 @@ class BenchmarkManager:
         handler_id: str,
         run_config: dict,
         bm_config: dict,
-        global_config: dict,
+        global_config: ConfigLoader,
         nodes: int,
         slurm_avail: bool,
         slurm_options: str,
@@ -163,7 +164,7 @@ class BenchmarkManager:
         ranks: int,
         requested: dict,
         spack_manager: SpackManager,
-        paths: dict,
+        paths: dict[str, str],
     ):
 
         # Object config
@@ -177,17 +178,16 @@ class BenchmarkManager:
         self.spack_manager = spack_manager
 
         # Source code
+        self.create: str = ""
         if "create" in bm_config:
-            self.create = bm_config["create"]
-        else:
-            self.create = ""
+            self.create: str = bm_config["create"]
 
         try:
-            self.compile = bm_config["compile"]
+            self.compile: bool = bm_config["compile"]
 
             self.compile_command = ""
             if "compile_command" in self.bm_config:
-                self.compile_command = bm_config["compile_command"]
+                self.compile_command: str = bm_config["compile_command"]
             else:
                 raise ValueError(
                     "Missing compile command for benchmark requiring compilation"
@@ -195,30 +195,29 @@ class BenchmarkManager:
         except KeyError:
             self.compile = False
 
-        self.src = bm_config["source"]
+        self.src: str = bm_config["source"]
 
         # Benchmark config
         self.run_config = run_config
         self.nodes = nodes
         self.parallel = parallel
-        self.par_backend = requested["par_backend"]
+        self.par_backend: str = requested["par_backend"]
         self.collective = collective
         self.ranks = ranks
-        self.language = requested["language"]
-        self.format = requested["format"]
+        self.language: str = requested["language"]
+        self.format: str = requested["format"]
         self.engine = (
             f"{self.format}-{self.language}-parallel"
             if self.parallel
             else f"{self.format}-{self.language}"
         )
-        self.extension = bm_config["extension"]
+        self.extension: str = bm_config["extension"]
 
+        config_par_backend: str | None = None
         if "par_backend" in self.bm_config:
-            config_par_backend = self.bm_config["par_backend"]
-        else:
-            config_par_backend = None
+            config_par_backend: str = self.bm_config["par_backend"]
 
-        datatype = []
+        datatype: list[str] = []
         for _, item in run_config.items():
             if any(isinstance(x, str) for x in item):
                 datatype.append(item[-1])
@@ -226,13 +225,11 @@ class BenchmarkManager:
                 datatype.append("f8")
         self.datatype = datatype
 
-        self.var_to_bm = self.global_config["variable_to_benchmark"]
-        self.iterations = self.global_config["iterations"]
+        self.var_to_bm = self.global_config.variable_to_benchmark
+        self.iterations = self.global_config.iterations
         self.internal_i = 1
 
-        self.no_caching = False
-        if "no caching" in self.global_config:
-            self.no_caching = self.global_config["no caching"]
+        self.no_caching = self.global_config.no_caching
         self.local = False
 
         # Assemble ID
@@ -268,7 +265,7 @@ class BenchmarkManager:
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
 
-        filesize_per_var = [
+        filesize_per_var: list[tuple[str, tuple[float, str]]] = [
             (key, calc_size_unit(item[0]))
             for key, item in run_config.items()
             if key in self.var_to_bm
@@ -278,8 +275,8 @@ class BenchmarkManager:
         for filesize in filesize_per_var:
             total_filesize += filesize[1][0]
 
-        self.total_filesize = total_filesize  # type: ignore
-        self.unit = filesize_per_var[0][1][1]
+        self.total_filesize: float = total_filesize
+        self.unit: str = filesize_per_var[0][1][1]
         self.filesize_var = filesize_per_var
         self.chunksize_var = [
             (key, calc_size_unit(item[1]))
@@ -291,10 +288,7 @@ class BenchmarkManager:
         # Environment config
         self.__checkpoint = yaml
 
-        self.__profiler = False
-        if "profiler" in self.global_config:
-            self.__profiler = self.global_config["profiler"]
-
+        self.__profiler = self.global_config.profiler
         if self.__profiler:
             self.profiling_path = Path(paths["path_profiling"])
 
@@ -374,7 +368,7 @@ class BenchmarkManager:
         Finally it executes the `create_file` with the `create_command`.
         """
         # Get create command
-        create_commands = self.bm_config["create_command"]
+        create_commands: dict[str, str] = self.bm_config["create_command"]
 
         create_command = ""
         language = self.language
@@ -411,7 +405,7 @@ class BenchmarkManager:
                     raise e
 
         # Create the file that contains code to create the given dataset
-        create = self.create.replace("#MAIN", self.__replace_main(language))  # type: ignore
+        create = self.create.replace("#MAIN", self.__replace_main(language))
 
         path_to_create_file = Path(f"{self.dir_path}/create.{language}")
         with open(path_to_create_file, "w") as file:
@@ -465,15 +459,15 @@ class BenchmarkManager:
         if flag_variable not in create_command:
             create_command = create_command + f" {flag_variable}"
 
-        variables = ",".join(list(self.run_config.keys()))
+        variables: str = ",".join(list(self.run_config.keys()))
         create_command = create_command.replace(
             f"{flag_variable}", f"{flag_variable} {variables}"
         )
 
         values = list(self.run_config.values())
-        shapes = []
-        chunks = []
-        datatypes = self.datatype
+        shapes: list[int] = []
+        chunks: list[int] = []
+        datatypes: list[str] = self.datatype
         for value in values:
             shapes.append(value[0])
             chunks.append(value[1])
@@ -495,7 +489,7 @@ class BenchmarkManager:
                     path=self.bash_location, compile_file_info=compiled_file_info
                 ),
                 create_command,
-            ]  # type: ignore
+            ]
         else:
             create_command = [
                 "bash",
@@ -546,7 +540,7 @@ class BenchmarkManager:
 
         return command
 
-    def __compile_file(self, path: Path) -> tuple:
+    def __compile_file(self, path: Path) -> tuple[str, str]:
         """
         Compiles a file at a given path. Resolves required metadata from self.
 
@@ -619,8 +613,7 @@ class BenchmarkManager:
         If a compiled language is requested, also compiles the necessary file and finally executes it.
         """
         # Get run command to execute the code with
-        run_commands = self.bm_config["run_command"]
-
+        run_commands: dict[str, str] = self.bm_config["run_command"]
         run_command = ""
         try:
             run_command = run_commands["serial"]
@@ -701,7 +694,7 @@ class BenchmarkManager:
                     self.bash_location, compile_file_info=compiled_file_info
                 ),
                 run_command,
-            ]  # type: ignore
+            ]
         else:
             run_command = [
                 "bash",
@@ -710,8 +703,6 @@ class BenchmarkManager:
                 ),
                 run_command,
             ]
-
-        self.used_nodes = []
 
         logger.debug(f"run command used: {run_command}")
         original_run_command = str(run_command[-1])
@@ -795,7 +786,7 @@ class BenchmarkManager:
             logger.error(p.stderr)
             logger.info(p.stdout)
 
-    def __replace_main(self, language: str) -> str | None:
+    def __replace_main(self, language: str):
         """
         Contains pre-made main methods that can be injected. These methods contain functioning code to achieve feature parity among benchmarks requested.
 

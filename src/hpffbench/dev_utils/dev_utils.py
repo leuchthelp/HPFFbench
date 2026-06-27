@@ -12,21 +12,21 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-def calc_size_unit(input: list):
+def calc_size_unit(input: list[float]) -> tuple[float ,str]:
     
-    res = 1
-    compare = 1
+    res: float = 1.0
+    compare = 1.0
     size = "Byte"
     
     if not input:
-        res = 0
+        res = 0.0
         return res, size
     
     for item in input:
         compare *= item
     
-    compare *= 8
-    res = compare
+    compare *= 8.0
+    res: float = compare
     
     if compare >= 1 * 1024:
         res = res 
