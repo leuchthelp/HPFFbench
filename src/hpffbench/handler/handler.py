@@ -44,11 +44,8 @@ class Handler:
     path_to_config: str
 
     def __init__(self, path_to_config: str | dict):
-
-        self.config = ConfigLoader
-        self.__benchmarks = []
-
         self.__load_config(path_to_config)
+        self.__benchmarks = []
         self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
         self.__delete_envs = self.config.delete_envs
 
@@ -217,7 +214,7 @@ class Handler:
         dict
             Contains all capabilities the benchmark-framework has at runtime.
         """
-        root = Path(self.config["paths"]["path_to_benchmarks"])
+        root = Path(self.config.paths["path_to_benchmarks"])
 
         determined = {}
 

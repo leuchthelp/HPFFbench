@@ -53,7 +53,7 @@ class Datastruct:
     
     def create_zarr(self, form: dict, path: str, dtype: str):
 
-        if MPI.COMM_WORLD.rank == 0 or not self.parallel: # type: ignore
+        if MPI.COMM_WORLD.rank == 0 or not self.parallel:
             
             root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
             
@@ -95,7 +95,7 @@ class Datastruct:
         print(f"{bcolors.WARNING}Creating hdf5 file{bcolors.ENDC}")
         
         if not self.parallel:
-            root = h5py.File(path, "w-") # type: ignore
+            root = h5py.File(path, "w-")
         else:
             root = h5py.File(path, "w-", driver="mpio", comm=MPI.COMM_WORLD)
             
@@ -114,8 +114,8 @@ class Datastruct:
             if not self.parallel:
                 x[:] = np.random.random_sample(shape)  
             else:
-                rank = MPI.COMM_WORLD.rank # type: ignore
-                rsize = MPI.COMM_WORLD.size # type: ignore
+                rank = MPI.COMM_WORLD.rank
+                rsize = MPI.COMM_WORLD.size
                 total_size = shape[0]
                 size = int(total_size / rsize)
 
@@ -129,7 +129,7 @@ class Datastruct:
                     print(bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC)
                     if rank == rank:
                         x[rstart:rend:] = np.random.random_sample(size)
-                MPI.COMM_WORLD.Barrier() # type: ignore
+                MPI.COMM_WORLD.Barrier()
                 
 
         self.dataset = root
@@ -144,7 +144,7 @@ class Datastruct:
             self.path = path
                     
                 
-        root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=self.parallel)  # type: ignore
+        root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=self.parallel)
         root.createGroup("/")
         used = 0
         
@@ -167,8 +167,8 @@ class Datastruct:
             if not self.parallel:
                 x[:] = np.random.random_sample(shape)    
             else:
-                rank = MPI.COMM_WORLD.rank  # type: ignore
-                rsize = MPI.COMM_WORLD.size  # type: ignore
+                rank = MPI.COMM_WORLD.rank
+                rsize = MPI.COMM_WORLD.size
                 total_size = shape[0]
                 size = int(total_size / rsize)
 
@@ -182,7 +182,7 @@ class Datastruct:
                     print(bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC)
                     
                 x[rstart:rend:] = np.random.random_sample(size)
-                MPI.COMM_WORLD.Barrier()  # type: ignore
+                MPI.COMM_WORLD.Barrier()
                   
                   
         self.dataset = root
@@ -214,12 +214,12 @@ class Datastruct:
             case "hdf5":
                 
                 if self.parallel: 
-                    self.dataset = h5py.File(self.path, mode=self.mode, driver="mpio", comm=MPI.COMM_WORLD)  # type: ignore
+                    self.dataset = h5py.File(self.path, mode=self.mode, driver="mpio", comm=MPI.COMM_WORLD)
                 else:
-                    self.dataset = h5py.File(self.path, mode=self.mode)  # type: ignore                  
+                    self.dataset = h5py.File(self.path, mode=self.mode)
                     
             case "netcdf4":  
-                self.dataset = netCDF4.Dataset(self.path, mode=self.mode, format="NETCDF4", parallel=self.parallel)  # type: ignore
+                self.dataset = netCDF4.Dataset(self.path, mode=self.mode, format="NETCDF4", parallel=self.parallel)
 
                                
         return self
@@ -295,7 +295,7 @@ class Datastruct:
                     self.dataset[variable][rstart:rend:]  # type: ignore
                     
                     if rank == 0: 
-                        bench.append(time.monotonic() - start)  # type: ignore
+                        bench.append(time.monotonic() - start)
                     MPI.COMM_WORLD.Barrier()
                 
                 self.log = bench
@@ -322,7 +322,7 @@ class Datastruct:
                     self.dataset[variable][rstart:rend:]  # type: ignore
                     
                     if rank == 0:
-                        bench.append(time.monotonic() - start)  # type: ignore
+                        bench.append(time.monotonic() - start)
                     MPI.COMM_WORLD.Barrier()
                 
                 if rank == 0:
@@ -352,7 +352,7 @@ class Datastruct:
                     self.dataset[variable][rstart:rend:]  # type: ignore
                     
                     if rank == 0:
-                        bench.append(time.monotonic() - start)  # type: ignore
+                        bench.append(time.monotonic() - start) 
                         
                     MPI.COMM_WORLD.Barrier()
                 
@@ -498,7 +498,7 @@ class Datastruct:
                         print(f"Variable: {var} does not exist.")
                 
             if rank == 0: 
-                bench.append(time.monotonic() - start)  # type: ignore
+                bench.append(time.monotonic() - start)
                 
             MPI.COMM_WORLD.Barrier()
         
@@ -550,7 +550,7 @@ class Datastruct:
                     print(f"Variable: {var} does not exist.")
             
             if rank == 0: 
-                bench.append(time.monotonic() - start)  # type: ignore
+                bench.append(time.monotonic() - start)
                 
             MPI.COMM_WORLD.Barrier()
                 
@@ -604,7 +604,7 @@ class Datastruct:
                     print(f"Variable: {var} does not exist.")
             
             if rank == 0:
-                bench.append(time.monotonic() - start)  # type: ignore
+                bench.append(time.monotonic() - start)
                 
             MPI.COMM_WORLD.Barrier()
                 
