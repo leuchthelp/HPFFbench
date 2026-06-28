@@ -6,6 +6,7 @@ import logging
 import shutil
 import sys
 
+from hpffbench.configloader import ProcessedPath
 from hpffbench.dev_utils import bcolors
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ class SpackManager:
         handler_id: str,
         env_name: str,
         spack_env: dict,
-        paths: dict[str, str],
+        paths: dict[str, ProcessedPath],
         use_spack_env=True,
         only_data=False,
     ):
@@ -94,7 +95,8 @@ class SpackManager:
         self.env_name = env_name
         self.__use_spack_env = use_spack_env
         self.__only_data = only_data
-        self.__root_path = paths["path_to_root"]
+
+        self.__root_path: str = paths["path_to_root"]["path"]
 
         self.compiler = self.spack_env["compiler"]
         self.target = self.spack_env["target"]

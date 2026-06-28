@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from typing import TypedDict
 from pathlib import Path
 import itertools
 import logging
@@ -11,7 +11,11 @@ from hpffbench.dev_utils import bcolors
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+class ProcessedPath(TypedDict):
+    path: str
+    skip: bool
+
+
 class ConfigLoader:
     iterations: int
     slurm_options: str
@@ -27,17 +31,17 @@ class ConfigLoader:
 
     par_backend: list[str] | str | None
 
-    paths: dict[str, str]
+    paths: dict[str, ProcessedPath]
 
     max_processes: int | None
     parallel: bool | str
     collective: bool | str
 
     def __init__(self, path_to_config: str | dict):
-        if type(path_to_config) is dict:
+        if isinstance(path_to_config, dict):
             self.config = path_to_config
 
-        elif type(path_to_config) is str:
+        else:
             logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
             try:
                 if ".yaml" or ".yml" not in path_to_config:
@@ -73,13 +77,6 @@ class ConfigLoader:
                     + bcolors.ENDC
                 )
 
-        else:
-            raise ValueError(
-                bcolors.FAIL
-                + f"path_to_config is of type: {type(path_to_config)} - needs to be either dict or str"
-                + bcolors.ENDC
-            )
-
         self.formats: list[str] = self.config["formats"]
         self.languages: list[str] = self.config["languages"]
         self.iterations: int = self.config["iterations"]
@@ -87,7 +84,19 @@ class ConfigLoader:
         self.variable_to_benchmark: list[str] = self.config["variable_to_benchmark"]
         self.slurm_options: str = self.config["slurm_options"]
 
-        self.paths: dict[str, str] = self.config["paths"]
+        if "paths" in self.config:
+            paths: dict[str, str | ProcessedPath] = self.config["paths"]
+
+            processed_paths: dict[str, ProcessedPath] = {}
+            for key, value in paths.items():
+                if isinstance(value, str):
+                    processed_paths[key] = {"path": value, "skip": False}
+                else:
+                    processed_paths[key] = value
+
+            self.paths = processed_paths
+        else:
+            raise KeyError
 
         # Optionals
         self.parallel = False

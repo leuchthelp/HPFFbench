@@ -108,7 +108,7 @@ class BenchmarkManager:
     var_to_bm: str | list
         Which variable / dataset will be benchmarked from the file. Can either be a single value string or a list of strings.
 
-    total_filesize: int
+    total_filesize: float
         The total filesize benchmarked calculated from all variables / datasets were requested for benchmarking.
 
     unit: str
@@ -140,9 +140,9 @@ class BenchmarkManager:
     format: str
     engine: str
     extension: str
-    datatype: list
+    datatype: list[str]
     var_to_bm: str | list
-    total_filesize: int
+    total_filesize: float
     unit: str
     filesize_var: list
     chunksize_var: list
@@ -162,10 +162,10 @@ class BenchmarkManager:
         parallel: bool,
         collective: None | bool,
         ranks: int,
-        requested: dict,
+        requested: dict[str, bool | str | None],
         spack_manager: SpackManager,
-        paths: dict[str, str],
     ):
+        paths = global_config.paths
 
         # Object config
         self.current_time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
@@ -201,11 +201,8 @@ class BenchmarkManager:
         self.run_config = run_config
         self.nodes = nodes
         self.parallel = parallel
-        self.par_backend: str = requested["par_backend"]
         self.collective = collective
         self.ranks = ranks
-        self.language: str = requested["language"]
-        self.format: str = requested["format"]
         self.engine = (
             f"{self.format}-{self.language}-parallel"
             if self.parallel
@@ -213,9 +210,23 @@ class BenchmarkManager:
         )
         self.extension: str = bm_config["extension"]
 
-        config_par_backend: str | None = None
+        if (
+            isinstance(requested["par_backend"], str)
+            or requested["par_backend"] is None
+        ):
+            self.par_backend: str | None = requested["par_backend"]
+
+        if isinstance(requested["language"], str) and isinstance(
+            requested["format"], str
+        ):
+            self.language: str = requested["language"]
+            self.format: str = requested["format"]
+        else:
+            raise ValueError
+
+        config_par_backend = None
         if "par_backend" in self.bm_config:
-            config_par_backend: str = self.bm_config["par_backend"]
+            config_par_backend: str | None = self.bm_config["par_backend"]
 
         datatype: list[str] = []
         for _, item in run_config.items():
@@ -223,7 +234,7 @@ class BenchmarkManager:
                 datatype.append(item[-1])
             else:
                 datatype.append("f8")
-        self.datatype = datatype
+        self.datatype: list[str] = datatype
 
         self.var_to_bm = self.global_config.variable_to_benchmark
         self.iterations = self.global_config.iterations
@@ -257,9 +268,9 @@ class BenchmarkManager:
 
         self.id = hashlib.sha256(id_str.encode()).hexdigest()
 
-        self.use_path = Path(paths["path_to_tmp"])
-        self.root_path = Path(paths["path_to_root"])
-        self.results_path = Path(paths["path_to_results"])
+        self.use_path = Path(paths["path_to_tmp"]["path"])
+        self.root_path = Path(paths["path_to_root"]["path"])
+        self.results_path = Path(paths["path_to_results"]["path"])
         self.dir_path = Path(f"{self.use_path}/{str(self.id)}")
 
         # Benchmark info
@@ -286,11 +297,10 @@ class BenchmarkManager:
         self.show_metdata = True
 
         # Environment config
-        self.__checkpoint = yaml
 
         self.__profiler = self.global_config.profiler
         if self.__profiler:
-            self.profiling_path = Path(paths["path_profiling"])
+            self.profiling_path = Path(paths["path_profiling"]["path"])
 
         logger.info(
             bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, "
@@ -353,9 +363,8 @@ class BenchmarkManager:
 
         finally:
             shutil.rmtree(path=self.dir_path)
-            pass
 
-        return self.id, asdict(self)
+        return self.id, self
 
     def __create_file(self):
         """
@@ -467,7 +476,7 @@ class BenchmarkManager:
         values = list(self.run_config.values())
         shapes: list[int] = []
         chunks: list[int] = []
-        datatypes: list[str] = self.datatype
+        datatypes = self.datatype
         for value in values:
             shapes.append(value[0])
             chunks.append(value[1])

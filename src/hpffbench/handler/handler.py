@@ -1,4 +1,3 @@
-from dataclasses import dataclass, asdict
 from collections import Counter
 from copy import deepcopy
 from pathlib import Path
@@ -24,7 +23,6 @@ from hpffbench.dev_utils import bcolors
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class Handler:
     """Defines handler to read configuration from yaml file and create matching benchmarks. Also configures the benchmark environments and gathers system information.
 
@@ -45,7 +43,7 @@ class Handler:
 
     def __init__(self, path_to_config: str | dict):
         self.__load_config(path_to_config)
-        self.__benchmarks = []
+        self.__benchmarks: list[tuple[str, BenchmarkManager]] = []
         self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
         self.__delete_envs = self.config.delete_envs
 
@@ -169,16 +167,9 @@ class Handler:
         Checks if all user requested paths exist. Should also define a couple of defaults to fall back to, currently does not.
         """
         logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
-        for key, path in self.config["paths"].items():
-            skip = False
-
-            if type(path) is dict:
-                skip = path["skip"]
-                path = path["path"]
-                self.config["paths"][key] = path
-
-            if not skip:
-                if not Path(path).exists():
+        for key, path in self.config.paths.items():
+            if not path["skip"]:
+                if not Path(path["path"]).exists():
                     raise ValueError(
                         bcolors.FAIL
                         + f"Configured path: {path} for key: {key} does not exist. Please create it."
@@ -214,7 +205,7 @@ class Handler:
         dict
             Contains all capabilities the benchmark-framework has at runtime.
         """
-        root = Path(self.config.paths["path_to_benchmarks"])
+        root = Path(self.config.paths["path_to_benchmarks"]["path"])
 
         determined = {}
 
@@ -434,18 +425,17 @@ class Handler:
                     run_config=run_config,
                     bm_config=bm_config,
                     global_config=self.config,
-                    nodes=node,
                     slurm_avail=self.slurm_avail,
                     slurm_options=slurm_options,
                     requested=requested,
+                    nodes=node,
                     parallel=parallel,
                     collective=state,
                     ranks=rank,
                     spack_manager=manager,
-                    paths=self.config.paths,
                 )
 
-                self.__benchmarks.append((bm.id, asdict(bm)))  # type: ignore
+                self.__benchmarks.append((bm.id, bm))
                 benchmarks.append(bm)
 
         return benchmarks
@@ -467,7 +457,7 @@ class Handler:
             errors than intended. Needs to be changed.
         """
         try:
-            self.__benchmarks = []
+            self.__benchmarks.clear()
             bm_list = list(itertools.chain.from_iterable(self.__tasks))
             pool = ProcessPool(processes=self.__max_processes)
             for result in tqdm.tqdm(
@@ -501,10 +491,10 @@ class Handler:
         Gathers up all generated results, data and metadata and assembles a pandas Dataframe object. Finally exports the results as JSON.
         Also performs some basic pre-analysis on the data to generate some additional, helpful metrics.
         """
-        root = Path(self.config.paths["path_to_results"])
+        root = Path(self.config.paths["path_to_results"]["path"])
         df = pd.DataFrame()
 
-        self.__benchmarks = dict(self.__benchmarks)
+        benchmarks = dict(self.__benchmarks)
 
         for path in root.rglob("*"):
             if not path.is_dir():
@@ -517,12 +507,12 @@ class Handler:
                     if len(tmp) > 1:
                         path_date = "-" + tmp[1]
 
-                if path_name in self.__benchmarks:
+                if path_name in benchmarks:
                     logger.debug(f"full path {path}")
                     logger.debug(f"date of file @ {path_date}")
                     logger.info(f"currently on {path_name}")
 
-                    benchmark = self.__benchmarks[path_name]
+                    benchmark = benchmarks[path_name]
 
                     with open(path, "r") as file:
                         current = json.load(file)
@@ -565,7 +555,9 @@ class Handler:
 
                         profiling = None
                         try:
-                            profile_path = Path(self.config.paths["path_profiling"])
+                            profile_path = Path(
+                                self.config.paths["path_profiling"]["path"]
+                            )
                             location_profiling = Path(
                                 f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json"
                             )
@@ -606,29 +598,29 @@ class Handler:
 
                         tmp = pd.DataFrame(
                             data={
-                                "benchmark": benchmark["id"],
+                                "benchmark": benchmark.id,
                                 "date run": path_date,
-                                "run config": [benchmark["run_config"]],
+                                "run config": [benchmark.run_config],
                                 "time taken": value,
-                                "throughput": benchmark["total_filesize"] / mean,
-                                "engine": benchmark["engine"],
-                                "var to bm": [benchmark["var_to_bm"]],
-                                "total filesize": benchmark["total_filesize"],
-                                "unit": benchmark["unit"],
-                                "filesize per var": [benchmark["filesize_var"]],
-                                "filesize per chunk": [benchmark["chunksize_var"]],
-                                "parallel": benchmark["parallel"],
-                                "parallel backend": benchmark["par_backend"],
-                                "collective": benchmark["collective"],
-                                "ranks": benchmark["ranks"],
-                                "language": benchmark["language"],
-                                "format": str(benchmark["format"]),
+                                "throughput": benchmark.total_filesize / mean,
+                                "engine": benchmark.engine,
+                                "var to bm": [benchmark.var_to_bm],
+                                "total filesize": benchmark.total_filesize,
+                                "unit": benchmark.unit,
+                                "filesize per var": [benchmark.filesize_var],
+                                "filesize per chunk": [benchmark.chunksize_var],
+                                "parallel": benchmark.parallel,
+                                "parallel backend": benchmark.par_backend,
+                                "collective": benchmark.collective,
+                                "ranks": benchmark.ranks,
+                                "language": benchmark.language,
+                                "format": str(benchmark.format),
                                 "mean time": mean,
                                 "standard deviation": std,
                                 "relative std": rsd,
                                 "error bar": error,
                                 "anomaly": anomaly,
-                                "nodes": benchmark["nodes"],
+                                "nodes": benchmark.nodes,
                                 "used nodes": used_nodes[index],
                                 "node count": [count],
                                 "total node count": [Counter()],
@@ -639,7 +631,7 @@ class Handler:
 
                         df = pd.concat([df, tmp], ignore_index=True)
 
-        tmp = self.config.paths["path_to_results"]
+        res_path: str = self.config.paths["path_to_results"]["path"]
 
         # there is probably a better method for doing this, will look into it later
 
@@ -661,4 +653,4 @@ class Handler:
             inplace=True,
             ignore_index=True,
         )
-        df.to_json(Path(f"{tmp}/results.json"))
+        df.to_json(Path(f"{res_path}/results.json"))
