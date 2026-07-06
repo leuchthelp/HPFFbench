@@ -8,18 +8,18 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "mkdocstrings-python>=2.0.5",
     "pandas>=3.0.3",
     "pathos>=0.3.5",
     "pip>=26.1.2",
     "plotly>=6.8.0",
     "pyyaml>=6.0.3",
-    "tqdm>=4.68.3",
+    "rich>=15.0.0",
     "ty>=0.0.55",
 ]
 
 [dependency-groups]
 dev = [
+    "mkdocstrings-python>=2.0.5",
     "nbstripout>=0.9.1",
     "pytest>=9.1.1",
     "ruff>=0.15.19",

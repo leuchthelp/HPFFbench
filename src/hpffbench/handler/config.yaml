@@ -1,11 +1,11 @@
 formats:
 - hdf5
 languages:
-- py
+- c
 paths:
   path_to_benchmarks: benchmarks
   path_to_tmp: tmp
-  path_to_root: /work/ku0598/k203191/HPFFbench
+  path_to_root: /home/leucht/Documents/HPFFbench
   path_to_results: results
 iterations: 1
 runs:
@@ -13,7 +13,7 @@ runs:
     X:
     - - 134217728
     - []
-parallel: true
+parallel: Both
 par_backend: MPI
 ranks:
 - 5
@@ -60,11 +60,11 @@ spack_env:
     packages:
       python:
         versions:
-        - 3.14.5
+        - 3.14.0
         fresh: true
       openmpi:
         versions:
-        - 5.0.10
+        - 5.0.8
         fresh: true
       hdf5:
         versions:
@@ -76,18 +76,18 @@ spack_env:
         fresh: true
       netcdf-c:
         versions:
-        - 4.10.0
+        - 4.9.3
         variants: build_system=cmake
       py-mpi4py:
         versions:
         - 4.1.1
       py-h5py:
         versions:
-        - 3.16.0
+        - 3.14.0
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: llvm@22.1.5
+    compiler: gcc@13.3.0
     additional: pip install zarr==3.2.1
     install: true
   test-env-async:
@@ -98,7 +98,7 @@ spack_env:
     packages:
       python:
         versions:
-        - 3.14.5
+        - 3.14.0
         fresh: true
       openmpi:
         versions:
@@ -127,5 +127,5 @@ spack_env:
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: llvm@22.1.5
+    compiler: gcc@13.3.0
 delete_envs: false

@@ -6,9 +6,20 @@ import itertools
 import logging
 import hashlib
 import json
-import tqdm
-import sys
 import os
+
+from rich.traceback import install as install_rich_traceback
+from rich.logging import RichHandler
+from rich.console import Console
+from rich.progress import (
+    TimeRemainingColumn,
+    MofNCompleteColumn,
+    TaskProgressColumn,
+    TimeElapsedColumn,
+    TextColumn,
+    BarColumn,
+    Progress,
+)
 
 from pathos.pools import ProcessPool
 import pandas as pd
@@ -18,9 +29,15 @@ import yaml
 from hpffbench.benchmarkmanager import BenchmarkManager
 from hpffbench.configloader import ConfigLoader
 from hpffbench.spackmanager import SpackManager
-from hpffbench.dev_utils import bcolors
 
+
+logging.basicConfig(
+    level=logging.INFO, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+)
 logger = logging.getLogger(__name__)
+
+error_console = Console(stderr=True)
+install_rich_traceback(console=error_console)
 
 
 class Handler:
@@ -62,19 +79,13 @@ class Handler:
                 logger.info(p.stdout)
                 if not spack_path.exists():
                     raise RuntimeError(
-                        bcolors.FAIL
-                        + "Spack root could not be inferred, something must have gone wrong."
-                        + bcolors.ENDC
+                        "Spack root could not be inferred, something must have gone wrong."
                     )
 
                 os.environ["HPFF_SPACK_ROOT"] = str(spack_path.absolute())
 
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(
-                    bcolors.FAIL
-                    + f"Spack could not be installed for reasons: {e}"
-                    + bcolors.ENDC
-                )
+                raise RuntimeError(f"Spack could not be installed for reasons: {e}")
 
         self.slurm_avail = False
         try:
@@ -86,11 +97,6 @@ class Handler:
         except FileNotFoundError:
             pass
 
-        if not bool(self.config["runs"]):
-            raise ValueError(
-                bcolors.FAIL + "No runs specified, please add some." + bcolors.ENDC
-            )
-
         self.__check_paths()
         self.__capabilities = self.__determine_capabilities()
 
@@ -100,7 +106,7 @@ class Handler:
         parallel = self.config.parallel
 
         self.spack_manager: list[SpackManager] = []
-        for env_name, spack_env in self.config["spack env"].items():
+        for env_name, spack_env in self.config.spack_envs.items():
             self.spack_manager.append(
                 SpackManager(
                     handler_id=self.__id,
@@ -127,17 +133,13 @@ class Handler:
             )
 
         if not self.__tasks:
-            raise RuntimeError(
-                bcolors.FAIL + "no matching benchmark configs found" + bcolors.ENDC
-            )
+            raise RuntimeError("no matching benchmark configs found")
 
         if not self.__only_data:
             self.__start()
         else:
             logger.info(
-                bcolors.UNDERLINE
-                + f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
-                + bcolors.ENDC
+                f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
             )
 
         self.__prepare_dataframe()
@@ -166,27 +168,21 @@ class Handler:
         """
         Checks if all user requested paths exist. Should also define a couple of defaults to fall back to, currently does not.
         """
-        logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
+        logger.info("Check configured paths")
         for key, path in self.config.paths.items():
             if not path["skip"]:
                 if not Path(path["path"]).exists():
                     raise ValueError(
-                        bcolors.FAIL
-                        + f"Configured path: {path} for key: {key} does not exist. Please create it."
-                        + bcolors.ENDC
+                        f"Configured path: {path} for key: {key} does not exist. Please create it."
                     )
             else:
-                logger.warning(
-                    bcolors.WARNING
-                    + f"{path} was skipped, proceed with caution"
-                    + bcolors.ENDC
-                )
+                logger.warning(f"{path} was skipped, proceed with caution")
 
-        logger.info(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
+        logger.info("All paths checked successfully")
 
-        logger.info(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
+        logger.info("Create benchmarks")
 
-    def __determine_capabilities(self):
+    def __determine_capabilities(self) -> dict[str, dict[str, bool | str | None]]:
         """
         Gather supplied benchmarks at `path_to_benchmarks` and figure out which types of benchmark exist & are potentially runnable within the current environment at runtime.
 
@@ -207,7 +203,7 @@ class Handler:
         """
         root = Path(self.config.paths["path_to_benchmarks"]["path"])
 
-        determined = {}
+        determined: dict[str, dict[str, bool | str | None]] = {}
 
         for path in root.rglob("*"):
             if not path.is_dir():
@@ -267,7 +263,9 @@ class Handler:
 
         return determined
 
-    def __requested_capabilities(self, parallel: bool):
+    def __requested_capabilities(
+        self, parallel: bool
+    ) -> list[tuple[tuple[str, bool] | tuple[str, str | None], ...]]:
         """
         Figures out which benchmarks the user has requested. For this purpose it assembles
         a list of requested benchmarks with attributes in order of `(parallel, par_backends, languages, formats)`.
@@ -301,16 +299,18 @@ class Handler:
                 for par_backend in self.config.par_backend:
                     par_backends.append(("par_backend", par_backend))
 
-        requested = list(
-            itertools.product(
-                *[[("parallel", parallel)], par_backends, languages, formats]
-            )
+        return list(
+            itertools.product(*[
+                [("parallel", parallel)],
+                par_backends,
+                languages,
+                formats,
+            ])
         )
-        return requested
 
     def __create_benchmark(
         self, parallel: bool, determined_cap: dict[str, dict[str, bool | str | None]]
-    ):
+    ) -> list[list[BenchmarkManager]]:
         """
         Gather tasks to be performed and pass required metadata to configure a single benchmark to be run.
         Gather the user requested capabilities and compares them to the determined capabilities. If they match
@@ -329,15 +329,13 @@ class Handler:
             List of tasks that will be run in bulk. These tasks are `BenchmarkManager` objects.
         """
         requested_cap = self.__requested_capabilities(parallel=parallel)
-        logger.debug(requested_cap)
-        logger.debug(determined_cap.keys())
 
         tasks: list[list[BenchmarkManager]] = []
         for requested in requested_cap:
             requested = dict(requested)
 
             if str(requested) in determined_cap:
-                logger.info(bcolors.OKGREEN + "Success" + bcolors.ENDC)
+                logger.info("Success")
 
                 tasks.append(
                     self.__create_benchmark_manager(
@@ -377,7 +375,7 @@ class Handler:
         """
         benchmarks: list[BenchmarkManager] = []
 
-        for _, run_config in self.config["runs"].items():
+        for _, run_config in self.config.runs.items():
             nodes = self.config.nodes
             slurm_options = ""
             collective: list[bool | None] = [None]
@@ -414,11 +412,7 @@ class Handler:
                 if not manager.initialized:
                     manager.initialize_env()
                 else:
-                    logger.info(
-                        bcolors.OKGREEN
-                        + f"Environment: {manager.env_name} already initialized"
-                        + bcolors.ENDC
-                    )
+                    logger.info(f"Environment: {manager.env_name} already initialized")
 
                 bm = BenchmarkManager(
                     handler_id=self.__id,
@@ -456,32 +450,30 @@ class Handler:
             If any error happens within BenchmarkManager, that isn't caught otherwise. Currently refers to "no matching benchmark found" however catches more
             errors than intended. Needs to be changed.
         """
-        try:
-            self.__benchmarks.clear()
-            bm_list = list(itertools.chain.from_iterable(self.__tasks))
-            pool = ProcessPool(processes=self.__max_processes)
-            for result in tqdm.tqdm(
-                pool.uimap(self.__run_benchmark, bm_list),
-                total=len(bm_list),
-                unit="benchmarks",
-                colour="green",
-                file=sys.stdout,
-                desc="Benchmarks still to run",
-            ):
+        self.__benchmarks.clear()
+        bm_list = list(itertools.chain.from_iterable(self.__tasks))
+        pool = ProcessPool(processes=self.__max_processes)
+
+        progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            MofNCompleteColumn(),
+            TimeRemainingColumn(),
+            TimeElapsedColumn(),
+        )
+        task = progress.add_task("[cyan]Benchmarks still to run", total=len(bm_list))
+
+        with progress:
+            for result in pool.uimap(self.__run_benchmark, bm_list):
                 self.__benchmarks.append(result)
+                progress.update(task, advance=1)
 
-            if self.__delete_envs:
-                for manager in self.spack_manager:
-                    logger.info(f"remove environment: {manager.env_name}")
-                    manager.delete()
-                logger.info("finish removing environments")
-
-        except TypeError as e:
-            raise NameError(
-                bcolors.FAIL
-                + "No matching benchmark found that fits configuration"
-                + bcolors.ENDC
-            ) from e
+        if self.__delete_envs:
+            for manager in self.spack_manager:
+                logger.info(f"remove environment: {manager.env_name}")
+                manager.delete()
+            logger.info("finish removing environments")
 
     def __run_benchmark(self, benchmark: BenchmarkManager):
         return benchmark.run()

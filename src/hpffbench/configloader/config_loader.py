@@ -1,12 +1,10 @@
-from typing import TypedDict
+from typing import TypedDict, NotRequired
+from dataclasses import dataclass
 from pathlib import Path
 import itertools
 import logging
 
 import yaml
-
-from hpffbench.dev_utils import bcolors
-
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +12,85 @@ logger = logging.getLogger(__name__)
 class ProcessedPath(TypedDict):
     path: str
     skip: bool
+
+
+class RunConfig(TypedDict):
+    shape: list[int]
+    chunks: list[int]
+    datatype: str
+
+
+@dataclass
+class Run:
+    def __init__(self, run: dict[str, list]):
+
+        self.config: dict[str, RunConfig] = {}
+        for var, setup in run.items():
+            shape: list[int] = setup[0]
+
+            chunks: list[int] = setup[1] if len(setup) > 1 else []
+            if len(chunks) > len(shape):
+                raise ValueError(
+                    "Cannot provide more chunks dimensions than there are dims"
+                )
+
+            self.config[var] = {
+                "shape": shape,
+                "chunks": chunks,
+                "datatype": setup[2] if len(setup) > 2 else "f8",
+            }
+
+
+class SpackPackageConfig(TypedDict):
+    versions: list[str]
+    variants: str
+    fresh: NotRequired[bool]
+
+
+class SpackEnvConfig(TypedDict):
+    target: list[dict[str, str]]
+    language: list[str]
+    packages: dict[str, SpackPackageConfig]
+    compiler: str
+    additional: str
+    install: bool
+
+
+class SpackEnv:
+    def __init__(self, env: dict):
+        packages: dict[str, SpackPackageConfig] = {}
+        if "packages" in env:
+            found: dict[str, dict] = env["packages"]
+
+            for key, package in found.items():
+                fresh = False
+                if "fresh" in package:
+                    fresh = package["fresh"]
+                    if not isinstance(fresh, bool):
+                        raise ValueError
+
+                variants = ""
+                if "variants" in package:
+                    variants = package["variants"]
+                    if not isinstance(variants, str):
+                        raise ValueError
+
+                packages[key] = {
+                    "versions": package["versions"],
+                    "variants": variants,
+                    "fresh": fresh,
+                }
+        else:
+            raise KeyError
+
+        self.config: SpackEnvConfig = {
+            "target": env["target"],
+            "language": env["language"],
+            "compiler": env["compiler"],
+            "packages": packages,
+            "additional": env["additional"] if "additional" in env else "",
+            "install": env["install"] if "install" in env else False,
+        }
 
 
 class ConfigLoader:
@@ -32,6 +109,8 @@ class ConfigLoader:
     par_backend: list[str] | str | None
 
     paths: dict[str, ProcessedPath]
+    runs: dict[str, Run]
+    spack_envs: dict[str, SpackEnv]
 
     max_processes: int | None
     parallel: bool | str
@@ -42,7 +121,7 @@ class ConfigLoader:
             self.config = path_to_config
 
         else:
-            logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
+            logger.info("Try loading config.yaml")
             try:
                 if ".yaml" or ".yml" not in path_to_config:
                     for file in itertools.chain(
@@ -54,28 +133,18 @@ class ConfigLoader:
 
                 file = open(f"{path_to_config}", "r")
                 self.config = yaml.safe_load(stream=file)
-                logger.info(
-                    bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC
-                )
+                logger.info("Success loading config.yaml")
 
             except FileNotFoundError or IsADirectoryError as e:
                 FileNotFoundError(
-                    bcolors.FAIL
-                    + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}"
-                    + bcolors.ENDC
+                    f"config.yaml not found, please ensure a valid config exists! Additional details: {e}"
                 )
             except OSError as e:
                 OSError(
-                    bcolors.FAIL
-                    + f"Path to config.yaml could not found, please check it is valid! Additional details: {e}"
-                    + bcolors.ENDC
+                    f"Path to config.yaml could not found, please check it is valid! Additional details: {e}"
                 )
             except yaml.YAMLError as e:
-                yaml.YAMLError(
-                    bcolors.FAIL
-                    + f"Error loading config.yaml! Additional details: {e}"
-                    + bcolors.ENDC
-                )
+                yaml.YAMLError(f"Error loading config.yaml! Additional details: {e}")
 
         self.formats: list[str] = self.config["formats"]
         self.languages: list[str] = self.config["languages"]
@@ -98,6 +167,36 @@ class ConfigLoader:
         else:
             raise KeyError
 
+        if "runs" in self.config:
+            runs: dict[str, dict[str, list]] = self.config["runs"]
+
+            if not self.config["runs"]:
+                raise ValueError("No runs specified, please add some.")
+
+            processed_runs: dict[str, Run] = {}
+            for key, run in runs.items():
+                processed_runs[key] = Run(run)
+            self.runs = processed_runs
+        else:
+            raise KeyError("No runs specified, please add some.")
+
+        self.use_spack_env = True
+        if "use_spack_env" in self.config:
+            self.use_spack_env: bool = self.config["use_spack_env"]
+
+        if self.use_spack_env:
+            if "spack_env" in self.config:
+                envs: dict[str, dict[str, dict]] = self.config["spack_env"]
+
+                processed_envs: dict[str, SpackEnv] = {}
+                for key, env in envs.items():
+                    processed_envs[key] = SpackEnv(env)
+                self.spack_envs = processed_envs
+            else:
+                raise KeyError
+        else:
+            self.spack_envs = {}
+
         # Optionals
         self.parallel = False
         if "parallel" in self.config:
@@ -105,16 +204,14 @@ class ConfigLoader:
 
             if parallel != "Both" and type(parallel) is not bool:
                 raise ValueError(
-                    bcolors.FAIL
-                    + '"parallel" can only either be "True", "False" or "Both"'
-                    + bcolors.ENDC
+                    '"parallel" can only either be "True", "False" or "Both"'
                 )
-            else:
-                logger.info(
-                    bcolors.WARNING
-                    + '"parallel" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True.'
-                    + bcolors.ENDC
-                )
+
+            self.parallel = parallel
+        else:
+            logger.info(
+                '"parallel" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True.'
+            )
 
         self.par_backend = None
         if "par_backend" in self.config:
@@ -149,10 +246,6 @@ class ConfigLoader:
         self.only_data = False
         if "only_data" in self.config:
             self.only_data: bool = self.config["only_data"]
-
-        self.use_spack_env = True
-        if "use_spack_env" in self.config:
-            self.use_spack_env: bool = self.config["use_spack_env"]
 
         self.delete_envs = False
         if "delete_envs" in self.config:
