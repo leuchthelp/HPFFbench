@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Requires: `python >= 3.10` and some form of `git` present, either through direct install or a `module` file
+Requires: `python >= 3.14` and some form of `git` present, either through direct install or a `module` file
 
 HPFFbench stands for {H}igh-{P}erformance {F}ile {F}ormat {bench}mark. (Name is debatable)
 

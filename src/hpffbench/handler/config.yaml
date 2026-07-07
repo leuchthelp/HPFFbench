@@ -1,0 +1,134 @@
+formats:
+- hdf5
+languages:
+- c
+- py
+paths:
+  path_to_benchmarks: benchmarks
+  path_to_tmp: tmp
+  path_to_root: /home/leucht/Documents/HPFFbench
+  path_to_results: results
+iterations: 10
+runs:
+  run04:
+    X:
+    - - 134217728
+    - []
+parallel: Both
+par_backend:
+- MPI
+ranks:
+- 5
+nodes:
+- 1
+variable_to_benchmark:
+- X
+only_data: true
+no_caching: true
+use_spack_env: true
+max_processes: 1
+slurm_options: '
+
+  #SBATCH --partition=compute
+
+  #SBATCH --account=ku0598
+
+  #SBATCH --constraint="[cell02]"
+
+  #SBATCH --mem=0
+
+  #SBATCH --cpu-freq=High
+
+  #SBATCH --distribution=block:cyclic
+
+  #SBATCH --time=02:00:00
+
+  #SBATCH --exclusive
+
+  #SBATCH --output=log/log-%j/log.%j.txt
+
+  #SBATCH --error=log/log-%j/log.%j.err
+
+  '
+spack_env:
+  test-env-1:
+    target:
+    - hdf5
+    - hdf5: subfiling
+    - netcdf4
+    - zarr
+    language:
+    - py
+    - c
+    packages:
+      python:
+        versions:
+        - 3.14.0
+        fresh: true
+      openmpi:
+        versions:
+        - 5.0.8
+        fresh: true
+      hdf5:
+        versions:
+        - 1.14.6
+        variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
+      argobots:
+        versions:
+        - main
+        fresh: true
+      netcdf-c:
+        versions:
+        - 4.9.3
+        variants: build_system=cmake
+      py-mpi4py:
+        versions:
+        - 4.1.1
+      py-h5py:
+        versions:
+        - 3.14.0
+      py-netcdf4:
+        versions:
+        - 1.7.2
+    compiler: gcc@13.3.0
+    additional: pip install zarr==3.2.1
+    install: true
+  test-env-async:
+    target:
+    - hdf5: async
+    language:
+    - c
+    packages:
+      python:
+        versions:
+        - 3.14.0
+        fresh: true
+      openmpi:
+        versions:
+        - 5.0.10
+      hdf5:
+        versions:
+        - 1.14.6
+        variants: ~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools
+      hdf5-vol-async:
+        versions:
+        - develop
+      argobots:
+        versions:
+        - main
+        fresh: true
+      netcdf-c:
+        versions:
+        - 4.10.0
+        variants: build_system=cmake
+      py-mpi4py:
+        versions:
+        - 4.1.1
+      py-h5py:
+        versions:
+        - 3.16.0
+      py-netcdf4:
+        versions:
+        - 1.7.2
+    compiler: gcc@13.3.0
+delete_envs: false

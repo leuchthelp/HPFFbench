@@ -9,9 +9,18 @@ create_command:
     profile    : py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
     #profile-MPI: mpiexec -n py-spy record --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
 create: |
-    from func import datastruct as ds
-    from dev_utils import bcolors as color
-    import argparse
+    from hpffbench.func import datastruct as ds
+    
+    class color:
+        HEADER = "\033[95m"
+        OKBLUE = "\033[94m"
+        OKCYAN = "\033[96m"
+        OKGREEN = "\033[92m"
+        WARNING = "\033[93m"
+        FAIL = "\033[91m"
+        ENDC = "\033[0m"
+        BOLD = "\033[1m"
+        UNDERLINE = "\033[4m"
 
     def create_ds(form, parallel=False, path=None, collective=False):
 
@@ -35,8 +44,7 @@ run_command:
     profile    : py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
     profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
 source: | 
-    from func import datastruct as ds
-    import argparse
+    from hpffbench.func import datastruct as ds
 
 
     def bench(iterations, variable: None, parallel=False, path=None, collective=False):
