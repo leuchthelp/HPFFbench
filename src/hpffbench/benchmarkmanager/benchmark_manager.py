@@ -9,8 +9,14 @@ import yaml
 import os
 import re
 
-from hpffbench.dev_utils import calc_size_unit, bcolors
+from hpffbench.configloader import (
+    ConfigLoader,
+    Run,
+    BenchmarkConfig,
+    BenchmarkConfigLoader,
+)
 from hpffbench.spackmanager import SpackManager
+from hpffbench.dev_utils import calc_size_unit
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +113,7 @@ class BenchmarkManager:
     var_to_bm: str | list
         Which variable / dataset will be benchmarked from the file. Can either be a single value string or a list of strings.
 
-    total_filesize: int
+    total_filesize: float
         The total filesize benchmarked calculated from all variables / datasets were requested for benchmarking.
 
     unit: str
@@ -128,8 +134,8 @@ class BenchmarkManager:
 
     handler_id: str
     id: str
-    run_config: dict
-    bm_config: dict
+    run_config: Run
+    bm_config: BenchmarkConfigLoader
     nodes: int
     parallel: bool
     par_backend: None | str
@@ -139,9 +145,9 @@ class BenchmarkManager:
     format: str
     engine: str
     extension: str
-    datatype: list
+    datatype: list[str]
     var_to_bm: str | list
-    total_filesize: int
+    total_filesize: float
     unit: str
     filesize_var: list
     chunksize_var: list
@@ -152,19 +158,19 @@ class BenchmarkManager:
     def __init__(
         self,
         handler_id: str,
-        run_config: dict,
-        bm_config: dict,
-        global_config: dict,
+        run_config: Run,
+        bm_config: BenchmarkConfigLoader,
+        global_config: ConfigLoader,
         nodes: int,
         slurm_avail: bool,
         slurm_options: str,
         parallel: bool,
         collective: None | bool,
         ranks: int,
-        requested: dict,
+        requested: BenchmarkConfig,
         spack_manager: SpackManager,
-        paths: dict,
     ):
+        paths = global_config.paths
 
         # Object config
         self.current_time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
@@ -177,73 +183,57 @@ class BenchmarkManager:
         self.spack_manager = spack_manager
 
         # Source code
-        if "create" in bm_config:
-            self.create = bm_config["create"]
-        else:
-            self.create = ""
-
-        try:
-            self.compile = bm_config["compile"]
-
-            self.compile_command = ""
-            if "compile_command" in self.bm_config:
-                self.compile_command = bm_config["compile_command"]
-            else:
-                raise ValueError(
-                    "Missing compile command for benchmark requiring compilation"
-                )
-        except KeyError:
-            self.compile = False
-
-        self.src = bm_config["source"]
+        self.create = bm_config.create
+        self.compile = bm_config.compile
+        self.compile_command = bm_config.compile_command
+        self.src = bm_config.source
 
         # Benchmark config
         self.run_config = run_config
         self.nodes = nodes
         self.parallel = parallel
-        self.par_backend = requested["par_backend"]
         self.collective = collective
         self.ranks = ranks
-        self.language = requested["language"]
         self.format = requested["format"]
+        self.language = requested["language"]
         self.engine = (
             f"{self.format}-{self.language}-parallel"
             if self.parallel
             else f"{self.format}-{self.language}"
         )
-        self.extension = bm_config["extension"]
+        self.extension = bm_config.extension
 
-        if "par_backend" in self.bm_config:
-            config_par_backend = self.bm_config["par_backend"]
-        else:
-            config_par_backend = None
+        if (
+            isinstance(requested["par_backend"], str)
+            or requested["par_backend"] is None
+        ):
+            self.par_backend: str | None = requested["par_backend"]
 
-        datatype = []
-        for _, item in run_config.items():
-            if any(isinstance(x, str) for x in item):
-                datatype.append(item[-1])
-            else:
-                datatype.append("f8")
-        self.datatype = datatype
+        self.language = requested["language"]
+        self.format = requested["format"]
 
-        self.var_to_bm = self.global_config["variable_to_benchmark"]
-        self.iterations = self.global_config["iterations"]
+        datatype: list[str] = []
+        for _, item in run_config.variables.items():
+            datatype.append(item["datatype"])
+        self.datatype: list[str] = datatype
+
+        self.var_to_bm = self.global_config.variable_to_benchmark
+        self.iterations = self.global_config.iterations
         self.internal_i = 1
 
-        self.no_caching = False
-        if "no caching" in self.global_config:
-            self.no_caching = self.global_config["no caching"]
+        self.no_caching = self.global_config.no_caching
         self.local = False
 
         # Assemble ID
         id_str = (
-            str(self.run_config)
-            + str(config_par_backend)
+            str(self.run_config.variables)
+            + str(self.no_caching)
             + str(self.par_backend)
-            + str(self.bm_config["parallel"])
+            + str(self.bm_config.par_backend)
             + str(self.parallel)
-            + str(self.bm_config["format"])
+            + str(self.bm_config.parallel)
             + str(self.format)
+            + str(self.bm_config.format)
             + str(self.ranks)
             + str(self.var_to_bm)
             + str(self.collective)
@@ -260,17 +250,17 @@ class BenchmarkManager:
 
         self.id = hashlib.sha256(id_str.encode()).hexdigest()
 
-        self.use_path = Path(paths["path_to_tmp"])
-        self.root_path = Path(paths["path_to_root"])
-        self.results_path = Path(paths["path_to_results"])
+        self.use_path = Path(paths["path_to_tmp"]["path"])
+        self.root_path = Path(paths["path_to_root"]["path"])
+        self.results_path = Path(paths["path_to_results"]["path"])
         self.dir_path = Path(f"{self.use_path}/{str(self.id)}")
 
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
 
-        filesize_per_var = [
-            (key, calc_size_unit(item[0]))
-            for key, item in run_config.items()
+        filesize_per_var: list[tuple[str, tuple[float, str]]] = [
+            (key, calc_size_unit(item["shape"]))
+            for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
 
@@ -278,28 +268,25 @@ class BenchmarkManager:
         for filesize in filesize_per_var:
             total_filesize += filesize[1][0]
 
-        self.total_filesize = total_filesize  # type: ignore
-        self.unit = filesize_per_var[0][1][1]
-        self.filesize_var = filesize_per_var
-        self.chunksize_var = [
-            (key, calc_size_unit(item[1]))
-            for key, item in run_config.items()
+        self.total_filesize: float = total_filesize
+        self.unit: str = filesize_per_var[0][1][1]
+        self.filesize_var: list[tuple[str, tuple[float, str]]] = filesize_per_var
+        self.chunksize_var: list[tuple[str, tuple[float, str]]] = [
+            (key, calc_size_unit(item["chunks"]))
+            for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
         self.show_metdata = True
 
         # Environment config
-        self.__checkpoint = yaml
 
-        self.__profiler = False
-        if "profiler" in self.global_config:
-            self.__profiler = self.global_config["profiler"]
-
+        self.__profiler = self.global_config.profiler
         if self.__profiler:
-            self.profiling_path = Path(paths["path_profiling"])
+            self.profiling_path = Path(paths["path_profiling"]["path"])
 
         logger.info(
-            bcolors.OKBLUE + f"Managing Benchmark with; file-structure: {run_config}, "
+            f"Managing Benchmark with; file-structure: {run_config.variables}, "
+            f"no caching: {self.no_caching}, "
             f"nodes: {self.nodes}, "
             f"datatype: {self.datatype}, "
             f"parallel: {self.parallel}, "
@@ -310,10 +297,10 @@ class BenchmarkManager:
             f"format: {self.format}, "
             f"iterations: {self.iterations}, "
             f"in env: {self.spack_manager.env_name}. "
-            f"It will be stored in {self.use_path}" + bcolors.ENDC
+            f"It will be stored in {self.use_path}"
         )
 
-    def run(self):
+    def run(self) -> tuple[str, BenchmarkManager]:
         """
         Runs the benchmark.
 
@@ -359,9 +346,8 @@ class BenchmarkManager:
 
         finally:
             shutil.rmtree(path=self.dir_path)
-            pass
 
-        return self.id, asdict(self)
+        return self.id, self
 
     def __create_file(self):
         """
@@ -374,7 +360,7 @@ class BenchmarkManager:
         Finally it executes the `create_file` with the `create_command`.
         """
         # Get create command
-        create_commands = self.bm_config["create_command"]
+        create_commands = self.bm_config.create_commands
 
         create_command = ""
         language = self.language
@@ -388,9 +374,7 @@ class BenchmarkManager:
                 compile = create_commands["lazy"][2]
             except IndexError as e:
                 raise IndentationError(
-                    bcolors.FAIL
-                    + "Lazy option is not a proper lazy command. A lazy command needs [command, language, compile flag (turn off/on compilation)]."
-                    + bcolors.ENDC
+                    "Lazy option is not a proper lazy command. A lazy command needs [command, language, compile flag (turn off/on compilation)]."
                 ) from e
         else:
             try:
@@ -405,13 +389,13 @@ class BenchmarkManager:
                         )
 
             except KeyError as e:
-                if self.bm_config["parallel"]:
+                if self.bm_config.parallel:
                     pass
                 else:
                     raise e
 
         # Create the file that contains code to create the given dataset
-        create = self.create.replace("#MAIN", self.__replace_main(language))  # type: ignore
+        create = self.create.replace("#MAIN", self.__replace_main(language))
 
         path_to_create_file = Path(f"{self.dir_path}/create.{language}")
         with open(path_to_create_file, "w") as file:
@@ -465,18 +449,18 @@ class BenchmarkManager:
         if flag_variable not in create_command:
             create_command = create_command + f" {flag_variable}"
 
-        variables = ",".join(list(self.run_config.keys()))
+        variables: str = ",".join(list(self.run_config.variables.keys()))
         create_command = create_command.replace(
             f"{flag_variable}", f"{flag_variable} {variables}"
         )
 
-        values = list(self.run_config.values())
-        shapes = []
-        chunks = []
+        values = list(self.run_config.variables.values())
+        shapes: list[list[int]] = []
+        chunks: list[list[int]] = []
         datatypes = self.datatype
         for value in values:
-            shapes.append(value[0])
-            chunks.append(value[1])
+            shapes.append(value["shape"])
+            chunks.append(value["chunks"])
 
         create_command = self.__append_flag(
             flag="-S", command=create_command, data=shapes
@@ -495,7 +479,7 @@ class BenchmarkManager:
                     path=self.bash_location, compile_file_info=compiled_file_info
                 ),
                 create_command,
-            ]  # type: ignore
+            ]
         else:
             create_command = [
                 "bash",
@@ -513,8 +497,10 @@ class BenchmarkManager:
             check=True,
             cwd=self.dir_path,
         )
-        logger.error(p.stderr)
-        logger.info(p.stdout)
+
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.error(p.stderr)
+        logger.debug(p.stdout)
 
     def __append_flag(self, flag: str, command: str, data: list) -> str:
         """
@@ -546,7 +532,7 @@ class BenchmarkManager:
 
         return command
 
-    def __compile_file(self, path: Path) -> tuple:
+    def __compile_file(self, path: Path) -> tuple[str, str]:
         """
         Compiles a file at a given path. Resolves required metadata from self.
 
@@ -565,9 +551,14 @@ class BenchmarkManager:
         str
             String containing `export LD_LIBRARY_PATH=` to be injected later.
         """
-        compile_command = self.compile_command.replace(
-            "{runnable}", f"{path.absolute()}"
-        )
+        if isinstance(self.compile_command, str):
+            compile_command = self.compile_command.replace(
+                "{runnable}", f"{path.absolute()}"
+            )
+        else:
+            raise ValueError(
+                "Compile was True, but somehow we got here without a compile_command being supplied ..."
+            )
 
         pattern = r"\<(.*?)\>"
         requested_packages = re.findall(string=compile_command, pattern=pattern)
@@ -608,7 +599,9 @@ class BenchmarkManager:
         p = subprocess.run(
             ["bash", "compile.sh"], check=True, capture_output=True, cwd=self.dir_path
         )
-        logger.error(p.stderr)
+
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.error(p.stderr)
         logger.debug(p.stdout)
 
         return compiled_file, ld_library_path
@@ -619,8 +612,7 @@ class BenchmarkManager:
         If a compiled language is requested, also compiles the necessary file and finally executes it.
         """
         # Get run command to execute the code with
-        run_commands = self.bm_config["run_command"]
-
+        run_commands: dict[str, str] = self.bm_config.run_commands
         run_command = ""
         try:
             run_command = run_commands["serial"]
@@ -634,7 +626,7 @@ class BenchmarkManager:
                     )
 
         except KeyError as e:
-            if self.bm_config["parallel"]:
+            if self.bm_config.parallel:
                 pass
             else:
                 raise e
@@ -690,7 +682,7 @@ class BenchmarkManager:
         if self.language == "c":
             size = []
             for var in self.var_to_bm:
-                size.append(self.run_config[var][0])
+                size.append(self.run_config.variables[var]["shape"])
 
             run_command = run_command + f"-s {sum([sum(x) for x in size])}"
 
@@ -701,7 +693,7 @@ class BenchmarkManager:
                     self.bash_location, compile_file_info=compiled_file_info
                 ),
                 run_command,
-            ]  # type: ignore
+            ]
         else:
             run_command = [
                 "bash",
@@ -710,8 +702,6 @@ class BenchmarkManager:
                 ),
                 run_command,
             ]
-
-        self.used_nodes = []
 
         logger.debug(f"run command used: {run_command}")
         original_run_command = str(run_command[-1])
@@ -792,10 +782,12 @@ class BenchmarkManager:
                 cwd=self.dir_path,
                 check=True,
             )
-            logger.error(p.stderr)
-            logger.info(p.stdout)
 
-    def __replace_main(self, language: str) -> str | None:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.error(p.stderr)
+            logger.debug(p.stdout)
+
+    def __replace_main(self, language: str) -> str:
         """
         Contains pre-made main methods that can be injected. These methods contain functioning code to achieve feature parity among benchmarks requested.
 
@@ -1388,6 +1380,11 @@ int main(int argc, char *argv[])
                     1,
                 )
                 return tmp
+
+            case _:
+                raise ValueError(
+                    f"{language} is not support by the BenchmarkConfig. Somehow we came all the way until here without catching that."
+                )
 
     def __assemble_bash(self, path: str, compile_file_info: tuple) -> str:
         """

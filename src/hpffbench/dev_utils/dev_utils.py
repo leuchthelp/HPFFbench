@@ -1,31 +1,15 @@
-from dataclasses import dataclass
-
-@dataclass
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-def calc_size_unit(input: list):
-    
-    res = 1
-    compare = 1
+def calc_size_unit(input: list[int]) -> tuple[float ,str]:
+    compare = 1.0
     size = "Byte"
     
     if not input:
-        res = 0
+        res = 0.0
         return res, size
     
     for item in input:
         compare *= item
     
-    compare *= 8
+    compare *= 8.0
     res = compare
     
     if compare >= 1 * 1024:

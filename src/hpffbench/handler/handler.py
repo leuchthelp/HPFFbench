@@ -1,29 +1,45 @@
-from dataclasses import dataclass, asdict
+from typing import cast
 from collections import Counter
-from copy import deepcopy
 from pathlib import Path
 import subprocess
 import itertools
 import logging
 import hashlib
-import yaml
 import json
-import tqdm
-import sys
 import os
+
+from rich.traceback import install as install_rich_traceback
+from rich.logging import RichHandler
+from rich.console import Console
+from rich.progress import (
+    TimeRemainingColumn,
+    MofNCompleteColumn,
+    TaskProgressColumn,
+    TimeElapsedColumn,
+    TextColumn,
+    BarColumn,
+    Progress,
+)
 
 from pathos.pools import ProcessPool
 import pandas as pd
 import numpy as np
 
+
+from hpffbench.configloader import ConfigLoader, BenchmarkConfigLoader, BenchmarkConfig
 from hpffbench.benchmarkmanager import BenchmarkManager
 from hpffbench.spackmanager import SpackManager
-from hpffbench.dev_utils import bcolors
 
+
+logging.basicConfig(
+    level=logging.INFO, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+)
 logger = logging.getLogger(__name__)
 
+error_console = Console(stderr=True)
+install_rich_traceback(console=error_console)
 
-@dataclass
+
 class Handler:
     """Defines handler to read configuration from yaml file and create matching benchmarks. Also configures the benchmark environments and gathers system information.
 
@@ -43,16 +59,10 @@ class Handler:
     path_to_config: str
 
     def __init__(self, path_to_config: str | dict):
-
-        self.__id = ""
-        self.config = {}
-        self.__benchmarks = []
-
         self.__load_config(path_to_config)
-
-        self.__delete_envs = True
-        if "delete envs" in self.config:
-            self.__delete_envs = self.config["delete envs"]
+        self.__benchmarks: list[tuple[str, BenchmarkManager]] = []
+        self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
+        self.__delete_envs = self.config.delete_envs
 
         logger.debug("Check if spack is available")
 
@@ -69,19 +79,13 @@ class Handler:
                 logger.info(p.stdout)
                 if not spack_path.exists():
                     raise RuntimeError(
-                        bcolors.FAIL
-                        + "Spack root could not be inferred, something must have gone wrong."
-                        + bcolors.ENDC
+                        "Spack root could not be inferred, something must have gone wrong."
                     )
 
                 os.environ["HPFF_SPACK_ROOT"] = str(spack_path.absolute())
 
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(
-                    bcolors.FAIL
-                    + f"Spack could not be installed for reasons: {e}"
-                    + bcolors.ENDC
-                )
+                raise RuntimeError(f"Spack could not be installed for reasons: {e}")
 
         self.slurm_avail = False
         try:
@@ -93,50 +97,16 @@ class Handler:
         except FileNotFoundError:
             pass
 
-        if not bool(self.config["runs"]):
-            raise ValueError(
-                bcolors.FAIL + "No runs specified, please add some." + bcolors.ENDC
-            )
-
         self.__check_paths()
-
         self.__capabilities = self.__determine_capabilities()
 
-        if "only data" in self.config:
-            self.__only_data = self.config["only data"]
-        else:
-            self.__only_data = False
+        self.__only_data = self.config.only_data
+        self.__use_spack_env = self.config.use_spack_env
+        self.__max_processes = self.config.max_processes
+        parallel = self.config.parallel
 
-        if "use spack env" in self.config:
-            self.__use_spack_env = self.config["use spack env"]
-        else:
-            self.__use_spack_env = True
-
-        if "max processes":
-            self.__max_processes = self.config["max processes"]
-        else:
-            self.__max_processes = None
-
-        parallel = False
-        try:
-            parallel = self.config["parallel"]
-
-            if parallel != "Both" and type(parallel) is not bool:
-                raise ValueError(
-                    bcolors.FAIL
-                    + '"parallel" can only either be "True", "False" or "Both"'
-                    + bcolors.ENDC
-                )
-
-        except KeyError:
-            logger.info(
-                bcolors.WARNING
-                + '"parallel" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True.'
-                + bcolors.ENDC
-            )
-
-        self.spack_manager = []
-        for env_name, spack_env in self.config["spack env"].items():
+        self.spack_manager: list[SpackManager] = []
+        for env_name, spack_env in self.config.spack_envs.items():
             self.spack_manager.append(
                 SpackManager(
                     handler_id=self.__id,
@@ -144,11 +114,11 @@ class Handler:
                     spack_env=spack_env,
                     use_spack_env=self.__use_spack_env,
                     only_data=self.__only_data,
-                    paths=self.config["paths"],
+                    paths=self.config.paths,
                 )
             )
 
-        if parallel == "Both":
+        if isinstance(parallel, str) and parallel == "Both":
             self.__tasks = self.__create_benchmark(
                 parallel=False, determined_cap=self.__capabilities
             )
@@ -157,23 +127,19 @@ class Handler:
                     parallel=True, determined_cap=self.__capabilities
                 )
             )
-        else:
+        elif isinstance(parallel, bool):
             self.__tasks = self.__create_benchmark(
                 parallel=parallel, determined_cap=self.__capabilities
             )
 
         if not self.__tasks:
-            raise RuntimeError(
-                bcolors.FAIL + "no matching benchmark configs found" + bcolors.ENDC
-            )
+            raise RuntimeError("no matching benchmark configs found")
 
         if not self.__only_data:
             self.__start()
         else:
-            logger.info(
-                bcolors.UNDERLINE
-                + f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
-                + bcolors.ENDC
+            logger.warning(
+                f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
             )
 
         self.__prepare_dataframe()
@@ -196,85 +162,27 @@ class Handler:
             If there is an error with the `config.yaml`
 
         """
-        if type(path_to_config) is dict:
-            self.config = path_to_config
-
-        elif type(path_to_config) is str:
-            logger.info(bcolors.OKBLUE + "Try loading config.yaml" + bcolors.ENDC)
-            try:
-                if ".yaml" or ".yml" not in path_to_config:
-                    for file in itertools.chain(
-                        Path(path_to_config).glob("*.yaml"),
-                        Path(path_to_config).glob("*.yml"),
-                    ):
-                        path_to_config = str(file)
-                        break
-
-                file = open(f"{path_to_config}", "r")
-                self.config = yaml.safe_load(stream=file)
-                self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
-                logger.info(
-                    bcolors.OKGREEN + "Success loading config.yaml" + bcolors.ENDC
-                )
-
-            except FileNotFoundError or IsADirectoryError as e:
-                FileNotFoundError(
-                    bcolors.FAIL
-                    + f"config.yaml not found, please ensure a valid config exists! Additional details: {e}"
-                    + bcolors.ENDC
-                )
-            except OSError as e:
-                OSError(
-                    bcolors.FAIL
-                    + f"Path to config.yaml could not found, please check it is valid! Additional details: {e}"
-                    + bcolors.ENDC
-                )
-            except yaml.YAMLError as e:
-                yaml.YAMLError(
-                    bcolors.FAIL
-                    + f"Error loading config.yaml! Additional details: {e}"
-                    + bcolors.ENDC
-                )
-
-        else:
-            raise ValueError(
-                bcolors.FAIL
-                + f"path_to_config is of type: {type(path_to_config)} - needs to be either dict or str"
-                + bcolors.ENDC
-            )
+        self.config = ConfigLoader(path_to_config)
 
     def __check_paths(self):
         """
         Checks if all user requested paths exist. Should also define a couple of defaults to fall back to, currently does not.
         """
-        logger.info(bcolors.OKBLUE + "Check configured paths" + bcolors.ENDC)
-        for key, path in self.config["paths"].items():
-            skip = False
-
-            if type(path) is dict:
-                skip = path["skip"]
-                path = path["path"]
-                self.config["paths"][key] = path
-
-            if not skip:
-                if not Path(path).exists():
+        logger.info("Check configured paths")
+        for key, path in self.config.paths.items():
+            if not path["skip"]:
+                if not Path(path["path"]).exists():
                     raise ValueError(
-                        bcolors.FAIL
-                        + f"Configured path: {path} for key: {key} does not exist. Please create it."
-                        + bcolors.ENDC
+                        f"Configured path: {path} for key: {key} does not exist. Please create it."
                     )
             else:
-                logger.warning(
-                    bcolors.WARNING
-                    + f"{path} was skipped, proceed with caution"
-                    + bcolors.ENDC
-                )
+                logger.warning(f"{path} was skipped, proceed with caution")
 
-        logger.info(bcolors.OKGREEN + "All paths checked successfully" + bcolors.ENDC)
+        logger.info("All paths checked successfully")
 
-        logger.info(bcolors.OKBLUE + "Create benchmarks" + bcolors.ENDC)
+        logger.info("Create benchmarks")
 
-    def __determine_capabilities(self) -> dict:
+    def __determine_capabilities(self) -> dict[str, BenchmarkConfigLoader]:
         """
         Gather supplied benchmarks at `path_to_benchmarks` and figure out which types of benchmark exist & are potentially runnable within the current environment at runtime.
 
@@ -293,69 +201,36 @@ class Handler:
         dict
             Contains all capabilities the benchmark-framework has at runtime.
         """
-        root = Path(self.config["paths"]["path_to_benchmarks"])
+        root = Path(self.config.paths["path_to_benchmarks"]["path"])
 
-        determined = {}
+        determined: dict[str, BenchmarkConfigLoader] = {}
 
         for path in root.rglob("*"):
             if not path.is_dir():
-                with open(path, "r") as file:
-                    current = yaml.safe_load(file)
+                current = BenchmarkConfigLoader(path)
 
-                    tmp = []
-                    additional = []
-
-                    try:
-                        tmp.append(("parallel", current["parallel"]))
-                    except KeyError:
-                        tmp.append(("parallel", False))
-
-                    try:
-                        if (
-                            type(current["parallel"]) is bool
-                            and current["parallel"]
-                            and current["par_backend"] is not None
-                        ):
-                            tmp.append(("par_backend", current["par_backend"]))
-
-                        elif current["parallel"] == "configurable":
-                            if type(current["par_backend"]) is list:
-                                additional = current["par_backend"]
-                            else:
-                                additional.append(current["par_backend"])
-                            raise KeyError
-
-                        else:
-                            raise KeyError
-                    except KeyError:
-                        tmp.append(("par_backend", None))
-
-                    try:
-                        tmp.append(("language", current["language"]))
-                    except yaml.YAMLError as e:
-                        raise e
-
-                    try:
-                        tmp.append(("format", current["format"]))
-                    except KeyError as e:
-                        raise e
-
-                    hold = dict(tmp)
-                    if hold["parallel"] == "configurable":
-                        hold["parallel"] = False
-
-                        for backend in additional:
-                            extra = deepcopy(hold)
-                            extra["parallel"] = True
-                            extra["par_backend"] = backend
-
-                            determined[str(extra)] = current
-
-                    determined[str(hold)] = current
+                for entry in current.parallel:
+                    if not entry or not isinstance(current.par_backend, list):
+                        benchmark_config: BenchmarkConfig = {
+                            "format": current.format,
+                            "language": current.language,
+                            "parallel": entry,
+                            "par_backend": None,
+                        }
+                        determined[str(benchmark_config)] = current
+                    else:
+                        for backend in current.par_backend:
+                            benchmark_config: BenchmarkConfig = {
+                                "format": current.format,
+                                "language": current.language,
+                                "parallel": entry,
+                                "par_backend": backend,
+                            }
+                            determined[str(benchmark_config)] = current
 
         return determined
 
-    def __requested_capabilities(self, parallel: bool) -> list:
+    def __requested_capabilities(self, parallel: bool) -> list[BenchmarkConfig]:
         """
         Figures out which benchmarks the user has requested. For this purpose it assembles
         a list of requested benchmarks with attributes in order of `(parallel, par_backends, languages, formats)`.
@@ -369,37 +244,42 @@ class Handler:
         Returns
         -------
 
-        itertools.product
+        list
             Contains all requested benchmarks by the user.
         """
-        requested = None
-
-        languages = []
-        for language in self.config["languages"]:
+        languages: list[tuple[str, str]] = []
+        for language in self.config.languages:
             languages.append(("language", language))
 
-        formats = []
-        for format in self.config["formats"]:
+        formats: list[tuple[str, str]] = []
+        for format in self.config.formats:
             formats.append(("format", format))
 
-        par_backends = [("par_backend", None)]
-
+        par_backends: list[tuple[str, str | None]] = [("par_backend", None)]
         if parallel:
-            par_backends = []
-            if type(self.config["par_backend"]) is not list:
-                par_backends.append(("par_backend", self.config["par_backend"]))
+            par_backends.clear()
+            if not isinstance(self.config.par_backend, list):
+                par_backends.append(("par_backend", self.config.par_backend))
             else:
-                for par_backend in self.config["par_backend"]:
+                for par_backend in self.config.par_backend:
                     par_backends.append(("par_backend", par_backend))
 
-        requested = list(
-            itertools.product(
-                *[[("parallel", parallel)], par_backends, languages, formats]
-            )
-        )
-        return requested
+        combinations = itertools.product(*[
+            formats,
+            languages,
+            [("parallel", parallel)],
+            par_backends,
+        ])
 
-    def __create_benchmark(self, parallel: bool, determined_cap: dict) -> list:
+        tmp: list[BenchmarkConfig] = []
+        for combination in combinations:
+            tmp.append(cast(BenchmarkConfig, dict(combination)))
+
+        return tmp
+
+    def __create_benchmark(
+        self, parallel: bool, determined_cap: dict[str, BenchmarkConfigLoader]
+    ) -> list[list[BenchmarkManager]]:
         """
         Gather tasks to be performed and pass required metadata to configure a single benchmark to be run.
         Gather the user requested capabilities and compares them to the determined capabilities. If they match
@@ -418,15 +298,13 @@ class Handler:
             List of tasks that will be run in bulk. These tasks are `BenchmarkManager` objects.
         """
         requested_cap = self.__requested_capabilities(parallel=parallel)
-        logger.debug(requested_cap)
-        logger.debug(determined_cap.keys())
 
-        tasks = []
+        tasks: list[list[BenchmarkManager]] = []
         for requested in requested_cap:
-            requested = dict(requested)
-
-            if str(requested) in determined_cap:
-                logger.info(bcolors.OKGREEN + "Success" + bcolors.ENDC)
+            logger.debug(f"requested: {str(requested)}")
+            logger.debug(f"available: {determined_cap.keys()}")
+            if str(requested) in determined_cap.keys():
+                logger.info("Success")
 
                 tasks.append(
                     self.__create_benchmark_manager(
@@ -439,8 +317,11 @@ class Handler:
         return tasks
 
     def __create_benchmark_manager(
-        self, parallel: bool, requested: dict, bm_config: dict
-    ) -> list:
+        self,
+        parallel: bool,
+        requested: BenchmarkConfig,
+        bm_config: BenchmarkConfigLoader,
+    ):
         """
         Gather up additional metadata to create a BenchmarkManager object.
 
@@ -461,46 +342,27 @@ class Handler:
         list
             List of BenchmarkManager objects.
         """
-        benchmarks = []
+        benchmarks: list[BenchmarkManager] = []
 
-        for _, run_config in self.config["runs"].items():
+        for _, run_config in self.config.runs.items():
+            nodes = self.config.nodes
             slurm_options = ""
-            nodes = [1]
-            collective = [None]
-            ranks = [1]
+            collective: list[bool | None] = [None]
+            ranks: list[int] = [1]
 
             if parallel:
-                try:
-                    ranks = self.config["ranks"]
-
-                    if type(ranks) is int:
-                        ranks = [ranks]
-
-                    if "collective" in self.config:
-                        config_collective = [self.config["collective"]]
-
-                        if config_collective == "Both":
-                            collective = [False, True]
-                        else:
-                            collective = config_collective
-                    else:
-                        collective = [False]
-
-                except KeyError as e:
-                    raise e
+                ranks = self.config.ranks
+                config_collective = self.config.collective
+                if isinstance(config_collective, str) and config_collective == "Both":
+                    collective = [False, True]
+                elif isinstance(config_collective, bool):
+                    collective = [config_collective]
 
             # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
             if self.slurm_avail or self.__only_data:
-                slurm_options = self.config["slurm options"]
+                slurm_options = self.config.slurm_options
 
-                if "nodes" in self.config:
-                    nodes = (
-                        self.config["nodes"]
-                        if type(self.config["nodes"]) is list
-                        else [self.config["nodes"]]
-                    )
-
-            spack_manager = []
+            spack_manager: list[SpackManager] = []
             for manager in self.spack_manager:
                 if (
                     requested["format"] in manager.target
@@ -519,29 +381,24 @@ class Handler:
                 if not manager.initialized:
                     manager.initialize_env()
                 else:
-                    logger.info(
-                        bcolors.OKGREEN
-                        + f"Environment: {manager.env_name} already initialized"
-                        + bcolors.ENDC
-                    )
+                    logger.info(f"Environment: {manager.env_name} already initialized")
 
                 bm = BenchmarkManager(
                     handler_id=self.__id,
                     run_config=run_config,
                     bm_config=bm_config,
                     global_config=self.config,
-                    nodes=node,
                     slurm_avail=self.slurm_avail,
                     slurm_options=slurm_options,
                     requested=requested,
+                    nodes=node,
                     parallel=parallel,
                     collective=state,
                     ranks=rank,
                     spack_manager=manager,
-                    paths=self.config["paths"],
                 )
 
-                self.__benchmarks.append((bm.id, asdict(bm)))  # type: ignore
+                self.__benchmarks.append((bm.id, bm))
                 benchmarks.append(bm)
 
         return benchmarks
@@ -562,32 +419,30 @@ class Handler:
             If any error happens within BenchmarkManager, that isn't caught otherwise. Currently refers to "no matching benchmark found" however catches more
             errors than intended. Needs to be changed.
         """
-        try:
-            self.__benchmarks = []
-            bm_list = list(itertools.chain.from_iterable(self.__tasks))
-            pool = ProcessPool(processes=self.__max_processes)
-            for result in tqdm.tqdm(
-                pool.uimap(self.__run_benchmark, bm_list),
-                total=len(bm_list),
-                unit="benchmarks",
-                colour="green",
-                file=sys.stdout,
-                desc="Benchmarks still to run",
-            ):
+        self.__benchmarks.clear()
+        bm_list = list(itertools.chain.from_iterable(self.__tasks))
+        pool = ProcessPool(processes=self.__max_processes)
+
+        progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            MofNCompleteColumn(),
+            TimeRemainingColumn(),
+            TimeElapsedColumn(),
+        )
+        task = progress.add_task("[cyan]Benchmarks still to run", total=len(bm_list))
+
+        with progress:
+            for result in pool.uimap(self.__run_benchmark, bm_list):
                 self.__benchmarks.append(result)
+                progress.update(task, advance=1)
 
-            if self.__delete_envs:
-                for manager in self.spack_manager:
-                    logger.info(f"remove environment: {manager.env_name}")
-                    manager.delete()
-                logger.info("finish removing environments")
-
-        except TypeError as e:
-            raise NameError(
-                bcolors.FAIL
-                + "No matching benchmark found that fits configuration"
-                + bcolors.ENDC
-            ) from e
+        if self.__delete_envs:
+            for manager in self.spack_manager:
+                logger.info(f"remove environment: {manager.env_name}")
+                manager.delete()
+            logger.info("finish removing environments")
 
     def __run_benchmark(self, benchmark: BenchmarkManager):
         return benchmark.run()
@@ -597,10 +452,10 @@ class Handler:
         Gathers up all generated results, data and metadata and assembles a pandas Dataframe object. Finally exports the results as JSON.
         Also performs some basic pre-analysis on the data to generate some additional, helpful metrics.
         """
-        root = Path(self.config["paths"]["path_to_results"])
+        root = Path(self.config.paths["path_to_results"]["path"])
         df = pd.DataFrame()
 
-        self.__benchmarks = dict(self.__benchmarks)
+        benchmarks = dict(self.__benchmarks)
 
         for path in root.rglob("*"):
             if not path.is_dir():
@@ -613,27 +468,27 @@ class Handler:
                     if len(tmp) > 1:
                         path_date = "-" + tmp[1]
 
-                if path_name in self.__benchmarks:
+                if path_name in benchmarks.keys():
                     logger.debug(f"full path {path}")
                     logger.debug(f"date of file @ {path_date}")
                     logger.info(f"currently on {path_name}")
 
-                    benchmark = self.__benchmarks[path_name]
+                    benchmark = benchmarks[path_name]
 
                     with open(path, "r") as file:
-                        current = json.load(file)
+                        current: list[float] = json.load(file)
 
                     location_nodes = Path(
                         f"{root.absolute()}/{path_name}{path_date}-nodes.json"
                     )
                     with open(location_nodes.absolute(), "r") as file:
-                        used_nodes = json.load(file)
+                        used_nodes: list[str] = json.load(file)
 
                     mean = np.mean(current)
                     std = np.std(current)
                     rsd = std / mean
 
-                    error = std / np.sqrt(len(current))
+                    error = std / float(np.sqrt(len(current)))
 
                     for index, value in enumerate(current):
                         count = Counter()
@@ -661,7 +516,9 @@ class Handler:
 
                         profiling = None
                         try:
-                            profile_path = Path(self.config["paths"]["path_profiling"])
+                            profile_path = Path(
+                                self.config.paths["path_profiling"]["path"]
+                            )
                             location_profiling = Path(
                                 f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json"
                             )
@@ -702,29 +559,30 @@ class Handler:
 
                         tmp = pd.DataFrame(
                             data={
-                                "benchmark": benchmark["id"],
+                                "benchmark": benchmark.id,
                                 "date run": path_date,
-                                "run config": [benchmark["run_config"]],
+                                "run config": [benchmark.run_config],
                                 "time taken": value,
-                                "throughput": benchmark["total_filesize"] / mean,
-                                "engine": benchmark["engine"],
-                                "var to bm": [benchmark["var_to_bm"]],
-                                "total filesize": benchmark["total_filesize"],
-                                "unit": benchmark["unit"],
-                                "filesize per var": [benchmark["filesize_var"]],
-                                "filesize per chunk": [benchmark["chunksize_var"]],
-                                "parallel": benchmark["parallel"],
-                                "parallel backend": benchmark["par_backend"],
-                                "collective": benchmark["collective"],
-                                "ranks": benchmark["ranks"],
-                                "language": benchmark["language"],
-                                "format": str(benchmark["format"]),
+                                "throughput": benchmark.total_filesize / mean,
+                                "engine": benchmark.engine,
+                                "var to bm": [benchmark.var_to_bm],
+                                "total filesize": benchmark.total_filesize,
+                                "unit": benchmark.unit,
+                                "filesize per var": [benchmark.filesize_var],
+                                "filesize per chunk": [benchmark.chunksize_var],
+                                "no caching": benchmark.no_caching,
+                                "parallel": benchmark.parallel,
+                                "parallel backend": benchmark.par_backend,
+                                "collective": benchmark.collective,
+                                "ranks": benchmark.ranks,
+                                "language": benchmark.language,
+                                "format": str(benchmark.format),
                                 "mean time": mean,
                                 "standard deviation": std,
                                 "relative std": rsd,
                                 "error bar": error,
                                 "anomaly": anomaly,
-                                "nodes": benchmark["nodes"],
+                                "nodes": benchmark.nodes,
                                 "used nodes": used_nodes[index],
                                 "node count": [count],
                                 "total node count": [Counter()],
@@ -733,9 +591,9 @@ class Handler:
                             }
                         )
 
-                        df = pd.concat([df, tmp], ignore_index=True)
+                        df: pd.DataFrame = pd.concat([df, tmp], ignore_index=True)
 
-        tmp = self.config["paths"]["path_to_results"]
+        res_path: str = self.config.paths["path_to_results"]["path"]
 
         # there is probably a better method for doing this, will look into it later
 
@@ -757,4 +615,4 @@ class Handler:
             inplace=True,
             ignore_index=True,
         )
-        df.to_json(Path(f"{tmp}/results.json"))
+        df.to_json(Path(f"{res_path}/results.json"))
