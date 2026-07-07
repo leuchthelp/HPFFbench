@@ -1,5 +1,5 @@
+from typing import cast
 from collections import Counter
-from copy import deepcopy
 from pathlib import Path
 import subprocess
 import itertools
@@ -24,10 +24,10 @@ from rich.progress import (
 from pathos.pools import ProcessPool
 import pandas as pd
 import numpy as np
-import yaml
 
+
+from hpffbench.configloader import ConfigLoader, BenchmarkConfigLoader, BenchmarkConfig
 from hpffbench.benchmarkmanager import BenchmarkManager
-from hpffbench.configloader import ConfigLoader
 from hpffbench.spackmanager import SpackManager
 
 
@@ -138,7 +138,7 @@ class Handler:
         if not self.__only_data:
             self.__start()
         else:
-            logger.info(
+            logger.warning(
                 f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
             )
 
@@ -182,7 +182,7 @@ class Handler:
 
         logger.info("Create benchmarks")
 
-    def __determine_capabilities(self) -> dict[str, dict[str, bool | str | None]]:
+    def __determine_capabilities(self) -> dict[str, BenchmarkConfigLoader]:
         """
         Gather supplied benchmarks at `path_to_benchmarks` and figure out which types of benchmark exist & are potentially runnable within the current environment at runtime.
 
@@ -203,69 +203,34 @@ class Handler:
         """
         root = Path(self.config.paths["path_to_benchmarks"]["path"])
 
-        determined: dict[str, dict[str, bool | str | None]] = {}
+        determined: dict[str, BenchmarkConfigLoader] = {}
 
         for path in root.rglob("*"):
             if not path.is_dir():
-                with open(path, "r") as file:
-                    current = yaml.safe_load(file)
+                current = BenchmarkConfigLoader(path)
 
-                    tmp = []
-                    additional = []
-
-                    try:
-                        tmp.append(("parallel", current["parallel"]))
-                    except KeyError:
-                        tmp.append(("parallel", False))
-
-                    try:
-                        if (
-                            type(current["parallel"]) is bool
-                            and current["parallel"]
-                            and current["par_backend"] is not None
-                        ):
-                            tmp.append(("par_backend", current["par_backend"]))
-
-                        elif current["parallel"] == "configurable":
-                            if type(current["par_backend"]) is list:
-                                additional = current["par_backend"]
-                            else:
-                                additional.append(current["par_backend"])
-                            raise KeyError
-
-                        else:
-                            raise KeyError
-                    except KeyError:
-                        tmp.append(("par_backend", None))
-
-                    try:
-                        tmp.append(("language", current["language"]))
-                    except yaml.YAMLError as e:
-                        raise e
-
-                    try:
-                        tmp.append(("format", current["format"]))
-                    except KeyError as e:
-                        raise e
-
-                    hold = dict(tmp)
-                    if hold["parallel"] == "configurable":
-                        hold["parallel"] = False
-
-                        for backend in additional:
-                            extra = deepcopy(hold)
-                            extra["parallel"] = True
-                            extra["par_backend"] = backend
-
-                            determined[str(extra)] = current
-
-                    determined[str(hold)] = current
+                for entry in current.parallel:
+                    if not entry or not isinstance(current.par_backend, list):
+                        benchmark_config: BenchmarkConfig = {
+                            "format": current.format,
+                            "language": current.language,
+                            "parallel": entry,
+                            "par_backend": None,
+                        }
+                        determined[str(benchmark_config)] = current
+                    else:
+                        for backend in current.par_backend:
+                            benchmark_config: BenchmarkConfig = {
+                                "format": current.format,
+                                "language": current.language,
+                                "parallel": entry,
+                                "par_backend": backend,
+                            }
+                            determined[str(benchmark_config)] = current
 
         return determined
 
-    def __requested_capabilities(
-        self, parallel: bool
-    ) -> list[tuple[tuple[str, bool] | tuple[str, str | None], ...]]:
+    def __requested_capabilities(self, parallel: bool) -> list[BenchmarkConfig]:
         """
         Figures out which benchmarks the user has requested. For this purpose it assembles
         a list of requested benchmarks with attributes in order of `(parallel, par_backends, languages, formats)`.
@@ -299,17 +264,21 @@ class Handler:
                 for par_backend in self.config.par_backend:
                     par_backends.append(("par_backend", par_backend))
 
-        return list(
-            itertools.product(*[
-                [("parallel", parallel)],
-                par_backends,
-                languages,
-                formats,
-            ])
-        )
+        combinations = itertools.product(*[
+            formats,
+            languages,
+            [("parallel", parallel)],
+            par_backends,
+        ])
+
+        tmp: list[BenchmarkConfig] = []
+        for combination in combinations:
+            tmp.append(cast(BenchmarkConfig, dict(combination)))
+
+        return tmp
 
     def __create_benchmark(
-        self, parallel: bool, determined_cap: dict[str, dict[str, bool | str | None]]
+        self, parallel: bool, determined_cap: dict[str, BenchmarkConfigLoader]
     ) -> list[list[BenchmarkManager]]:
         """
         Gather tasks to be performed and pass required metadata to configure a single benchmark to be run.
@@ -332,9 +301,9 @@ class Handler:
 
         tasks: list[list[BenchmarkManager]] = []
         for requested in requested_cap:
-            requested = dict(requested)
-
-            if str(requested) in determined_cap:
+            logger.debug(f"requested: {str(requested)}")
+            logger.debug(f"available: {determined_cap.keys()}")
+            if str(requested) in determined_cap.keys():
                 logger.info("Success")
 
                 tasks.append(
@@ -350,8 +319,8 @@ class Handler:
     def __create_benchmark_manager(
         self,
         parallel: bool,
-        requested: dict[str, bool | str | None],
-        bm_config: dict[str, bool | str | None],
+        requested: BenchmarkConfig,
+        bm_config: BenchmarkConfigLoader,
     ):
         """
         Gather up additional metadata to create a BenchmarkManager object.
@@ -499,7 +468,7 @@ class Handler:
                     if len(tmp) > 1:
                         path_date = "-" + tmp[1]
 
-                if path_name in benchmarks:
+                if path_name in benchmarks.keys():
                     logger.debug(f"full path {path}")
                     logger.debug(f"date of file @ {path_date}")
                     logger.info(f"currently on {path_name}")
@@ -507,19 +476,19 @@ class Handler:
                     benchmark = benchmarks[path_name]
 
                     with open(path, "r") as file:
-                        current = json.load(file)
+                        current: list[float] = json.load(file)
 
                     location_nodes = Path(
                         f"{root.absolute()}/{path_name}{path_date}-nodes.json"
                     )
                     with open(location_nodes.absolute(), "r") as file:
-                        used_nodes = json.load(file)
+                        used_nodes: list[str] = json.load(file)
 
                     mean = np.mean(current)
                     std = np.std(current)
                     rsd = std / mean
 
-                    error = std / np.sqrt(len(current))
+                    error = std / float(np.sqrt(len(current)))
 
                     for index, value in enumerate(current):
                         count = Counter()
@@ -601,6 +570,7 @@ class Handler:
                                 "unit": benchmark.unit,
                                 "filesize per var": [benchmark.filesize_var],
                                 "filesize per chunk": [benchmark.chunksize_var],
+                                "no caching": benchmark.no_caching,
                                 "parallel": benchmark.parallel,
                                 "parallel backend": benchmark.par_backend,
                                 "collective": benchmark.collective,
@@ -621,7 +591,7 @@ class Handler:
                             }
                         )
 
-                        df = pd.concat([df, tmp], ignore_index=True)
+                        df: pd.DataFrame = pd.concat([df, tmp], ignore_index=True)
 
         res_path: str = self.config.paths["path_to_results"]["path"]
 

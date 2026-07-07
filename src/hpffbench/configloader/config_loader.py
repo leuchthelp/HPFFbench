@@ -1,4 +1,4 @@
-from typing import TypedDict, NotRequired
+from typing import TypedDict, NotRequired, Any
 from dataclasses import dataclass
 from pathlib import Path
 import itertools
@@ -24,7 +24,7 @@ class RunConfig(TypedDict):
 class Run:
     def __init__(self, run: dict[str, list]):
 
-        self.config: dict[str, RunConfig] = {}
+        self.variables: dict[str, RunConfig] = {}
         for var, setup in run.items():
             shape: list[int] = setup[0]
 
@@ -34,7 +34,7 @@ class Run:
                     "Cannot provide more chunks dimensions than there are dims"
                 )
 
-            self.config[var] = {
+            self.variables[var] = {
                 "shape": shape,
                 "chunks": chunks,
                 "datatype": setup[2] if len(setup) > 2 else "f8",
@@ -93,6 +93,71 @@ class SpackEnv:
         }
 
 
+class BenchmarkConfig(TypedDict):
+    format: str
+    language: str
+    parallel: bool
+    par_backend: str | None
+
+
+@dataclass
+class BenchmarkConfigLoader:
+    format: str
+    create: str
+    source: str
+    language: str
+    extension: str
+    compile_command: str | None
+
+    compile: bool
+
+    parallel: list[bool]
+    create_commands: dict[str, str]
+    run_commands: dict[str, str]
+
+    par_backend: list[str] | None
+
+    def __init__(self, path_to_config: Path):
+
+        self.config: dict[str, Any] = {}
+        with open(str(path_to_config), "r") as file:
+            self.config: dict[str, Any] = yaml.safe_load(stream=file)
+
+        parallel: bool | str = self.config["parallel"]
+        if isinstance(parallel, str) and parallel.lower() == "configurable":
+            self.parallel = [False, True]
+        elif isinstance(parallel, bool):
+            self.parallel = [parallel]
+
+        self.language: str = self.config["language"]
+        self.format: str = self.config["format"]
+        self.extension: str = self.config["extension"]
+        self.create_commands: dict[str, str] = self.config["create_command"]
+        self.create: str = self.config["create"]
+        self.run_commands: dict[str, str] = self.config["run_command"]
+        self.source: str = self.config["source"]
+
+        # Optionals
+
+        if "par_backend" in self.config:
+            par_backend: list[str] | str = self.config["par_backend"]
+
+            if isinstance(par_backend, str):
+                self.par_backend = [par_backend]
+            elif isinstance(par_backend, list):
+                self.par_backend = par_backend
+        else:
+            self.par_backend = None
+
+        self.compile = False
+        if "compile" in self.config:
+            self.compile: bool = self.config["compile"]
+
+        self.compile_command = None
+        if self.compile:
+            self.compile_command: str = self.config["compile_command"]
+
+
 class ConfigLoader:
     iterations: int
     slurm_options: str
@@ -106,7 +171,7 @@ class ConfigLoader:
     languages: list[str]
     variable_to_benchmark: list[str]
 
-    par_backend: list[str] | str | None
+    par_backend: list[str] | None
 
     paths: dict[str, ProcessedPath]
     runs: dict[str, Run]
@@ -123,7 +188,7 @@ class ConfigLoader:
         else:
             logger.info("Try loading config.yaml")
             try:
-                if ".yaml" or ".yml" not in path_to_config:
+                if not any(sub in path_to_config for sub in [".yaml", ".yml"]):
                     for file in itertools.chain(
                         Path(path_to_config).glob("*.yaml"),
                         Path(path_to_config).glob("*.yml"),
@@ -131,9 +196,9 @@ class ConfigLoader:
                         path_to_config = str(file)
                         break
 
-                file = open(f"{path_to_config}", "r")
-                self.config = yaml.safe_load(stream=file)
-                logger.info("Success loading config.yaml")
+                with open(f"{path_to_config}", "r") as file:
+                    self.config = yaml.safe_load(stream=file)
+                    logger.info("Success loading config.yaml")
 
             except FileNotFoundError or IsADirectoryError as e:
                 FileNotFoundError(
@@ -195,7 +260,7 @@ class ConfigLoader:
             else:
                 raise KeyError
         else:
-            self.spack_envs = {}
+            self.spack_envs: dict[str, SpackEnv] = {}
 
         # Optionals
         self.parallel = False

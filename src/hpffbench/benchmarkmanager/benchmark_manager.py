@@ -9,7 +9,12 @@ import yaml
 import os
 import re
 
-from hpffbench.configloader import ConfigLoader, Run
+from hpffbench.configloader import (
+    ConfigLoader,
+    Run,
+    BenchmarkConfig,
+    BenchmarkConfigLoader,
+)
 from hpffbench.spackmanager import SpackManager
 from hpffbench.dev_utils import calc_size_unit
 
@@ -130,7 +135,7 @@ class BenchmarkManager:
     handler_id: str
     id: str
     run_config: Run
-    bm_config: dict
+    bm_config: BenchmarkConfigLoader
     nodes: int
     parallel: bool
     par_backend: None | str
@@ -154,7 +159,7 @@ class BenchmarkManager:
         self,
         handler_id: str,
         run_config: Run,
-        bm_config: dict,
+        bm_config: BenchmarkConfigLoader,
         global_config: ConfigLoader,
         nodes: int,
         slurm_avail: bool,
@@ -162,7 +167,7 @@ class BenchmarkManager:
         parallel: bool,
         collective: None | bool,
         ranks: int,
-        requested: dict[str, bool | str | None],
+        requested: BenchmarkConfig,
         spack_manager: SpackManager,
     ):
         paths = global_config.paths
@@ -178,24 +183,10 @@ class BenchmarkManager:
         self.spack_manager = spack_manager
 
         # Source code
-        self.create: str = ""
-        if "create" in bm_config:
-            self.create: str = bm_config["create"]
-
-        try:
-            self.compile: bool = bm_config["compile"]
-
-            self.compile_command = ""
-            if "compile_command" in self.bm_config:
-                self.compile_command: str = bm_config["compile_command"]
-            else:
-                raise ValueError(
-                    "Missing compile command for benchmark requiring compilation"
-                )
-        except KeyError:
-            self.compile = False
-
-        self.src: str = bm_config["source"]
+        self.create = bm_config.create
+        self.compile = bm_config.compile
+        self.compile_command = bm_config.compile_command
+        self.src = bm_config.source
 
         # Benchmark config
         self.run_config = run_config
@@ -203,14 +194,14 @@ class BenchmarkManager:
         self.parallel = parallel
         self.collective = collective
         self.ranks = ranks
-        self.format: str = requested["format"]
-        self.language: str = requested["language"]
+        self.format = requested["format"]
+        self.language = requested["language"]
         self.engine = (
             f"{self.format}-{self.language}-parallel"
             if self.parallel
             else f"{self.format}-{self.language}"
         )
-        self.extension: str = bm_config["extension"]
+        self.extension = bm_config.extension
 
         if (
             isinstance(requested["par_backend"], str)
@@ -218,20 +209,11 @@ class BenchmarkManager:
         ):
             self.par_backend: str | None = requested["par_backend"]
 
-        if isinstance(requested["language"], str) and isinstance(
-            requested["format"], str
-        ):
-            self.language: str = requested["language"]
-            self.format: str = requested["format"]
-        else:
-            raise ValueError
-
-        config_par_backend = None
-        if "par_backend" in self.bm_config:
-            config_par_backend: str | None = self.bm_config["par_backend"]
+        self.language = requested["language"]
+        self.format = requested["format"]
 
         datatype: list[str] = []
-        for _, item in run_config.config.items():
+        for _, item in run_config.variables.items():
             datatype.append(item["datatype"])
         self.datatype: list[str] = datatype
 
@@ -244,13 +226,14 @@ class BenchmarkManager:
 
         # Assemble ID
         id_str = (
-            str(self.run_config.config)
-            + str(config_par_backend)
+            str(self.run_config.variables)
+            + str(self.no_caching)
             + str(self.par_backend)
-            + str(self.bm_config["parallel"])
+            + str(self.bm_config.par_backend)
             + str(self.parallel)
-            + str(self.bm_config["format"])
+            + str(self.bm_config.parallel)
             + str(self.format)
+            + str(self.bm_config.format)
             + str(self.ranks)
             + str(self.var_to_bm)
             + str(self.collective)
@@ -277,7 +260,7 @@ class BenchmarkManager:
 
         filesize_per_var: list[tuple[str, tuple[float, str]]] = [
             (key, calc_size_unit(item["shape"]))
-            for key, item in run_config.config.items()
+            for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
 
@@ -290,7 +273,7 @@ class BenchmarkManager:
         self.filesize_var: list[tuple[str, tuple[float, str]]] = filesize_per_var
         self.chunksize_var: list[tuple[str, tuple[float, str]]] = [
             (key, calc_size_unit(item["chunks"]))
-            for key, item in run_config.config.items()
+            for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
         self.show_metdata = True
@@ -302,7 +285,8 @@ class BenchmarkManager:
             self.profiling_path = Path(paths["path_profiling"]["path"])
 
         logger.info(
-            f"Managing Benchmark with; file-structure: {run_config.config}, "
+            f"Managing Benchmark with; file-structure: {run_config.variables}, "
+            f"no caching: {self.no_caching}, "
             f"nodes: {self.nodes}, "
             f"datatype: {self.datatype}, "
             f"parallel: {self.parallel}, "
@@ -376,7 +360,7 @@ class BenchmarkManager:
         Finally it executes the `create_file` with the `create_command`.
         """
         # Get create command
-        create_commands: dict[str, str] = self.bm_config["create_command"]
+        create_commands = self.bm_config.create_commands
 
         create_command = ""
         language = self.language
@@ -405,7 +389,7 @@ class BenchmarkManager:
                         )
 
             except KeyError as e:
-                if self.bm_config["parallel"]:
+                if self.bm_config.parallel:
                     pass
                 else:
                     raise e
@@ -465,12 +449,12 @@ class BenchmarkManager:
         if flag_variable not in create_command:
             create_command = create_command + f" {flag_variable}"
 
-        variables: str = ",".join(list(self.run_config.config.keys()))
+        variables: str = ",".join(list(self.run_config.variables.keys()))
         create_command = create_command.replace(
             f"{flag_variable}", f"{flag_variable} {variables}"
         )
 
-        values = list(self.run_config.config.values())
+        values = list(self.run_config.variables.values())
         shapes: list[list[int]] = []
         chunks: list[list[int]] = []
         datatypes = self.datatype
@@ -567,9 +551,14 @@ class BenchmarkManager:
         str
             String containing `export LD_LIBRARY_PATH=` to be injected later.
         """
-        compile_command = self.compile_command.replace(
-            "{runnable}", f"{path.absolute()}"
-        )
+        if isinstance(self.compile_command, str):
+            compile_command = self.compile_command.replace(
+                "{runnable}", f"{path.absolute()}"
+            )
+        else:
+            raise ValueError(
+                "Compile was True, but somehow we got here without a compile_command being supplied ..."
+            )
 
         pattern = r"\<(.*?)\>"
         requested_packages = re.findall(string=compile_command, pattern=pattern)
@@ -623,7 +612,7 @@ class BenchmarkManager:
         If a compiled language is requested, also compiles the necessary file and finally executes it.
         """
         # Get run command to execute the code with
-        run_commands: dict[str, str] = self.bm_config["run_command"]
+        run_commands: dict[str, str] = self.bm_config.run_commands
         run_command = ""
         try:
             run_command = run_commands["serial"]
@@ -637,7 +626,7 @@ class BenchmarkManager:
                     )
 
         except KeyError as e:
-            if self.bm_config["parallel"]:
+            if self.bm_config.parallel:
                 pass
             else:
                 raise e
@@ -693,7 +682,7 @@ class BenchmarkManager:
         if self.language == "c":
             size = []
             for var in self.var_to_bm:
-                size.append(self.run_config.config[var]["shape"])
+                size.append(self.run_config.variables[var]["shape"])
 
             run_command = run_command + f"-s {sum([sum(x) for x in size])}"
 

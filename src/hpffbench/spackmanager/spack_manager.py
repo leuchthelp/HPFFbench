@@ -213,68 +213,88 @@ class SpackManager:
         """
         Initialized the spack environment, creates a named directory within the environment store path and sets the `initialized` to `True` once finished.
         """
+        env_not_exists = False
+        try:
+            with open(self.file_location, "w") as file:
+                file.write("#!/bin/bash\n")
+                file.write("set -e\n")
+                file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                file.write(f"spack env activate {self.env_name}\n")
 
-        with open(self.file_location, "w") as file:
-            file.write("#!/bin/bash\n")
-            file.write("set -e\n")
+            subprocess.run(
+                ["bash", self.file_location],
+                capture_output=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            env_not_exists = True
 
-            try:
-                subprocess.run(
-                    "git --version".split(), check=True, capture_output=True, text=True
-                )
-            except subprocess.CalledProcessError:
-                file.write("module load git\n")
+        if env_not_exists:
+            with open(self.file_location, "w") as file:
+                file.write("#!/bin/bash\n")
+                file.write("set -e\n")
 
-            file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-
-            first = True
-            check_installed = Path(f"{self.file_location}/.venv")
-            for index, (name, _) in enumerate(self.packages.items()):
-                combinations = self.loadables[name]
-
-                if first:
-                    file.write(f"spack env create {self.env_name}\n")
-                    file.write("spack env list\n")
-                    first = False
-
-                self.__add_packages(
-                    file=file, combinations=list(combinations), package_name=name
-                )
-
-                if (
-                    index == len(self.packages.items()) - 1
-                    and self.install
-                    and not check_installed.exists()
-                ):
-                    file.write(f"spack -e {self.env_name} install\n")
-
-            file.write("spack env list\n")
-            file.write(f"spack env activate {self.env_name}\n")
-            file.write(f"spack load {self.python_version}\n")
-            file.write("python --version\n")
-            file.write(f"python -m venv {self.env_location.absolute()}/.venv\n")
-            file.write(f"source {self.env_location.absolute()}/.venv/bin/activate\n")
-            file.write("pip install --upgrade pip \n")
-            file.write(f"{self.additional}\n")
-            file.write(f"pip install -e {self.__root_path}\n")
-            file.write("pip list\n")
-            file.write("spack env deactivate\n")
-
-        logger.info(f"Initialize environment {self.env_name}")
-
-        if self.__use_spack_env:
-            try:
-                subprocess.run(
-                    ["bash", self.file_location],
-                    stdout=sys.stdout,
-                    stderr=sys.stderr,
-                    check=True,
-                )
-            except subprocess.CalledProcessError:
-                if not self.env_name_present:
-                    raise RuntimeError(
-                        "Environment creation has failed, most likely due to compiler or version mismatch, please check above for which package failed!"
+                try:
+                    subprocess.run(
+                        "git --version".split(), check=True, capture_output=True
                     )
+                except subprocess.CalledProcessError:
+                    file.write("module load git\n")
+
+                file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+
+                first = True
+                check_installed = Path(f"{self.file_location}/.venv")
+                for index, (name, _) in enumerate(self.packages.items()):
+                    combinations = self.loadables[name]
+
+                    if first:
+                        file.write(f"spack env create {self.env_name}\n")
+                        file.write("spack env list\n")
+                        first = False
+
+                    self.__add_packages(
+                        file=file, combinations=list(combinations), package_name=name
+                    )
+
+                    if (
+                        index == len(self.packages.items()) - 1
+                        and self.install
+                        and not check_installed.exists()
+                    ):
+                        file.write(f"spack -e {self.env_name} install\n")
+
+                file.write("spack env list\n")
+                file.write(f"spack env activate {self.env_name}\n")
+                file.write(f"spack load {self.python_version}\n")
+                file.write("python --version\n")
+                file.write(f"python -m venv {self.env_location.absolute()}/.venv\n")
+                file.write(
+                    f"source {self.env_location.absolute()}/.venv/bin/activate\n"
+                )
+                file.write("pip install --upgrade pip \n")
+                file.write(f"{self.additional}\n")
+                file.write(f"pip install -e {self.__root_path}\n")
+                file.write("pip list\n")
+                file.write("spack env deactivate\n")
+
+            logger.info(f"Initialize environment {self.env_name}")
+
+            if self.__use_spack_env:
+                try:
+                    subprocess.run(
+                        ["bash", self.file_location],
+                        stdout=sys.stdout,
+                        stderr=sys.stderr,
+                        check=True,
+                    )
+                except subprocess.CalledProcessError:
+                    if not self.env_name_present:
+                        raise RuntimeError(
+                            "Environment creation has failed, most likely due to compiler or version mismatch, please check above for which package failed!"
+                        )
+
+            self.file_location.unlink()
 
         logger.info("Finish Initialize environment")
         self.initialized = True
@@ -301,8 +321,6 @@ class SpackManager:
                         f'{package}, has not been installed yet. Either pass "install" flag or install it manually.'
                     )
                 self.package_locations[name] = (f"{package}", p.stdout.rstrip())
-
-        self.file_location.unlink()
 
     def load_env(self) -> str:
         """

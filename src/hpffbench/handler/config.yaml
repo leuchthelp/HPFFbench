@@ -2,28 +2,31 @@ formats:
 - hdf5
 languages:
 - c
+- py
 paths:
   path_to_benchmarks: benchmarks
   path_to_tmp: tmp
   path_to_root: /home/leucht/Documents/HPFFbench
   path_to_results: results
-iterations: 1
+iterations: 10
 runs:
   run04:
     X:
     - - 134217728
     - []
 parallel: Both
-par_backend: MPI
+par_backend:
+- MPI
 ranks:
 - 5
 nodes:
 - 1
 variable_to_benchmark:
 - X
-only_data: false
+only_data: true
+no_caching: true
 use_spack_env: true
-max_processes: 20
+max_processes: 1
 slurm_options: '
 
   #SBATCH --partition=compute
