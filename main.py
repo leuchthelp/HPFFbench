@@ -115,7 +115,7 @@ def main():
 
     new_setup = {
         # "formats"               : ["hdf5", "netcdf4", "zarr"],
-        "formats": ["hdf5"],
+        "formats": ["hdf5", "zarr"],
         "languages": ["c", "py"],
         "paths": paths,
         "iterations": 10,
@@ -125,7 +125,7 @@ def main():
         "ranks": [5],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
-        "only_data": True,
+        "only_data": False,
         "no_caching": True,
         "use_spack_env": True,
         "max_processes": 1,

@@ -1,5 +1,6 @@
 formats:
 - hdf5
+- zarr
 languages:
 - c
 - py
@@ -23,7 +24,7 @@ nodes:
 - 1
 variable_to_benchmark:
 - X
-only_data: true
+only_data: false
 no_caching: true
 use_spack_env: true
 max_processes: 1

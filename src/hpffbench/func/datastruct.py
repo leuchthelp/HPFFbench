@@ -1,9 +1,18 @@
-from mpi4py import MPI
-import netCDF4
+from typing import TypedDict, TypeAlias, Literal
 import time
+import math
+
+from mpi4py import MPI
 import numpy as np
+import netCDF4
 import zarr
 import h5py
+
+
+class Form(TypedDict):
+    shape: list[int]
+    chunks: list[int]
+    dtype: str
 
 
 class bcolors:
@@ -18,23 +27,26 @@ class bcolors:
     UNDERLINE = "\033[4m"
 
 
+Mode: TypeAlias = Literal["r", "r+", "a", "w"]
+
+
 class Datastruct:
     def __init__(
         self,
-        path="",
-        shape=[],
-        chunks=[],
-        mode="",
-        engine="",
-        compression="",
-        dataset=any,
-        parallel=False,
-        collective=False,
+        dataset: zarr.Group | h5py.File | netCDF4.Dataset | None = None,
+        path: str = "",
+        shape: list[int] = [],
+        chunks: list[int] = [],
+        mode: Mode = "r",
+        engine: str = "",
+        compression: str = "",
+        parallel: bool = False,
+        collective: bool = False,
     ):
         self.path: str = path
         self.shape: list[int] = shape
         self.chunks: list[int] = chunks
-        self.mode: str = mode
+        self.mode: Mode = mode
         self.engine: str = engine
         self.compression: str = compression
         self.dataset = dataset
@@ -44,39 +56,36 @@ class Datastruct:
     def create(
         self,
         path: str,
-        form: dict,
+        form: dict[str, Form],
         engine: str,
-        parallel=False,
-        dtype="f8",
-        collective=False,
+        parallel: bool = False,
+        collective: bool = False,
     ):
-
-        if type(engine) is str:
-            self.engine = engine
-
-        self.parallel: bool = parallel
-        self.collective: bool = collective
+        self.parallel = parallel
+        self.collective = collective
+        self.engine = engine
 
         match self.engine:
             case "zarr":
-                self.create_zarr(form=form, path=path, dtype=dtype)
+                self.create_zarr(form=form, path=path)
 
             case "hdf5":
-                self.create_hdf5(form=form, path=path, dtype=dtype)
+                self.create_hdf5(form=form, path=path)
 
             case "netcdf4":
-                self.create_netcdf4(form=form, path=path, dtype=dtype)
+                self.create_netcdf4(form=form, path=path)
 
         return self
 
-    def create_zarr(self, form: dict, path: str, dtype: str):
+    def create_zarr(self, form: dict[str, Form], path: str):
 
         if MPI.COMM_WORLD.rank == 0 or not self.parallel:
-            root = zarr.create_group(store=path, zarr_format=3, overwrite=True)
+            root = zarr.create_group(store=path, overwrite=True)
 
             for variable, element in form.items():
-                shape = element[0]
-                chunks = element[1]
+                shape = element["shape"]
+                chunks = element["chunks"]
+                dtype = element["dtype"]
 
                 if len(chunks) != 0:
                     x = root.create_array(
@@ -104,16 +113,12 @@ class Datastruct:
                 else:
                     x[:] = np.random.random_sample(shape)
 
-            self.dataset = root
             print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
+        MPI.COMM_WORLD.Barrier()
         return self
 
-    def create_hdf5(self, form: dict, path: str, dtype: str):
-
-        if type(path) is str:
-            self.path = path
-
+    def create_hdf5(self, form: dict[str, Form], path: str):
         # Create file either through mpio or serial
         print(f"{bcolors.WARNING}Creating hdf5 file{bcolors.ENDC}")
 
@@ -124,8 +129,9 @@ class Datastruct:
 
         # Create dataset corresponding to the provide number of variables
         for variable, element in form.items():
-            shape = element[0]
-            chunks = element[1]
+            shape = element["shape"]
+            chunks = element["chunks"]
+            dtype = element["dtype"]
 
             if len(chunks) != 0:
                 x = root.create_dataset(
@@ -159,23 +165,20 @@ class Datastruct:
                         x[rstart:rend:] = np.random.random_sample(size)
                 MPI.COMM_WORLD.Barrier()
 
-        self.dataset = root
         root.close()
         print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
         return self
 
-    def create_netcdf4(self, form: dict, path: str, dtype: str):
-        if type(path) is str:
-            self.path = path
-
+    def create_netcdf4(self, form: dict[str, Form], path: str):
         root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=self.parallel)
         root.createGroup("/")
         used = 0
 
         for variable, element in form.items():
-            shape = element[0]
-            chunks = element[1]
+            shape = element["shape"]
+            chunks = element["chunks"]
+            dtype = element["dtype"]
             dimensions = []
 
             for size in shape:
@@ -212,28 +215,20 @@ class Datastruct:
                 x[rstart:rend:] = np.random.random_sample(size)
                 MPI.COMM_WORLD.Barrier()
 
-        self.dataset = root
         root.close()
         print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
         return self
 
-    def open(self, mode: str, engine: None | str, path: None | str, parallel=False):
+    def open(self, mode: Mode, engine: str, path: str, parallel: bool = False):
+        self.mode = mode
+        self.engine = engine
+        self.path = path
 
         self.parallel = parallel
-
-        if type(path) is str:
-            self.path = path
-
-        if type(engine) is str:
-            self.engine = engine
-
-        if type(mode) is str:
-            self.mode = mode
-
         match self.engine:
             case "zarr":
-                self.dataset = zarr.open(self.path, mode=self.mode, zarr_version=3)
+                self.dataset = zarr.open(self.path, mode=self.mode)
 
             case "hdf5":
                 if self.parallel:
@@ -250,77 +245,95 @@ class Datastruct:
 
         return self
 
-    def __bench_variable(self, variable: list, iterations: int):
-        bench = []
+    def __bench_variable(self, variables: list[str], iterations: int):
+        if len(variables) > 1:
+            raise ValueError("Function with pattern only takes one variable")
+        var = variables[0]
 
+        bench = []
         match self.engine:
             case "zarr":
-                size = {self.dataset[variable].shape[0]}  # type: ignore
+                if not isinstance(self.dataset, zarr.Group):
+                    raise ValueError("Not from kind of AnyArray for zarr")
 
+                arrays = dict(self.dataset.arrays())
+
+                var_size: tuple[int, ...] = arrays[var].shape
                 for i in range(iterations):
                     print(
-                        f"i: {i} for variable: {variable} for engine: {self.engine}, size: {size}"
+                        f"i: {i} for variable: {var} for engine: {self.engine}, size: {var_size}"
                     )
                     start = time.monotonic()
-                    self.dataset[variable][:]  # type: ignore
+                    arrays[var][:]
                     bench.append(time.monotonic() - start)
 
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
             case "hdf5":
-                size = {self.dataset[variable].shape[0]}  # type: ignore
+                if not isinstance(self.dataset, h5py.File):
+                    raise ValueError("Not from kind of File for hdf5 h5py")
 
+                var_size: tuple[int, ...] = self.dataset[var].shape
                 for i in range(iterations):
                     print(
-                        f"i: {i} for variable: {variable} for engine: {self.engine}, size: {size}"
+                        f"i: {i} for variable: {var} for engine: {self.engine}, size: {var_size}"
                     )
                     start = time.monotonic()
-                    self.dataset[variable][:]  # type: ignore
+                    self.dataset[var][:]
                     bench.append(time.monotonic() - start)
 
-                self.dataset.close()  # type: ignore
+                self.dataset.close()
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
             case "netcdf4":
-                size = {self.dataset[variable].shape[0]}  # type: ignore
+                if not isinstance(self.dataset, netCDF4.Dataset):
+                    raise ValueError("Not from kind of dataset for netcdf4")
 
+                var_size: tuple[int, ...] = self.dataset[var].shape
                 for i in range(iterations):
                     print(
-                        f"i: {i} for variable: {variable} for engine: {self.engine}, size: {size}"
+                        f"i: {i} for variable: {var} for engine: {self.engine}, size: {var_size}"
                     )
                     start = time.monotonic()
-                    self.dataset[variable][:]  # type: ignore
+                    self.dataset[var][:]
                     bench.append(time.monotonic() - start)
 
-                self.dataset.close()  # type: ignore
+                self.dataset.close()
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
-    def __bench_variable_parallel(self, variable: list, iterations: int):
-        bench = []
+    def __bench_variable_parallel(self, variables: list[str], iterations: int):
+        if len(variables) > 1:
+            raise ValueError("Function with pattern only takes one variable")
+        var = variables[0]
 
+        bench = []
         rank = MPI.COMM_WORLD.rank
         rsize = MPI.COMM_WORLD.size
-
         match self.engine:
             case "zarr":
+                if not isinstance(self.dataset, zarr.Group):
+                    raise ValueError("Not from kind of AnyArray for zarr")
+
+                arrays = dict(self.dataset.arrays())
+
                 for i in range(iterations):
-                    size = {self.dataset[variable].shape[0]}  # type: ignore
+                    var_size: tuple[int, ...] = arrays[var].shape
                     print(
-                        f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {size}"
+                        f"i: {i} for variable: {var} for engine: {self.engine}, rank: {rank}, size: {var_size}"
                     )
 
                     if rank == 0:
                         start = time.monotonic()
 
-                    total_size = self.dataset[variable].shape[0]  # type: ignore
+                    total_size: int = math.prod(var_size)
                     size = int(total_size / rsize)
 
                     rstart = rank * size
                     rend = rstart + size
-                    self.dataset[variable][rstart:rend:]  # type: ignore
+                    arrays[var][rstart:rend:]
 
                     if rank == 0:
                         bench.append(time.monotonic() - start)
@@ -332,22 +345,25 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
             case "hdf5":
+                if not isinstance(self.dataset, h5py.File):
+                    raise ValueError("Not from kind of File for hdf5 h5py")
+
                 for i in range(iterations):
-                    size = {self.dataset[variable].shape[0]}  # type: ignore
+                    var_size: tuple[int, ...] = self.dataset[var].shape
                     print(
-                        f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {size}"
+                        f"i: {i} for variable: {var} for engine: {self.engine}, rank: {rank}, size: {var_size}"
                     )
 
                     if rank == 0:
                         start = time.monotonic()
 
-                    total_size = self.dataset[variable].shape[0]  # type: ignore
+                    total_size: int = math.prod(var_size)
                     size = int(total_size / rsize)
 
                     rstart = rank * size
                     rend = rstart + size
 
-                    self.dataset[variable][rstart:rend:]  # type: ignore
+                    self.dataset[var][rstart:rend:]
 
                     if rank == 0:
                         bench.append(time.monotonic() - start)
@@ -356,29 +372,32 @@ class Datastruct:
                 if rank == 0:
                     self.log = bench
 
-                self.dataset.close()  # type: ignore
+                self.dataset.close()
                 MPI.COMM_WORLD.Barrier()
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
             case "netcdf4":
+                if not isinstance(self.dataset, netCDF4.Dataset):
+                    raise ValueError("Not from kind of dataset for netcdf4")
+
                 for i in range(iterations):
-                    size = {self.dataset[variable].shape[0]}  # type: ignore
+                    var_size: tuple[int, ...] = self.dataset[var].shape
                     print(
-                        f"i: {i} for variable: {variable} for engine: {self.engine}, rank: {rank}, size: {size}"
+                        f"i: {i} for variable: {var} for engine: {self.engine}, rank: {rank}, size: {var_size}"
                     )
 
                     if rank == 0:
                         start = time.monotonic()
 
-                    self.dataset[variable].set_collective(True)  # type: ignore
+                    self.dataset[var].set_collective(True)
 
-                    total_size = self.dataset[variable].shape[0]  # type: ignore
+                    total_size: int = math.prod(var_size)
                     size = int(total_size / rsize)
 
                     rstart = rank * size
                     rend = rstart + size
 
-                    self.dataset[variable][rstart:rend:]  # type: ignore
+                    self.dataset[var][rstart:rend:]
 
                     if rank == 0:
                         bench.append(time.monotonic() - start)
@@ -388,33 +407,38 @@ class Datastruct:
                 if rank == 0:
                     self.log = bench
 
-                self.dataset.close()  # type: ignore
+                self.dataset.close()
                 MPI.COMM_WORLD.Barrier()
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
-    def __bench_complete(self, variable: list, iterations: int):
+    def __bench_complete(self, variables: list[str], iterations: int):
         bench = []
-        size = []
+        var_sizes: list[tuple[int, ...]] = []
         var_tmp = []
 
         match self.engine:
             case "zarr":
-                for var in variable:
+                if not isinstance(self.dataset, zarr.Group):
+                    raise ValueError("Not from kind of AnyArray for zarr")
+
+                arrays = dict(self.dataset.arrays())
+                for var in variables:
                     try:
-                        size.append({self.dataset[var].shape[0]})  # type: ignore
+                        var_size: tuple[int, ...] = arrays[var].shape
+                        var_sizes.append(var_size)
                         var_tmp.append(var)
                     except KeyError:
                         print(f"Variable: {var} does not exist.")
 
                 for i in range(iterations):
                     print(
-                        f"i: {i} for variable: {var_tmp} for engine: {self.engine}, size: {size}"
+                        f"i: {i} for variable: {var_tmp} for engine: {self.engine}, size: {var_sizes}"
                     )
                     start = time.monotonic()
 
-                    for var in variable:
+                    for var in variables:
                         try:
-                            self.dataset[var][:]  # type: ignore
+                            arrays[var][:]
                         except KeyError:
                             print(f"Variable: {var} does not exist.")
 
@@ -424,101 +448,114 @@ class Datastruct:
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
             case "hdf5":
-                for var in variable:
+                if not isinstance(self.dataset, h5py.File):
+                    raise ValueError("Not from kind of File for hdf5 h5py")
+
+                for var in variables:
                     try:
-                        size.append({self.dataset[var].shape[0]})  # type: ignore
+                        var_size: tuple[int, ...] = self.dataset[var].shape
+                        var_sizes.append(var_size)
                         var_tmp.append(var)
                     except KeyError:
                         print(f"Variable: {var} does not exist.")
 
                 for i in range(iterations):
                     print(
-                        f"i: {i} for variable: {var_tmp} for engine: {self.engine}, size: {size}"
+                        f"i: {i} for variable: {var_tmp} for engine: {self.engine}, size: {var_sizes}"
                     )
                     start = time.monotonic()
 
-                    for var in variable:
+                    for var in variables:
                         try:
                             # self.dataset[variable].read_direct(arr)
-                            self.dataset[var][:]  # type: ignore
+                            self.dataset[var][:]
                         except KeyError:
                             print(f"Variable: {var_tmp} does not exist.")
 
                     bench.append(time.monotonic() - start)
 
-                self.dataset.close()  # type: ignore
+                self.dataset.close()
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
             case "netcdf4":
-                for var in variable:
+                if not isinstance(self.dataset, netCDF4.Dataset):
+                    raise ValueError("Not from kind of dataset for netcdf4")
+
+                for var in variables:
                     try:
-                        size.append({self.dataset[var].shape[0]})  # type: ignore
+                        var_size: tuple[int, ...] = self.dataset[var].shape
+                        var_sizes.append(var_size)
                         var_tmp.append(var)
                     except IndexError:
                         print(f"Variable: {var} does not exist.")
 
                 for i in range(iterations):
                     print(
-                        f"i: {i} for variable: {variable} for engine: {self.engine}, size: {size}"
+                        f"i: {i} for variable: {variables} for engine: {self.engine}, size: {var_sizes}"
                     )
                     start = time.monotonic()
 
-                    for var in variable:
+                    for var in variables:
                         try:
-                            self.dataset[var][:]  # type: ignore
+                            self.dataset[var][:]
                         except IndexError:
                             print(f"Variable: {var} does not exist.")
 
                     bench.append(time.monotonic() - start)
 
-                self.dataset.close()  # type: ignore
+                self.dataset.close()
                 self.log = bench
                 print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
-    def __bench_complete_parallel(self, variable: list, iterations: int):
+    def __bench_complete_parallel(self, variables: list[str], iterations: int):
         match self.engine:
             case "zarr":
                 self.__bench_complete_parallel_zarr(
-                    variable=variable, iterations=iterations
+                    variables=variables, iterations=iterations
                 )
 
             case "hdf5":
                 self.__bench_complete_parallel_hdf5(
-                    variable=variable, iterations=iterations
+                    variables=variables, iterations=iterations
                 )
 
             case "netcdf4":
                 self.__bench_complete_parallel_netcdf4(
-                    variable=variable, iterations=iterations
+                    variables=variables, iterations=iterations
                 )
 
-    def __bench_complete_parallel_zarr(self, variable: list, iterations: int):
-        bench = []
-        size = []
-        var_tmp = []
+    def __bench_complete_parallel_zarr(self, variables: list[str], iterations: int):
+        if not isinstance(self.dataset, zarr.Group):
+            raise ValueError("Not from kind of AnyArray for zarr")
 
+        arrays = dict(self.dataset.arrays())
+
+        bench = []
+        var_tmp = []
         rank = MPI.COMM_WORLD.rank
         rsize = MPI.COMM_WORLD.size
-
         for i in range(iterations):
-            if rank == rank:
-                for var in variable:
-                    try:
-                        size.append({self.dataset[var].shape[0]})  # type: ignore
-                        var_tmp.append(var)
-                    except KeyError:
-                        print(f"Variable: {var} does not exist.")
+            var_sizes: list[tuple[int, ...]] = []
+            for var in variables:
+                try:
+                    var_size: tuple[int, ...] = arrays[var].shape
+                    var_sizes.append(var_size)
+                    var_tmp.append(var)
+                except KeyError:
+                    print(f"Variable: {var} does not exist.")
             print(
-                f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {size}"
+                f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {var_sizes}"
             )
 
             if rank == 0:
                 start = time.monotonic()
 
-            for var in variable:
+            for var in variables:
                 try:
-                    total_size = self.dataset[var].shape[0]  # type: ignore
+                    print(arrays[var].shape)
+                    print(math.prod(arrays[var].shape))
+                    total_size: int = math.prod(arrays[var].shape)
                     size = int(total_size / rsize)
 
                     rstart = rank * size
@@ -536,7 +573,7 @@ class Datastruct:
                             + "Setting I/O to be independent"
                             + bcolors.ENDC
                         )
-                        self.dataset[var][rstart:rend:]  # type: ignore
+                        arrays[var][rstart:rend:]
 
                 except KeyError:
                     print(f"Variable: {var} does not exist.")
@@ -552,31 +589,35 @@ class Datastruct:
         MPI.COMM_WORLD.Barrier()
         print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
-    def __bench_complete_parallel_hdf5(self, variable: list, iterations: int):
+    def __bench_complete_parallel_hdf5(self, variables: list[str], iterations: int):
+        if not isinstance(self.dataset, h5py.File):
+            raise ValueError("Not from kind of File for hdf5 h5py")
+
         bench = []
-        size = []
         var_tmp = []
 
         rank = MPI.COMM_WORLD.rank
         rsize = MPI.COMM_WORLD.size
 
         for i in range(iterations):
-            for var in variable:
+            var_sizes: list[tuple[int, ...]] = []
+            for var in variables:
                 try:
-                    size.append({self.dataset[var].shape[0]})  # type: ignore
+                    var_size: tuple[int, ...] = self.dataset[var].shape
+                    var_sizes.append(var_size)
                     var_tmp.append(var)
                 except KeyError:
                     print(f"Variable: {var} does not exist.")
             print(
-                f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {size}"
+                f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {var_sizes}"
             )
 
             if rank == 0:
                 start = time.monotonic()
 
-            for var in variable:
+            for var in variables:
                 try:
-                    total_size = self.dataset[var].shape[0]  # type: ignore
+                    total_size: int = math.prod(self.dataset[var].shape)
                     size = int(total_size / rsize)
 
                     rstart = rank * size
@@ -588,7 +629,7 @@ class Datastruct:
                             + "Setting I/O to be collective"
                             + bcolors.ENDC
                         )
-                        self.dataset[var][rstart:rend:]  # type: ignore
+                        self.dataset[var][rstart:rend:]
                     else:
                         print(
                             bcolors.OKBLUE
@@ -596,7 +637,7 @@ class Datastruct:
                             + bcolors.ENDC
                         )
                         if rank == rank:
-                            self.dataset[var][rstart:rend:]  # type: ignore
+                            self.dataset[var][rstart:rend:]
 
                 except KeyError:
                     print(f"Variable: {var} does not exist.")
@@ -609,35 +650,39 @@ class Datastruct:
         if rank == 0:
             self.log = bench
 
-        self.dataset.close()  # type: ignore
+        self.dataset.close()
         MPI.COMM_WORLD.Barrier()
         print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
-    def __bench_complete_parallel_netcdf4(self, variable: list, iterations: int):
+    def __bench_complete_parallel_netcdf4(self, variables: list[str], iterations: int):
+        if not isinstance(self.dataset, netCDF4.Dataset):
+            raise ValueError("Not from kind of dataset for netcdf4")
+
         bench = []
-        size = []
         var_tmp = []
 
         rank = MPI.COMM_WORLD.rank
         rsize = MPI.COMM_WORLD.size
 
         for i in range(iterations):
-            for var in variable:
+            var_sizes: list[tuple[int, ...]] = []
+            for var in variables:
                 try:
-                    size.append({self.dataset[var].shape[0]})  # type: ignore
+                    var_size: tuple[int, ...] = self.dataset[var].shape
+                    var_sizes.append(var_size)
                     var_tmp.append(var)
                 except IndexError:
                     print(f"Variable: {var} does not exist.")
             print(
-                f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {size}"
+                f"i: {i} for variable: {var_tmp} for engine: {self.engine}, rank: {rank}, size: {var_sizes}"
             )
 
             if rank == 0:
                 start = time.monotonic()
 
-            for var in variable:
+            for var in variables:
                 try:
-                    total_size = self.dataset[var].shape[0]  # type: ignore
+                    total_size: int = math.prod(self.dataset[var].shape)
                     size = int(total_size / rsize)
 
                     rstart = rank * size
@@ -649,7 +694,7 @@ class Datastruct:
                             + "Setting I/O to be collective"
                             + bcolors.ENDC
                         )
-                        self.dataset[var].set_collective(True)  # type: ignore
+                        self.dataset[var].set_collective(True)
                     else:
                         print(
                             bcolors.OKBLUE
@@ -657,7 +702,7 @@ class Datastruct:
                             + bcolors.ENDC
                         )
 
-                    self.dataset[var][rstart:rend:]  # type: ignore
+                    self.dataset[var][rstart:rend:]
 
                 except IndexError:
                     print(f"Variable: {var} does not exist.")
@@ -670,11 +715,11 @@ class Datastruct:
         if rank == 0:
             self.log = bench
 
-        self.dataset.close()  # type: ignore
+        self.dataset.close()
         MPI.COMM_WORLD.Barrier()
         print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
-    def read(self, pattern: str, variable: str, iterations: int, logging=False):
+    def read(self, pattern: str, variables: str, iterations: int):
 
         patterns = {
             "bench_variable": self.__bench_variable,
@@ -683,4 +728,4 @@ class Datastruct:
             "bench_complete_parallel": self.__bench_complete_parallel,
         }
 
-        return patterns[pattern](variable=variable.split(","), iterations=iterations)
+        return patterns[pattern](variables=variables.split(","), iterations=iterations)

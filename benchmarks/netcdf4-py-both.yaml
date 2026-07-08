@@ -3,66 +3,74 @@ par_backend: MPI
 language: py
 extension: nc
 format: netcdf4
-create_command: 
-    serial  : python {runnable}
-    #MPI: mpiexec -n python {runnable}
-    profile    : py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
-    #profile-MPI: mpiexec -n py-spy record --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
+create_command:
+  serial: python {runnable}
+  #MPI: mpiexec -n python {runnable}
+  profile: py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
+  #profile-MPI: mpiexec -n py-spy record --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
 create: |
-    from hpffbench.func import datastruct as ds
-    
-    class color:
-        HEADER = "\033[95m"
-        OKBLUE = "\033[94m"
-        OKCYAN = "\033[96m"
-        OKGREEN = "\033[92m"
-        WARNING = "\033[93m"
-        FAIL = "\033[91m"
-        ENDC = "\033[0m"
-        BOLD = "\033[1m"
-        UNDERLINE = "\033[4m"
+  from hpffbench.func.datastruct import Datastruct
+  from hpffbench.func.datastruct import Form
 
-    def create_ds(form, parallel=False, path=None, collective=False):
+  def create_ds(
+    form: dict[str, Form], path: str, parallel: bool = False, collective: bool = False
+  ):
 
-        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="netcdf4")
-        ds_netcdf4 = ds.Datastruct() 
-        print(color.WARNING + f"Creating netcdf4" + color.ENDC)
-        ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=parallel, collective=collective)
-    
-
-    def create(variables=[], shapes=[], chunks=[], datatypes=[], parallel=False, path=None, collective=False):
-        form = {}
-        for index, var in enumerate(variables):
-            form[var] = [shapes[index], chunks[index], datatypes[index]]
-
-        create_ds(form=form, parallel=parallel, path=path, collective=collective)
-
-    #MAIN
-run_command:  
-    serial  : python {runnable} -v
-    MPI: mpiexec -n python {runnable} -v
-    profile    : py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
-    profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
-source: | 
-    from hpffbench.func import datastruct as ds
+    ds_netcdf4 = Datastruct()
+    ds_netcdf4.create(
+        path=path, form=form, engine="netcdf4", parallel=parallel, collective=collective
+    )
 
 
-    def bench(iterations, variable: None, parallel=False, path=None, collective=False):
+  def create(
+    path: str,
+    variables: list[str] = [],
+    shapes: list[list[int]] = [],
+    chunks: list[list[int]] = [],
+    datatypes: list[str] = [],
+    parallel: bool = False,
+    collective: bool = False,
+  ):
+    form: dict[str, Form] = {}
+    for index, var in enumerate(variables):
+        form[var] = {
+            "shape": shapes[index],
+            "chunks": chunks[index],
+            "dtype": datatypes[index],
+        }
 
-        ds_netcdf4 = ds.Datastruct()
-        ds_netcdf4.open(mode="r", engine="netcdf4", path=path, parallel=parallel)
+    create_ds(form=form, path=path, parallel=parallel, collective=collective)
 
+  #MAIN
+run_command:
+  serial: python {runnable} -v
+  MPI: mpiexec -n python {runnable} -v
+  profile: py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+source: |
+  from hpffbench.func.datastruct import Datastruct
 
-        if parallel:
-            ds_netcdf4.collective = collective
-            ds_netcdf4.read("bench_complete_parallel", variable=variable, iterations=iterations)
-        else:
-            ds_netcdf4.read("bench_complete", variable=variable, iterations=iterations)
+  def bench(
+    path: str,
+    iterations: int,
+    variables: str,
+    parallel: bool = False,
+    collective: bool = False,
+  ) -> list[int | float]:
 
+    ds_netcdf4 = Datastruct()
+    ds_netcdf4.open(mode="r", engine="netcdf4", path=path)
 
-        result = ds_netcdf4.log
+    if parallel:
+        ds_netcdf4.collective = collective
+        ds_netcdf4.read(
+            "bench_complete_parallel", variables=variables, iterations=iterations
+        )
+    else:
+        ds_netcdf4.read("bench_complete", variables=variables, iterations=iterations)
 
-        return result
-    
-    #MAIN
+    result = ds_netcdf4.log
 
+    return result
+
+  #MAIN

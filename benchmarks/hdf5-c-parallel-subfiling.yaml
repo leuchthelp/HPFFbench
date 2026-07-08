@@ -2,340 +2,340 @@ parallel: True
 par_backend: MPI
 language: c
 extension: h5
-format: 
-    hdf5: subfiling
+format:
+  hdf5: subfiling
 compile: True
 compile_command: gcc {runnable} <openmpi> -lmpi <hdf5> -lhdf5_hl -lhdf5
-create_command: 
-    MPI: mpiexec -n {runnable}
+create_command:
+  MPI: mpiexec -n {runnable}
 create: |
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <time.h>
-    #include <hdf5.h>
-    #include <unistd.h>
-    #include <argp.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <time.h>
+  #include <hdf5.h>
+  #include <unistd.h>
+  #include <argp.h>
 
-    #define ANSI_COLOR_RED "\x1b[31m"
-    #define ANSI_COLOR_GREEN "\x1b[32m"
-    #define ANSI_COLOR_YELLOW "\x1b[33m"
-    #define ANSI_COLOR_BLUE "\x1b[34m"
-    #define ANSI_COLOR_MAGENTA "\x1b[35m"
-    #define ANSI_COLOR_CYAN "\x1b[36m"
-    #define ANSI_COLOR_RESET "\x1b[0m"
+  #define ANSI_COLOR_RED "\x1b[31m"
+  #define ANSI_COLOR_GREEN "\x1b[32m"
+  #define ANSI_COLOR_YELLOW "\x1b[33m"
+  #define ANSI_COLOR_BLUE "\x1b[34m"
+  #define ANSI_COLOR_MAGENTA "\x1b[35m"
+  #define ANSI_COLOR_CYAN "\x1b[36m"
+  #define ANSI_COLOR_RESET "\x1b[0m"
 
-    void create(int argc, char **argv, bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
-    {
-        printf(ANSI_COLOR_YELLOW "Create hdf5 file with subfiling" ANSI_COLOR_RESET "\n");
-        H5FD_subfiling_config_t subf_config;
-        H5FD_ioc_config_t ioc_config;
+  void create(int argc, char **argv, bool with_chunking, char **variables, hsize_t **shapes, hsize_t **chunks, char **datatypes, char *location)
+  {
+      printf(ANSI_COLOR_YELLOW "Create hdf5 file with subfiling" ANSI_COLOR_RESET "\n");
+      H5FD_subfiling_config_t subf_config;
+      H5FD_ioc_config_t ioc_config;
 
-        hid_t file_id = H5I_INVALID_HID;
-        hid_t fapl_id = H5I_INVALID_HID;
+      hid_t file_id = H5I_INVALID_HID;
+      hid_t fapl_id = H5I_INVALID_HID;
 
-        /*
-         * Initialize MPI
-         */
+      /*
+       * Initialize MPI
+       */
 
-        int mpi_ssize;
-        int mpi_rrank;
-        MPI_Comm comm = MPI_COMM_WORLD;
+      int mpi_ssize;
+      int mpi_rrank;
+      MPI_Comm comm = MPI_COMM_WORLD;
 
-        int mpi_thread_required = MPI_THREAD_MULTIPLE;
-        int mpi_thread_provided = 0;
-        /* Initialize MPI with threading support */
-        MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+      int mpi_thread_required = MPI_THREAD_MULTIPLE;
+      int mpi_thread_provided = 0;
+      /* Initialize MPI with threading support */
+      MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
 
-        MPI_Comm_size(comm, &mpi_ssize);
-        MPI_Comm_rank(comm, &mpi_rrank);
+      MPI_Comm_size(comm, &mpi_ssize);
+      MPI_Comm_rank(comm, &mpi_rrank);
 
-        hsize_t mpi_size = mpi_ssize;
-        hsize_t mpi_rank = mpi_rrank;
+      hsize_t mpi_size = mpi_ssize;
+      hsize_t mpi_rank = mpi_rrank;
 
-        if (mpi_thread_provided != mpi_thread_required)
-            MPI_Abort(comm, -1);
-        /*
-         * Set up File Access Property List with MPI
-         * parameters for the Subfiling VFD to use
-         */
-        fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-        H5Pset_mpi_params(fapl_id, comm, MPI_INFO_NULL);
+      if (mpi_thread_provided != mpi_thread_required)
+          MPI_Abort(comm, -1);
+      /*
+       * Set up File Access Property List with MPI
+       * parameters for the Subfiling VFD to use
+       */
+      fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+      H5Pset_mpi_params(fapl_id, comm, MPI_INFO_NULL);
 
-        // putenv("H5FD_SUBFILING_IOC_PER_NODE = 2");
-        /*
-         * Get a default Subfiling and IOC configuration
-         */
-        H5Pget_fapl_subfiling(fapl_id, &subf_config);
-        H5Pget_fapl_ioc(fapl_id, &ioc_config);
-        /*
-         * Set Subfiling configuration to use a 1MiB
-         * stripe size.
-         */
-        // subf_config.shared_cfg.stripe_size = 1048576;
-        // subf_config.shared_cfg.ioc_selection = SELECT_IOC_ONE_PER_NODE;
+      // putenv("H5FD_SUBFILING_IOC_PER_NODE = 2");
+      /*
+       * Get a default Subfiling and IOC configuration
+       */
+      H5Pget_fapl_subfiling(fapl_id, &subf_config);
+      H5Pget_fapl_ioc(fapl_id, &ioc_config);
+      /*
+       * Set Subfiling configuration to use a 1MiB
+       * stripe size.
+       */
+      // subf_config.shared_cfg.stripe_size = 1048576;
+      // subf_config.shared_cfg.ioc_selection = SELECT_IOC_ONE_PER_NODE;
 
-        subf_config.shared_cfg.stripe_count = 4;
-        /*
-         * Set IOC configuration to use 2 worker threads
-         * per IOC instead of the default setting.
-         */
-        // ioc_config.thread_pool_size = 2;
+      subf_config.shared_cfg.stripe_count = 4;
+      /*
+       * Set IOC configuration to use 2 worker threads
+       * per IOC instead of the default setting.
+       */
+      // ioc_config.thread_pool_size = 2;
 
-        /*
-         * Set our new configuration on the IOC
-         * FAPL used for Subfiling
-         */
-        H5Pset_fapl_ioc(subf_config.ioc_fapl_id, &ioc_config);
-        /*
-         * Finally, set our new Subfiling configuration
-         * on the original FAPL
-         */
-        H5Pset_fapl_subfiling(fapl_id, &subf_config);
+      /*
+       * Set our new configuration on the IOC
+       * FAPL used for Subfiling
+       */
+      H5Pset_fapl_ioc(subf_config.ioc_fapl_id, &ioc_config);
+      /*
+       * Finally, set our new Subfiling configuration
+       * on the original FAPL
+       */
+      H5Pset_fapl_subfiling(fapl_id, &subf_config);
 
-        H5Pset_alignment(fapl_id, 0, 33554432);
+      H5Pset_alignment(fapl_id, 0, 33554432);
 
-        H5Pset_all_coll_metadata_ops(fapl_id, true);
-        H5Pset_coll_metadata_write(fapl_id, true);
-        /*
-         * Create a new Subfiling-based HDF5 file
-         */
-        file_id = H5Fcreate(location, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
-        H5Pclose(fapl_id);
+      H5Pset_all_coll_metadata_ops(fapl_id, true);
+      H5Pset_coll_metadata_write(fapl_id, true);
+      /*
+       * Create a new Subfiling-based HDF5 file
+       */
+      file_id = H5Fcreate(location, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
+      H5Pclose(fapl_id);
 
-        hid_t plist_id = 0;
-        hid_t dset_id = 0;
-        hid_t filespace = 0;
-        hid_t memspace = 0;
-        hsize_t dims[1];
-        hsize_t cdims[1];
-        hsize_t count[1]; /* hyperslab selection parameters */
-        hsize_t offset[1];
-        hsize_t block[1];
+      hid_t plist_id = 0;
+      hid_t dset_id = 0;
+      hid_t filespace = 0;
+      hid_t memspace = 0;
+      hsize_t dims[1];
+      hsize_t cdims[1];
+      hsize_t count[1]; /* hyperslab selection parameters */
+      hsize_t offset[1];
+      hsize_t block[1];
 
-        // setup dimensions
-        hsize_t process_mem_size = shapes[0][0] / mpi_size;
+      // setup dimensions
+      hsize_t process_mem_size = shapes[0][0] / mpi_size;
 
-        dims[0] = shapes[0][0];
-        filespace = H5Screate_simple(1, dims, NULL);
+      dims[0] = shapes[0][0];
+      filespace = H5Screate_simple(1, dims, NULL);
 
-        plist_id = H5Pcreate(H5P_DATASET_CREATE);
+      plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
-        if (chunks[0][0] != 0)
-        {
-            // setup chunking
-            printf("chunksize %ld \n", chunks[0][0]);
-            cdims[0] = chunks[0][0];
-            H5Pset_chunk(plist_id, 1, cdims);
-        }
+      if (chunks[0][0] != 0)
+      {
+          // setup chunking
+          printf("chunksize %ld \n", chunks[0][0]);
+          cdims[0] = chunks[0][0];
+          H5Pset_chunk(plist_id, 1, cdims);
+      }
 
-        // create Dataset
-        dset_id = H5Dcreate2(file_id, variables[0], H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
-        H5Sclose(filespace);
-        H5Pclose(plist_id);
+      // create Dataset
+      dset_id = H5Dcreate2(file_id, variables[0], H5T_IEEE_F64LE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+      H5Sclose(filespace);
+      H5Pclose(plist_id);
 
-        /*
-         * Select hyperslab in the file.
-         */
-        count[0] = process_mem_size;
-        offset[0] = count[0] * mpi_rank;
-        memspace = H5Screate_simple(1, count, NULL);
+      /*
+       * Select hyperslab in the file.
+       */
+      count[0] = process_mem_size;
+      offset[0] = count[0] * mpi_rank;
+      memspace = H5Screate_simple(1, count, NULL);
 
-        filespace = H5Dget_space(dset_id);
-        H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+      filespace = H5Dget_space(dset_id);
+      H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
 
-        // fill buffer
-        float *wbuf = calloc(process_mem_size, sizeof(float));
+      // fill buffer
+      float *wbuf = calloc(process_mem_size, sizeof(float));
 
-        if (!wbuf)
-        {
-            fprintf(stderr, "Fatal: unable to allocate array\n");
-            exit(EXIT_FAILURE);
-        }
+      if (!wbuf)
+      {
+          fprintf(stderr, "Fatal: unable to allocate array\n");
+          exit(EXIT_FAILURE);
+      }
 
-        hsize_t i;
+      hsize_t i;
 
-        for (i = 0; i < process_mem_size; i++)
-        {
-            wbuf[i] = (float)rand() / RAND_MAX;
-        }
+      for (i = 0; i < process_mem_size; i++)
+      {
+          wbuf[i] = (float)rand() / RAND_MAX;
+      }
 
-        /*
-         * Create property list for independent dataset write.
-         */
-        plist_id = H5Pcreate(H5P_DATASET_XFER);
-        H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+      /*
+       * Create property list for independent dataset write.
+       */
+      plist_id = H5Pcreate(H5P_DATASET_XFER);
+      H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 
-        H5Dwrite(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, plist_id, wbuf);
+      H5Dwrite(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, plist_id, wbuf);
 
-        /* Close/free resources */
+      /* Close/free resources */
 
-        H5Dclose(dset_id);
-        H5Sclose(filespace);
-        H5Pclose(plist_id);
-        H5Fclose(file_id);
+      H5Dclose(dset_id);
+      H5Sclose(filespace);
+      H5Pclose(plist_id);
+      H5Fclose(file_id);
 
-        free(wbuf);
-        printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
-        MPI_Barrier(MPI_COMM_WORLD);
-    }
+      free(wbuf);
+      printf(ANSI_COLOR_YELLOW "Finish creating hdf5 file" ANSI_COLOR_RESET "\n");
+      MPI_Barrier(MPI_COMM_WORLD);
+  }
 
-    #MAIN
+  #MAIN
 run_command:
-    MPI: mpiexec -n {runnable} -v
+  MPI: mpiexec -n {runnable} -v
 source: |
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <time.h>
-    #include <hdf5.h>
-    #include <unistd.h>
-    #include <argp.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <time.h>
+  #include <hdf5.h>
+  #include <unistd.h>
+  #include <argp.h>
 
-    #define ANSI_COLOR_RED "\x1b[31m"
-    #define ANSI_COLOR_GREEN "\x1b[32m"
-    #define ANSI_COLOR_YELLOW "\x1b[33m"
-    #define ANSI_COLOR_BLUE "\x1b[34m"
-    #define ANSI_COLOR_MAGENTA "\x1b[35m"
-    #define ANSI_COLOR_CYAN "\x1b[36m"
-    #define ANSI_COLOR_RESET "\x1b[0m"
+  #define ANSI_COLOR_RED "\x1b[31m"
+  #define ANSI_COLOR_GREEN "\x1b[32m"
+  #define ANSI_COLOR_YELLOW "\x1b[33m"
+  #define ANSI_COLOR_BLUE "\x1b[34m"
+  #define ANSI_COLOR_MAGENTA "\x1b[35m"
+  #define ANSI_COLOR_CYAN "\x1b[36m"
+  #define ANSI_COLOR_RESET "\x1b[0m"
 
-    void bench(int argc, char **argv, hsize_t size, char** vars_to_bm, int iteration, char* location, double* result)
-    {
-        /*
-         * Initialize MPI
-         */
+  void bench(int argc, char **argv, hsize_t size, char** vars_to_bm, int iteration, char* location, double* result)
+  {
+      /*
+       * Initialize MPI
+       */
 
-        int mpi_ssize;
-        int mpi_rrank;
-        MPI_Comm comm = MPI_COMM_WORLD;
+      int mpi_ssize;
+      int mpi_rrank;
+      MPI_Comm comm = MPI_COMM_WORLD;
 
-        int mpi_thread_required = MPI_THREAD_MULTIPLE;
-        int mpi_thread_provided = 0;
-        /* Initialize MPI with threading support */
-        MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+      int mpi_thread_required = MPI_THREAD_MULTIPLE;
+      int mpi_thread_provided = 0;
+      /* Initialize MPI with threading support */
+      MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
 
-        MPI_Comm_size(comm, &mpi_ssize);
-        MPI_Comm_rank(comm, &mpi_rrank);
+      MPI_Comm_size(comm, &mpi_ssize);
+      MPI_Comm_rank(comm, &mpi_rrank);
 
-        hsize_t mpi_size = mpi_ssize;
-        hsize_t mpi_rank = mpi_rrank;
+      hsize_t mpi_size = mpi_ssize;
+      hsize_t mpi_rank = mpi_rrank;
 
-        for (int i = 0; i < iteration; i++)
-        {
-            printf("i: %d for variable: X rank: %ld\n", i, mpi_rank);
+      for (int i = 0; i < iteration; i++)
+      {
+          printf("i: %d for variable: X rank: %ld\n", i, mpi_rank);
 
-            H5FD_subfiling_config_t subf_config;
-            H5FD_ioc_config_t ioc_config;
-            hid_t fapl_id = H5I_INVALID_HID;
+          H5FD_subfiling_config_t subf_config;
+          H5FD_ioc_config_t ioc_config;
+          hid_t fapl_id = H5I_INVALID_HID;
 
-            fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-            H5Pset_mpi_params(fapl_id, comm, MPI_INFO_NULL);
+          fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+          H5Pset_mpi_params(fapl_id, comm, MPI_INFO_NULL);
 
-            /*
-             * Get a default Subfiling and IOC configuration
-             */
-            H5Pget_fapl_subfiling(fapl_id, &subf_config);
-            H5Pget_fapl_ioc(fapl_id, &ioc_config);
-            /*
-             * Set Subfiling configuration to use a 1MiB
-             * stripe size.
-             */
-            // subf_config.shared_cfg.stripe_size = 1048576;
-            // subf_config.shared_cfg.ioc_selection = SELECT_IOC_ONE_PER_NODE;
+          /*
+           * Get a default Subfiling and IOC configuration
+           */
+          H5Pget_fapl_subfiling(fapl_id, &subf_config);
+          H5Pget_fapl_ioc(fapl_id, &ioc_config);
+          /*
+           * Set Subfiling configuration to use a 1MiB
+           * stripe size.
+           */
+          // subf_config.shared_cfg.stripe_size = 1048576;
+          // subf_config.shared_cfg.ioc_selection = SELECT_IOC_ONE_PER_NODE;
 
-            subf_config.shared_cfg.stripe_count = 4;
-            /*
-             * Set IOC configuration to use 2 worker threads
-             * per IOC instead of the default setting.
-             */
-            // ioc_config.thread_pool_size = 2;
+          subf_config.shared_cfg.stripe_count = 4;
+          /*
+           * Set IOC configuration to use 2 worker threads
+           * per IOC instead of the default setting.
+           */
+          // ioc_config.thread_pool_size = 2;
 
-            /*
-             * Set our new configuration on the IOC
-             * FAPL used for Subfiling
-             */
-            H5Pset_fapl_ioc(subf_config.ioc_fapl_id, &ioc_config);
-            /*
-             * Finally, set our new Subfiling configuration
-             * on the original FAPL
-             */
-            H5Pset_fapl_subfiling(fapl_id, &subf_config);
+          /*
+           * Set our new configuration on the IOC
+           * FAPL used for Subfiling
+           */
+          H5Pset_fapl_ioc(subf_config.ioc_fapl_id, &ioc_config);
+          /*
+           * Finally, set our new Subfiling configuration
+           * on the original FAPL
+           */
+          H5Pset_fapl_subfiling(fapl_id, &subf_config);
 
-            H5Pset_alignment(fapl_id, 0, 33554432);
+          H5Pset_alignment(fapl_id, 0, 33554432);
 
-            H5Pset_all_coll_metadata_ops(fapl_id, true);
-            H5Pset_coll_metadata_write(fapl_id, true);
+          H5Pset_all_coll_metadata_ops(fapl_id, true);
+          H5Pset_coll_metadata_write(fapl_id, true);
 
-            hid_t plist_id = 0;
-            hid_t file_id = 0;
-            hid_t dset_id = 0;
-            herr_t status = -1;
-            hid_t filespace = 0;
-            hid_t memspace = 0;
-            hsize_t count[1]; /* hyperslab selection parameters */
-            hsize_t offset[1];
-            hsize_t block[1];
+          hid_t plist_id = 0;
+          hid_t file_id = 0;
+          hid_t dset_id = 0;
+          herr_t status = -1;
+          hid_t filespace = 0;
+          hid_t memspace = 0;
+          hsize_t count[1]; /* hyperslab selection parameters */
+          hsize_t offset[1];
+          hsize_t block[1];
 
-            /*
-             * Open existing file collectively and release property list identifier.
-             */
-            file_id = H5Fopen(location, H5F_ACC_RDONLY, fapl_id);
-            H5Pclose(fapl_id);
+          /*
+           * Open existing file collectively and release property list identifier.
+           */
+          file_id = H5Fopen(location, H5F_ACC_RDONLY, fapl_id);
+          H5Pclose(fapl_id);
 
-            struct timespec start, end;
+          struct timespec start, end;
 
-            if (mpi_rank == 0)
-            {
-                clock_gettime(CLOCK_MONOTONIC, &start);
-            }
+          if (mpi_rank == 0)
+          {
+              clock_gettime(CLOCK_MONOTONIC, &start);
+          }
 
-            dset_id = H5Dopen(file_id, vars_to_bm[0], H5P_DEFAULT);
+          dset_id = H5Dopen(file_id, vars_to_bm[0], H5P_DEFAULT);
 
-            /*
-             * Select hyperslab in the file.
-             */
+          /*
+           * Select hyperslab in the file.
+           */
 
-            hsize_t process_mem_size = size / mpi_size;
+          hsize_t process_mem_size = size / mpi_size;
 
-            count[0] = process_mem_size;
-            offset[0] = count[0] * mpi_rank;
-            memspace = H5Screate_simple(1, count, NULL);
+          count[0] = process_mem_size;
+          offset[0] = count[0] * mpi_rank;
+          memspace = H5Screate_simple(1, count, NULL);
 
-            filespace = H5Dget_space(dset_id);
-            status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+          filespace = H5Dget_space(dset_id);
+          status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
 
-            /*
-             * Initialize data buffer
-             */
-            float *rbuf = calloc(process_mem_size, sizeof(float));
+          /*
+           * Initialize data buffer
+           */
+          float *rbuf = calloc(process_mem_size, sizeof(float));
 
-            /*
-             * Create property list for independent dataset reads.
-             */
-            plist_id = H5Pcreate(H5P_DATASET_XFER);
-            H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
+          /*
+           * Create property list for independent dataset reads.
+           */
+          plist_id = H5Pcreate(H5P_DATASET_XFER);
+          H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_INDEPENDENT);
 
-            status = H5Dread(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, plist_id, rbuf);
+          status = H5Dread(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, plist_id, rbuf);
 
-            /*
-             * Close/release resources.
-             */
-            status = H5Dclose(dset_id);
-            status = H5Pclose(plist_id);
-            status = H5Fclose(file_id);
+          /*
+           * Close/release resources.
+           */
+          status = H5Dclose(dset_id);
+          status = H5Pclose(plist_id);
+          status = H5Fclose(file_id);
 
-            if (mpi_rank == 0)
-            {
-                clock_gettime(CLOCK_MONOTONIC, &end);
-                double elapsed = end.tv_sec - start.tv_sec;
-                elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-                result[i] = elapsed;
-            }
+          if (mpi_rank == 0)
+          {
+              clock_gettime(CLOCK_MONOTONIC, &end);
+              double elapsed = end.tv_sec - start.tv_sec;
+              elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+              result[i] = elapsed;
+          }
 
-            free(rbuf);
+          free(rbuf);
 
-            MPI_Barrier(MPI_COMM_WORLD);
-            printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
-        }
-    }
+          MPI_Barrier(MPI_COMM_WORLD);
+          printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
+      }
+  }
 
-    #MAIN
+  #MAIN

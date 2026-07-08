@@ -96,7 +96,7 @@ class BenchmarkManager:
     collective: None | bool
         If collective MPI I/O is requested, default is "False" for independent I/O. Will be none for serial benchmarks.
 
-    langauge: str
+    language: str
 
     format: str
         Simplified representation of the kind of benchmark that was requested.
@@ -823,7 +823,7 @@ def main():
     parser.add_argument("-c", "--create", type=int, default=-1, help="creates Zarr, NetCDF4 and HDF5 Files using a previously saved run format")
     parser.add_argument("-b", "--benchmark", type=int, default=-1, help="benchmark to run")
     parser.add_argument("-v", "--var_to_bm", type=str, default=None, help="var_to_bm to read, if none is provided all are read")
-    parser.add_argument("-V", "--variable", type=str, default=None, help="variables to create")
+    parser.add_argument("-V", "--variables", type=str, default=None, help="variables to create")
     parser.add_argument("-S", "--shape", type=str, default=None, help="shapes per variable to create")
     parser.add_argument("-C", "--chunk", type=str, default=None, help="chunks per variable to create")
     parser.add_argument("-D", "--datatype", type=str, default=None, help="datatype per variable to create")
@@ -837,7 +837,7 @@ def main():
         case 1:
             
             result = bench(iterations=args.iterations, 
-                            variable=args.var_to_bm, 
+                            variables=args.var_to_bm, 
                             parallel=args.parallel, 
                             path=args.location, 
                             collective=args.input_output,
@@ -877,7 +877,7 @@ def main():
                     json.dump(nodes, f)
                 
         case -1:
-            variables   = args.variable.split(",")
+            variables   = args.variables.split(",")
             shapes      = [ast.literal_eval(e) for e in args.shape.split(",")]
             chunks      = [ast.literal_eval(e) for e in args.chunk.split(",")]
             datatypes   = args.datatype.split(",")
@@ -1029,7 +1029,7 @@ typedef struct args_t
     int create;
     int benchmark;
     char *var_to_bm;
-    char *variable;
+    char *variables;
     hsize_t size;
     char *shape;
     char *chunk;
@@ -1056,7 +1056,7 @@ static int parse_opt(int key, char *arg, struct argp_state *state)
         arguments->var_to_bm = arg;
         break;
     case 'V':
-        arguments->variable = arg;
+        arguments->variables = arg;
         break;
     case 's':
         arguments->size = strtoull(arg, NULL, 10);
@@ -1094,7 +1094,7 @@ static struct argp_option options[] = {
     {"create file", 'c', "NUM", 0, "If to create a file"},
     {"benchmark",   'b', "NUM", 0, "If to run benchmark"},
     {"var_to_bm",   'v', "c",   0, "Variables within a file to benchmark"},
-    {"variable",    'V', "c",   0, "Variables the file should contain"},
+    {"variables",   'V', "c",   0, "Variables the file should contain"},
     {"size",        's', "NUM", 0, "Specifiy the size of the file to read"},
     {"shape",       'S', "c",   0, "Specifiy the shapes of the file you want to create as list of lists"},
     {"chunk",       'C', "c",   0, "Specifiy the chunksize of the file you want to create as list of lists"},
@@ -1190,7 +1190,7 @@ int main(int argc, char *argv[])
     arguments.create = -1;
     arguments.benchmark = -1;
     arguments.var_to_bm = "[]";
-    arguments.variable = "[]";
+    arguments.variables = "[]";
     arguments.size = 134217728;
     arguments.shape = "[]";
     arguments.chunk = "[]";
@@ -1199,7 +1199,7 @@ int main(int argc, char *argv[])
     arguments.iterations = 1;
     arguments.location = "test.c";
 
-    printf("Parsing: %d, var_to_bm: %s, variables: %s, shapes: %s, chunks: %s, datatypes: %s, parallel: %d, iterations: %d\\n", arguments.benchmark, arguments.var_to_bm, arguments.variable, arguments.shape, arguments.chunk, arguments.datatype, arguments.parallel, arguments.iterations);
+    printf("Parsing: %d, var_to_bm: %s, variables: %s, shapes: %s, chunks: %s, datatypes: %s, parallel: %d, iterations: %d\\n", arguments.benchmark, arguments.var_to_bm, arguments.variables, arguments.shape, arguments.chunk, arguments.datatype, arguments.parallel, arguments.iterations);
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
     
     hsize_t size = arguments.size;
@@ -1212,7 +1212,7 @@ int main(int argc, char *argv[])
     hsize_t var_bm_count = word_count(arguments.var_to_bm, ',');
 
     // get variables
-    hsize_t var_count = word_count(arguments.variable, ',');
+    hsize_t var_count = word_count(arguments.variables, ',');
 
     // get shapes
     hsize_t **shapes = calloc(var_count, sizeof(hsize_t *));
@@ -1233,7 +1233,7 @@ int main(int argc, char *argv[])
 
         // get variables
         char **variables = calloc(var_count, sizeof(char *));
-        res = get_chars(arguments.variable, var_count, variables);
+        res = get_chars(arguments.variables, var_count, variables);
 
 
         // get shapes

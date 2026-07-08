@@ -3,63 +3,75 @@ par_backend: MPI
 language: py
 extension: zarr
 format: zarr
-create_command: 
-    serial  : python {runnable}
-    MPI: mpiexec -n python {runnable}
-    profile    : py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
-    profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
+create_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+  profile: py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
+  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
 create: |
-    from hpffbench.func import datastruct as ds
-    
-    class color:
-        HEADER = "\033[95m"
-        OKBLUE = "\033[94m"
-        OKCYAN = "\033[96m"
-        OKGREEN = "\033[92m"
-        WARNING = "\033[93m"
-        FAIL = "\033[91m"
-        ENDC = "\033[0m"
-        BOLD = "\033[1m"
-        UNDERLINE = "\033[4m"
+  from hpffbench.func.datastruct import Datastruct
+  from hpffbench.func.datastruct import Form
 
-    def create_ds(form, parallel=False, path=None, collective=False):
 
-        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="zarr")
-        ds_zarr = ds.Datastruct() 
-        print(color.WARNING + f"Creating zarr" + color.ENDC)
-        ds_zarr.create(path=path, form=form, engine="zarr", parallel=parallel, collective=collective)
-    
+  def create_ds(
+    form: dict[str, Form], path: str, parallel: bool = False, collective: bool = False
+  ):
 
-    def create(variables=[], shapes=[], chunks=[], datatypes=[], parallel=False, path=None, collective=False):
-        form = {}
-        for index, var in enumerate(variables):
-            form[var] = [shapes[index], chunks[index], datatypes[index]]
+    ds_zarr = Datastruct()
+    ds_zarr.create(
+        path=path, form=form, engine="zarr", parallel=parallel, collective=collective
+    )
 
-        create_ds(form=form, parallel=parallel, path=path, collective=collective)
 
-    #MAIN
-run_command:  
-    serial  : python {runnable} -v
-    MPI: mpiexec -n python {runnable} -v
-    profile    : py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
-    profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
-source: | 
-    from hpffbench.func import datastruct as ds
+  def create(
+    path: str,
+    variables: list[str] = [],
+    shapes: list[list[int]] = [],
+    chunks: list[list[int]] = [],
+    datatypes: list[str] = [],
+    parallel: bool = False,
+    collective: bool = False,
+  ):
+    form: dict[str, Form] = {}
+    for index, var in enumerate(variables):
+        form[var] = {
+            "shape": shapes[index],
+            "chunks": chunks[index],
+            "dtype": datatypes[index],
+        }
 
-    def bench(iterations, variable: None, parallel=False, path=None, collective=False):
+    create_ds(form=form, path=path, parallel=parallel, collective=collective)
 
-        ds_zarr = ds.Datastruct()
-        ds_zarr.open(mode="r", engine="zarr", path=path)
+  #MAIN
+run_command:
+  serial: python {runnable} -v
+  MPI: mpiexec -n python {runnable} -v
+  profile: py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+source: |
+  from hpffbench.func.datastruct import Datastruct
 
-        if parallel:
-            ds_zarr.collective = collective
-            ds_zarr.read("bench_complete_parallel", variable=variable, iterations=iterations)
-        else:
-            ds_zarr.read("bench_complete", variable=variable, iterations=iterations)
-        
-        result = ds_zarr.log
+  def bench(
+    path: str,
+    iterations: int,
+    variables: str,
+    parallel: bool = False,
+    collective: bool = False,
+  ) -> list[int | float]:
 
-        return result
-    
-    #MAIN
+    ds_zarr = Datastruct()
+    ds_zarr.open(mode="r", engine="zarr", path=path)
 
+    if parallel:
+        ds_zarr.collective = collective
+        ds_zarr.read(
+            "bench_complete_parallel", variables=variables, iterations=iterations
+        )
+    else:
+        ds_zarr.read("bench_complete", variables=variables, iterations=iterations)
+
+    result = ds_zarr.log
+
+    return result
+
+  #MAIN

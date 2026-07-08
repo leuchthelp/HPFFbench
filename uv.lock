@@ -90,6 +90,7 @@ name = "hpffbench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "numpy" },
     { name = "pandas" },
     { name = "pathos" },
     { name = "pip" },
@@ -110,6 +111,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", specifier = ">=2.5.1" },
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "pathos", specifier = ">=0.3.5" },
     { name = "pip", specifier = ">=26.1.2" },

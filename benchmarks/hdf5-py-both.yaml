@@ -3,66 +3,76 @@ par_backend: MPI
 language: py
 extension: h5
 format: hdf5
-create_command: 
-    serial     : python {runnable}
-    MPI        : mpiexec -n python {runnable}
-    profile    : py-spy record --rate 100 --format speedscope -o <profile_path>.json -- python {runnable}
-    profile-MPI: mpiexec -n py-spy record --rate 100 --format speedscope -o <profile_path>.json -- python {runnable}
+create_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+  profile: py-spy record --rate 100 --format speedscope -o <profile_path>.json -- python {runnable}
+  profile-MPI: mpiexec -n py-spy record --rate 100 --format speedscope -o <profile_path>.json -- python {runnable}
 create: |
-    from hpffbench.func import datastruct as ds
-    
-    class color:
-        HEADER = "\033[95m"
-        OKBLUE = "\033[94m"
-        OKCYAN = "\033[96m"
-        OKGREEN = "\033[92m"
-        WARNING = "\033[93m"
-        FAIL = "\033[91m"
-        ENDC = "\033[0m"
-        BOLD = "\033[1m"
-        UNDERLINE = "\033[4m"
-
-    def create_ds(form, parallel=False, path=None, collective=False):
-
-        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="hdf5")
-        ds_hdf5 = ds.Datastruct() 
-        print(color.WARNING + f"Creating hdf5" + color.ENDC)
-        ds_hdf5.create(path=path, form=form, engine="hdf5", parallel=parallel, collective=collective)
-    
-
-    def create(variables=[], shapes=[], chunks=[], datatypes=[], parallel=False, path=None, collective=False):
-        form = {}
-        for index, var in enumerate(variables):
-            form[var] = [shapes[index], chunks[index], datatypes[index]]
-
-        create_ds(form=form, parallel=parallel, path=path, collective=collective)
-
-    #MAIN
-run_command:  
-    serial     : python {runnable} -v
-    MPI        : mpiexec -n python {runnable} -v
-    profile    : py-spy record --rate 100 --gil --idle --native --threads --function --subprocesses --format speedscope -o <profile_path>.json -- python {runnable} -v
-    profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
-source: | 
-    from hpffbench.func import datastruct as ds
-    
-
-    def bench(iterations, variable: None, parallel=False, path=None, collective=False):
-        
-        ds_hdf5 = ds.Datastruct()
-        ds_hdf5.open(mode="r", engine="hdf5", path=path, parallel=parallel)
-
- 
-        if parallel:
-            ds_hdf5.collective = collective
-            ds_hdf5.read("bench_complete_parallel", variable=variable, iterations=iterations)
-        else:
-            ds_hdf5.read("bench_complete", variable=variable, iterations=iterations)
+  from hpffbench.func.datastruct import Datastruct
+  from hpffbench.func.datastruct import Form
 
 
-        result = ds_hdf5.log
+  def create_ds(
+    form: dict[str, Form], path: str, parallel: bool = False, collective: bool = False
+  ):
 
-        return result
-    
-    #MAIN
+    ds_hdf5 = Datastruct()
+    ds_hdf5.create(
+        path=path, form=form, engine="hdf5", parallel=parallel, collective=collective
+    )
 
+
+  def create(
+    path: str,
+    variables: list[str] = [],
+    shapes: list[list[int]] = [],
+    chunks: list[list[int]] = [],
+    datatypes: list[str] = [],
+    parallel: bool = False,
+    collective: bool = False,
+  ):
+    form: dict[str, Form] = {}
+    for index, var in enumerate(variables):
+        form[var] = {
+            "shape": shapes[index],
+            "chunks": chunks[index],
+            "dtype": datatypes[index],
+        }
+
+    create_ds(form=form, path=path, parallel=parallel, collective=collective)
+
+  #MAIN
+run_command:
+  serial: python {runnable} -v
+  MPI: mpiexec -n python {runnable} -v
+  profile: py-spy record --rate 100 --gil --idle --native --threads --function --subprocesses --format speedscope -o <profile_path>.json -- python {runnable} -v
+  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+source: |
+  from hpffbench.func.datastruct import Datastruct
+
+
+  def bench(
+    path: str,
+    iterations: int,
+    variables: str,
+    parallel: bool = False,
+    collective: bool = False,
+  ) -> list[int | float]:
+
+    ds_hdf5 = Datastruct()
+    ds_hdf5.open(mode="r", engine="hdf5", path=path)
+
+    if parallel:
+        ds_hdf5.collective = collective
+        ds_hdf5.read(
+            "bench_complete_parallel", variables=variables, iterations=iterations
+        )
+    else:
+        ds_hdf5.read("bench_complete", variables=variables, iterations=iterations)
+
+    result = ds_hdf5.log
+
+    return result
+
+  #MAIN

@@ -5,131 +5,131 @@ extension: nc
 format: netcdf4
 compile: True
 compile_command: gcc {runnable} <openmpi> -lmpi <hdf5> -lhdf5_hl -lhdf5 <netcdf-c> -lnetcdf
-create_command: 
-    lazy: ["python {runnable}", "py", False]
+create_command:
+  lazy: ["python {runnable}", "py", False]
 create: |
-    from func import datastruct as ds
-    from dev_utils import bcolors as color
-    import argparse
+  from func import datastruct as ds
+  from dev_utils import bcolors as color
+  import argparse
 
-    def create_ds(form, parallel=False, path=None, collective=False):
+  def create_ds(form, parallel=False, path=None, collective=False):
 
-        #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="netcdf4")
-        ds_netcdf4 = ds.Datastruct() 
-        print(color.WARNING + f"Creating netcdf4" + color.ENDC)
-        ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=parallel, collective=collective)
-    
+      #new.create(path=path, shape=(512, 512, 512), chunks=(512, 512, 8), mode="r", engine="netcdf4")
+      ds_netcdf4 = ds.Datastruct() 
+      print(color.WARNING + f"Creating netcdf4" + color.ENDC)
+      ds_netcdf4.create(path=path, form=form, engine="netcdf4", parallel=parallel, collective=collective)
 
-    def create(variables=[], shapes=[], chunks=[], datatypes=[], parallel=False, path=None, collective=False):
-        form = {}
-        for index, var in enumerate(variables):
-            form[var] = [shapes[index], chunks[index], datatypes[index]]
 
-        create_ds(form=form, parallel=parallel, path=path, collective=collective)
+  def create(variables=[], shapes=[], chunks=[], datatypes=[], parallel=False, path=None, collective=False):
+      form = {}
+      for index, var in enumerate(variables):
+          form[var] = [shapes[index], chunks[index], datatypes[index]]
 
-    #MAIN
+      create_ds(form=form, parallel=parallel, path=path, collective=collective)
+
+  #MAIN
 run_command:
-    MPI: mpiexec -n {runnable} -v
+  MPI: mpiexec -n {runnable} -v
 source: |
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <time.h>
-    #include <hdf5.h>
-    #include <netcdf.h>
-    #include <netcdf_par.h>
-    #include <unistd.h>
-    #include <argp.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <time.h>
+  #include <hdf5.h>
+  #include <netcdf.h>
+  #include <netcdf_par.h>
+  #include <unistd.h>
+  #include <argp.h>
 
-    #define ANSI_COLOR_RED "\x1b[31m"
-    #define ANSI_COLOR_GREEN "\x1b[32m"
-    #define ANSI_COLOR_YELLOW "\x1b[33m"
-    #define ANSI_COLOR_BLUE "\x1b[34m"
-    #define ANSI_COLOR_MAGENTA "\x1b[35m"
-    #define ANSI_COLOR_CYAN "\x1b[36m"
-    #define ANSI_COLOR_RESET "\x1b[0m"
+  #define ANSI_COLOR_RED "\x1b[31m"
+  #define ANSI_COLOR_GREEN "\x1b[32m"
+  #define ANSI_COLOR_YELLOW "\x1b[33m"
+  #define ANSI_COLOR_BLUE "\x1b[34m"
+  #define ANSI_COLOR_MAGENTA "\x1b[35m"
+  #define ANSI_COLOR_CYAN "\x1b[36m"
+  #define ANSI_COLOR_RESET "\x1b[0m"
 
-    void bench(int argc, char **argv, hsize_t size, char** vars_to_bm, int iteration, char* location, double* result)
-    {
-        /*
-         * Initialize MPI
-         */
+  void bench(int argc, char **argv, hsize_t size, char** vars_to_bm, int iteration, char* location, double* result)
+  {
+      /*
+       * Initialize MPI
+       */
 
-        int mpi_ssize;
-        int mpi_rrank;
-        MPI_Comm comm = MPI_COMM_WORLD;
+      int mpi_ssize;
+      int mpi_rrank;
+      MPI_Comm comm = MPI_COMM_WORLD;
 
-        int mpi_thread_required = MPI_THREAD_MULTIPLE;
-        int mpi_thread_provided = 0;
-        /* Initialize MPI with threading support */
-        MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
+      int mpi_thread_required = MPI_THREAD_MULTIPLE;
+      int mpi_thread_provided = 0;
+      /* Initialize MPI with threading support */
+      MPI_Init_thread(&argc, &argv, mpi_thread_required, &mpi_thread_provided);
 
-        MPI_Comm_size(comm, &mpi_ssize);
-        MPI_Comm_rank(comm, &mpi_rrank);
+      MPI_Comm_size(comm, &mpi_ssize);
+      MPI_Comm_rank(comm, &mpi_rrank);
 
-        hsize_t mpi_size = mpi_ssize;
-        hsize_t mpi_rank = mpi_rrank;
+      hsize_t mpi_size = mpi_ssize;
+      hsize_t mpi_rank = mpi_rrank;
 
-        for (int i = 0; i < iteration; i++)
-        {
-            printf("i: %d for variable: X rank: %ld\n", i, mpi_rank);
-            int ncid, varid, retval;
-            hsize_t count[1]; /* hyperslab selection parameters */
-            hsize_t offset[1];
+      for (int i = 0; i < iteration; i++)
+      {
+          printf("i: %d for variable: X rank: %ld\n", i, mpi_rank);
+          int ncid, varid, retval;
+          hsize_t count[1]; /* hyperslab selection parameters */
+          hsize_t offset[1];
 
-            if ((retval = nc_open_par(location, NC_NOWRITE, comm, MPI_INFO_NULL, &ncid)))
-            {
-                printf("failure to open file \n");
-                ERR(retval);
-            }
+          if ((retval = nc_open_par(location, NC_NOWRITE, comm, MPI_INFO_NULL, &ncid)))
+          {
+              printf("failure to open file \n");
+              ERR(retval);
+          }
 
-            struct timespec start, end;
+          struct timespec start, end;
 
-            if (mpi_rank == 0)
-            {
-                clock_gettime(CLOCK_MONOTONIC, &start);
-            }
+          if (mpi_rank == 0)
+          {
+              clock_gettime(CLOCK_MONOTONIC, &start);
+          }
 
-            if ((retval = nc_inq_varid(ncid, vars_to_bm[0], &varid)))
-            {
-                printf("failure finding variable id ");
-                ERR(retval);
-            }
+          if ((retval = nc_inq_varid(ncid, vars_to_bm[0], &varid)))
+          {
+              printf("failure finding variable id ");
+              ERR(retval);
+          }
 
-            if ((retval = nc_var_par_access(ncid, varid, NC_COLLECTIVE)))
-            {
-                printf("failure setting collective I/O \n");
-                ERR(retval);
-            }
+          if ((retval = nc_var_par_access(ncid, varid, NC_COLLECTIVE)))
+          {
+              printf("failure setting collective I/O \n");
+              ERR(retval);
+          }
 
-            hsize_t process_mem_size = size / mpi_size;
+          hsize_t process_mem_size = size / mpi_size;
 
-            count[0] = process_mem_size;
-            offset[0] = count[0] * mpi_rank;
+          count[0] = process_mem_size;
+          offset[0] = count[0] * mpi_rank;
 
-            float *rbuf = calloc(process_mem_size, sizeof(float));
+          float *rbuf = calloc(process_mem_size, sizeof(float));
 
-            if ((retval = nc_get_vara_float(ncid, varid, offset, count, rbuf)))
-            {
-                printf("failure reading variable");
-                ERR(retval);
-            }
+          if ((retval = nc_get_vara_float(ncid, varid, offset, count, rbuf)))
+          {
+              printf("failure reading variable");
+              ERR(retval);
+          }
 
-            if ((retval = nc_close(ncid)))
-                ERR(retval);
-            
+          if ((retval = nc_close(ncid)))
+              ERR(retval);
+          
 
-            if (mpi_rank == 0)
-            {
-                clock_gettime(CLOCK_MONOTONIC, &end);
-                double elapsed = end.tv_sec - start.tv_sec;
-                elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-                result[i] = elapsed;
-            }
+          if (mpi_rank == 0)
+          {
+              clock_gettime(CLOCK_MONOTONIC, &end);
+              double elapsed = end.tv_sec - start.tv_sec;
+              elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+              result[i] = elapsed;
+          }
 
-            free(rbuf);
-            MPI_Barrier(MPI_COMM_WORLD);
-            printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
-        }
-    }
+          free(rbuf);
+          MPI_Barrier(MPI_COMM_WORLD);
+          printf(ANSI_COLOR_GREEN "Finished" ANSI_COLOR_RESET "\n");
+      }
+  }
 
-    #MAIN
+  #MAIN
