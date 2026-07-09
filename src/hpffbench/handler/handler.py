@@ -31,9 +31,6 @@ from hpffbench.benchmarkmanager import BenchmarkManager
 from hpffbench.spackmanager import SpackManager
 
 
-logging.basicConfig(
-    level=logging.INFO, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
-)
 logger = logging.getLogger(__name__)
 
 error_console = Console(stderr=True)
@@ -58,7 +55,15 @@ class Handler:
 
     path_to_config: str
 
-    def __init__(self, path_to_config: str | dict):
+    def __init__(self, path_to_config: str | dict, log_lvl: int | str | None = None):
+
+        logging.basicConfig(
+            level=log_lvl if log_lvl is not None else logging.INFO,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[RichHandler()],
+        )
+
         self.__load_config(path_to_config)
         self.__benchmarks: list[tuple[str, BenchmarkManager]] = []
         self.__id = hashlib.sha256(str(path_to_config).encode()).hexdigest()
@@ -495,9 +500,10 @@ class Handler:
                         string = used_nodes[index]
                         symbol = string[0]
                         string = string.replace(symbol, "")
-                        nodes = string.split(",")
+                        str_nodes = string.split(",")
+                        final_nodes: list[list[str]] = []
 
-                        for i, node in enumerate(nodes):
+                        for node in str_nodes:
                             if "-" in node:
                                 hold = node.split("-")
 
@@ -507,12 +513,12 @@ class Handler:
                                         int(hold[0]), int(hold[1]) + 1
                                     )
                                 ]
-                                nodes[i] = node
+                                final_nodes.append(node)
 
-                            elif type(node) is not list:
-                                nodes[i] = [symbol + node]
+                            elif not isinstance(node, list):
+                                final_nodes.append([symbol + node])
 
-                        count.update(list(itertools.chain.from_iterable(nodes)))
+                        count.update(list(itertools.chain.from_iterable(final_nodes)))
 
                         profiling = None
                         try:
@@ -597,7 +603,7 @@ class Handler:
 
         # there is probably a better method for doing this, will look into it later
 
-        total_node_counter = Counter()
+        total_node_counter: Counter[str] = Counter()
         for count in df["node count"]:
             total_node_counter.update(count)
 

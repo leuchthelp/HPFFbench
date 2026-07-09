@@ -1,25 +1,23 @@
 formats:
 - hdf5
-- zarr
 languages:
-- c
 - py
 paths:
   path_to_benchmarks: benchmarks
   path_to_tmp: tmp
   path_to_root: /home/leucht/Documents/HPFFbench
   path_to_results: results
-iterations: 10
+iterations: 5
 runs:
   run04:
     X:
-    - - 134217728
+    - - 1342177280
     - []
-parallel: Both
+parallel: true
 par_backend:
 - MPI
 ranks:
-- 5
+- 10
 nodes:
 - 1
 variable_to_benchmark:
@@ -62,6 +60,9 @@ spack_env:
     - py
     - c
     packages:
+      scorep:
+        versions:
+        - '9.3'
       python:
         versions:
         - 3.14.0
@@ -91,8 +92,8 @@ spack_env:
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: gcc@13.3.0
-    additional: pip install zarr==3.2.1
+    compiler: gcc@15.2
+    additional: pip install zarr==3.2.1 scorep
     install: true
   test-env-async:
     target:

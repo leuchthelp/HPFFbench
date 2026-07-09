@@ -1,5 +1,6 @@
 from cProfile import Profile
 from pstats import Stats
+import logging
 import os
 
 import yaml
@@ -23,7 +24,7 @@ def main():
         # "run02": {"X": [[1 * 134217728], [], "f8"]},
         # "run03": {"X": [[1 * 134217728], []],},
         # "run03": {"X": [[5 * 134217728], []],},
-        "run04": {"X": [[1 * 134217728], []]},
+        "run04": {"X": [[10 * 134217728], []]},
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -53,6 +54,7 @@ def main():
             "target": ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
             "language": ["py", "c"],
             "packages": {
+                "scorep": {"versions": ["9.3"]},
                 "python": {"versions": ["3.14.0"], "fresh": True},
                 "openmpi": {"versions": ["5.0.8"], "fresh": True},
                 "hdf5": {
@@ -74,8 +76,8 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@13.3.0",
-            "additional": "pip install zarr==3.2.1",
+            "compiler": "gcc@15.2",
+            "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
         "test-env-async": {
@@ -115,14 +117,14 @@ def main():
 
     new_setup = {
         # "formats"               : ["hdf5", "netcdf4", "zarr"],
-        "formats": ["hdf5", "zarr"],
-        "languages": ["c", "py"],
+        "formats": ["hdf5"],
+        "languages": ["py"],
         "paths": paths,
-        "iterations": 10,
+        "iterations": 5,
         "runs": tmp,
-        "parallel": "Both",
+        "parallel": True,
         "par_backend": ["MPI"],
-        "ranks": [5],
+        "ranks": [10],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": False,
@@ -139,8 +141,9 @@ def main():
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
+
     with Profile() as profile:
-        Handler(path_to_config=path_to_config)
+        Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
         Stats(profile).strip_dirs()
         # stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
         # stats.sort_stats(SortKey.CALLS).print_stats(20)

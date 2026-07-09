@@ -44,10 +44,10 @@ create: |
 
   #MAIN
 run_command:
-  serial: python {runnable} -v
-  MPI: mpiexec -n python {runnable} -v
-  profile: py-spy record --rate 100 --gil --idle --native --threads --function --subprocesses --format speedscope -o <profile_path>.json -- python {runnable} -v
-  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+  serial: python -m scorep --thread=pthread --instrumenter-type=cProfile {runnable}
+  MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cProfile {runnable}
+  profile: py-spy record --rate 100 --gil --idle --native --threads --function --subprocesses --format speedscope -o <profile_path>.json -- python {runnable}
+  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
 source: |
   from hpffbench.func.datastruct import Datastruct
 
