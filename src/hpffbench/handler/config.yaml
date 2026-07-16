@@ -3,17 +3,20 @@ formats:
 languages:
 - py
 paths:
-  path_to_benchmarks: benchmarks
+  path_to_benchmarks: configs/benchmarks
+  path_to_profilers: configs/profilers
   path_to_tmp: tmp
   path_to_root: /home/leucht/Documents/HPFFbench
-  path_to_results: results
+  path_to_results: results/general
+  path_res_profiling: results/profiling
 iterations: 5
 runs:
   run04:
     X:
     - - 1342177280
     - []
-parallel: true
+parallel: false
+collective: false
 par_backend:
 - MPI
 ranks:
@@ -134,3 +137,8 @@ spack_env:
         - 1.7.2
     compiler: gcc@13.3.0
 delete_envs: false
+paths_create: true
+profiler: false
+profilers:
+- scorep
+profiler_mode: manual

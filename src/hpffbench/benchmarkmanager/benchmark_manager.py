@@ -10,9 +10,10 @@ import os
 import re
 
 from hpffbench.configloader import (
-    ConfigLoader,
     Run,
+    RunCommands,
     BenchmarkConfig,
+    GlobalConfigLoader,
     BenchmarkConfigLoader,
 )
 from hpffbench.spackmanager import SpackManager
@@ -141,6 +142,7 @@ class BenchmarkManager:
     par_backend: None | str
     ranks: int
     collective: None | bool
+    no_caching: bool
     language: str
     format: str
     engine: str
@@ -160,15 +162,16 @@ class BenchmarkManager:
         handler_id: str,
         run_config: Run,
         bm_config: BenchmarkConfigLoader,
-        global_config: ConfigLoader,
         nodes: int,
         slurm_avail: bool,
+        global_config: GlobalConfigLoader,
         slurm_options: str,
         parallel: bool,
         collective: None | bool,
         ranks: int,
         requested: BenchmarkConfig,
         spack_manager: SpackManager,
+        no_caching: bool,
     ):
         paths = global_config.paths
 
@@ -221,7 +224,7 @@ class BenchmarkManager:
         self.iterations = self.global_config.iterations
         self.internal_i = 1
 
-        self.no_caching = self.global_config.no_caching
+        self.no_caching = no_caching
         self.local = False
 
         # Assemble ID
@@ -345,8 +348,7 @@ class BenchmarkManager:
             self.__execute_file()
 
         finally:
-            #shutil.rmtree(path=self.dir_path)
-            pass
+            shutil.rmtree(path=self.dir_path)
 
         return self.id, self
 
@@ -361,39 +363,25 @@ class BenchmarkManager:
         Finally it executes the `create_file` with the `create_command`.
         """
         # Get create command
-        create_commands = self.bm_config.create_commands
-
-        create_command = ""
+        create_commands: RunCommands = self.bm_config.create_commands
         language = self.language
         compile = self.compile
 
         # I'm to lazy to reimplement creating the given file in c again, so will just reuse easier python code as files should be identical
         if "lazy" in create_commands:
-            try:
-                create_command = create_commands["lazy"][0]
-                language = create_commands["lazy"][1]
-                compile = create_commands["lazy"][2]
-            except IndexError as e:
-                raise IndentationError(
-                    "Lazy option is not a proper lazy command. A lazy command needs [command, language, compile flag (turn off/on compilation)]."
-                ) from e
+            create_command = create_commands["lazy"]["command"]
+            language = create_commands["lazy"]["language"]
+            compile = create_commands["lazy"]["compile"]
         else:
-            try:
-                create_command = create_commands["serial"]
+            create_command = create_commands["serial"]
 
-                if self.__profiler:
-                    if "profile" in create_commands:
-                        create_command = create_commands["profile"]
-                    else:
-                        logger.warning(
-                            'Profiler was set to "True" on create, but no valid profile command supplied - continuing without profiling'
-                        )
-
-            except KeyError as e:
-                if self.bm_config.parallel:
-                    pass
+            if self.__profiler:
+                if "profile" in create_commands:
+                    create_command = str(create_commands["profile"])
                 else:
-                    raise e
+                    logger.warning(
+                        'Profiler was set to "True" on create, but no valid profile command supplied - continuing without profiling'
+                    )
 
         # Create the file that contains code to create the given dataset
         create = self.create.replace("#MAIN", self.__replace_main(language))
@@ -408,13 +396,13 @@ class BenchmarkManager:
             compiled_file_info = self.__compile_file(path=path_to_create_file)
             create_file = f"./{compiled_file_info[0]}"
 
-        if self.par_backend in create_commands.keys():
-            create_command = create_commands[self.par_backend]
+        if self.par_backend in create_commands:
+            create_command = str(create_commands[self.par_backend])  # ty:ignore[invalid-key]
 
             if self.__profiler:
                 check_profiling = f"profile-{self.par_backend}"
                 if check_profiling in create_commands:
-                    create_command = create_commands[check_profiling]
+                    create_command = str(create_commands[check_profiling])  # ty:ignore[invalid-key]
                 else:
                     logger.warning(
                         f'Profiler was set to "True" on create with {self.par_backend}, but no valid profile command supplied - continuing without profiling'
@@ -613,14 +601,14 @@ class BenchmarkManager:
         If a compiled language is requested, also compiles the necessary file and finally executes it.
         """
         # Get run command to execute the code with
-        run_commands: dict[str, str] = self.bm_config.run_commands
+        run_commands: RunCommands = self.bm_config.run_commands
         run_command = ""
         try:
             run_command = run_commands["serial"]
 
             if self.__profiler:
                 if "profile" in run_commands:
-                    run_command = run_commands["profile"]
+                    run_command = str(run_commands["profile"])
                 else:
                     logger.warning(
                         'Profiler was set to "True" on run, but no valid profile command supplied - continuing without profiling'
@@ -645,13 +633,13 @@ class BenchmarkManager:
             compiled_file_info = self.__compile_file(path=path_to_tmp_file)
             tmp_file = f"./{compiled_file_info[0]}"
 
-        if self.par_backend in run_commands.keys():
-            run_command = run_commands[self.par_backend]
+        if self.par_backend in run_commands:
+            run_command = str(run_commands[self.par_backend])  # ty:ignore[invalid-key]
 
             if self.__profiler:
                 check_profiling = f"profile-{self.par_backend}"
                 if check_profiling in run_commands:
-                    run_command = run_commands[check_profiling]
+                    run_command = str(run_commands[check_profiling])  # ty:ignore[invalid-key]
                 else:
                     logger.warning(
                         f'Profiler was set to "True" on run with {self.par_backend}, but no valid profile command supplied - continuing without profiling'

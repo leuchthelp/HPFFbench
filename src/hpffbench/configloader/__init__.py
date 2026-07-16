@@ -1,6 +1,8 @@
-from .config_loader import ConfigLoader as ConfigLoader
-from .config_loader import ProcessedPath as ProcessedPath
-from .config_loader import Run as Run
-from .config_loader import SpackEnv as SpackEnv
-from .config_loader import BenchmarkConfigLoader as BenchmarkConfigLoader
-from .config_loader import BenchmarkConfig as BenchmarkConfig
+from .config_loaders import Run as Run
+from .config_loaders import SpackEnv as SpackEnv
+from .config_loaders import RunCommands as RunCommands
+from .config_loaders import ProcessedPath as ProcessedPath
+from .config_loaders import BenchmarkConfig as BenchmarkConfig
+from .config_loaders import GlobalConfigLoader as GlobalConfigLoader
+from .config_loaders import ProfilerConfigLoader as ProfilerConfigLoader
+from .config_loaders import BenchmarkConfigLoader as BenchmarkConfigLoader

@@ -1,5 +1,10 @@
 language: py
-format: hdf5
+package: scorep
+install_method: spack
+format: 
+  - hdf5
+  - zarr
+  - netcdf4
 run_command:
   serial: python -m scorep --thread=pthread --instrumenter-type=cTrace {runnable}
   MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cTrace {runnable}

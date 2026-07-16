@@ -26,7 +26,11 @@ import pandas as pd
 import numpy as np
 
 
-from hpffbench.configloader import ConfigLoader, BenchmarkConfigLoader, BenchmarkConfig
+from hpffbench.configloader import (
+    BenchmarkConfig,
+    GlobalConfigLoader,
+    BenchmarkConfigLoader,
+)
 from hpffbench.benchmarkmanager import BenchmarkManager
 from hpffbench.spackmanager import SpackManager
 
@@ -167,7 +171,7 @@ class Handler:
             If there is an error with the `config.yaml`
 
         """
-        self.config = ConfigLoader(path_to_config)
+        self.config = GlobalConfigLoader(path_to_config)
 
     def __check_paths(self):
         """
@@ -177,9 +181,15 @@ class Handler:
         for key, path in self.config.paths.items():
             if not path["skip"]:
                 if not Path(path["path"]).exists():
-                    raise ValueError(
-                        f"Configured path: {path} for key: {key} does not exist. Please create it."
-                    )
+                    if self.config.paths_create:
+                        logger.warning(
+                            f'Creating {path} as "paths_create" was set to {self.config.paths_create}'
+                        )
+                        Path(path["path"]).mkdir()
+                    else:
+                        raise ValueError(
+                            f"Configured path: {path} for key: {key} does not exist. Please create it."
+                        )
             else:
                 logger.warning(f"{path} was skipped, proceed with caution")
 
@@ -352,16 +362,13 @@ class Handler:
         for _, run_config in self.config.runs.items():
             nodes = self.config.nodes
             slurm_options = ""
-            collective: list[bool | None] = [None]
-            ranks: list[int] = [1]
+            config_ranks: list[int] = [1]
+            config_collective: list[bool | None] = [None]
+            config_no_caching: list[bool] = self.config.no_caching
 
             if parallel:
-                ranks = self.config.ranks
+                config_ranks = self.config.ranks
                 config_collective = self.config.collective
-                if isinstance(config_collective, str) and config_collective == "Both":
-                    collective = [False, True]
-                elif isinstance(config_collective, bool):
-                    collective = [config_collective]
 
             # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
             if self.slurm_avail or self.__only_data:
@@ -375,13 +382,16 @@ class Handler:
                 ):
                     spack_manager.append(manager)
 
-            combinations = itertools.product(nodes, ranks, collective, spack_manager)
+            combinations = itertools.product(
+                nodes, config_ranks, config_collective, spack_manager, config_no_caching
+            )
 
             for combination in combinations:
                 node = combination[0]
-                rank = combination[1]
-                state = combination[2]
+                ranks = combination[1]
+                collective = combination[2]
                 manager = combination[3]
+                no_caching = combination[4]
 
                 if not manager.initialized:
                     manager.initialize_env()
@@ -398,9 +408,10 @@ class Handler:
                     requested=requested,
                     nodes=node,
                     parallel=parallel,
-                    collective=state,
-                    ranks=rank,
+                    collective=collective,
+                    ranks=ranks,
                     spack_manager=manager,
+                    no_caching=no_caching,
                 )
 
                 self.__benchmarks.append((bm.id, bm))

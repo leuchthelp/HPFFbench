@@ -6,8 +6,6 @@ format: zarr
 create_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
-  profile: py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
-  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}
 create: |
   from hpffbench.func.datastruct import Datastruct
   from hpffbench.func.datastruct import Form
@@ -44,10 +42,8 @@ create: |
 
   #MAIN
 run_command:
-  serial: python -m scorep --thread=pthread --instrumenter-type=cTrace {runnable} -v
-  MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cTrace {runnable} -v
-  profile: py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
-  profile-MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable} -v
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
 source: |
   from hpffbench.func.datastruct import Datastruct
 

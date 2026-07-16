@@ -1,5 +1,3 @@
-from cProfile import Profile
-from pstats import Stats
 import logging
 import os
 
@@ -12,11 +10,11 @@ def main():
 
     paths = {
         "path_to_benchmarks": "configs/benchmarks",
+        "path_to_profilers": "configs/profilers",
         "path_to_tmp": "tmp",
         "path_to_root": os.path.dirname(os.path.realpath(__file__)),
-        "path_to_results": "results",
-        # "path_to_visuals"   : "visualize",
-        # "path_profiling"    : "profiling",
+        "path_to_results": "results/general",
+        "path_res_profiling": "results/profiling",
     }
 
     tmp = {
@@ -116,13 +114,13 @@ def main():
     }
 
     new_setup = {
-        # "formats"               : ["hdf5", "netcdf4", "zarr"],
         "formats": ["hdf5"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 5,
         "runs": tmp,
-        "parallel": True,
+        "parallel": False,
+        "collective": False,
         "par_backend": ["MPI"],
         "ranks": [10],
         "nodes": [1],
@@ -134,6 +132,10 @@ def main():
         "slurm_options": slurm_options,
         "spack_env": spack_envs,
         "delete_envs": False,
+        "paths_create": True,
+        "profiler": False,
+        "profilers": ["scorep"],
+        "profiler_mode": "manual",
     }
 
     path_to_config = "src/hpffbench/handler/config.yaml"
@@ -141,13 +143,7 @@ def main():
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-
-    with Profile() as profile:
-        Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
-        Stats(profile).strip_dirs()
-        # stats.sort_stats(SortKey.CUMULATIVE).print_stats(20)
-        # stats.sort_stats(SortKey.CALLS).print_stats(20)
-        # stats.sort_stats(SortKey.TIME).print_stats(20)
+    Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
 
 
 if __name__ == "__main__":
