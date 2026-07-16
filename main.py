@@ -11,7 +11,7 @@ from hpffbench.handler import Handler
 def main():
 
     paths = {
-        "path_to_benchmarks": "benchmarks",
+        "path_to_benchmarks": "configs/benchmarks",
         "path_to_tmp": "tmp",
         "path_to_root": os.path.dirname(os.path.realpath(__file__)),
         "path_to_results": "results",
