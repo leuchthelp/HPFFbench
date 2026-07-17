@@ -1,18 +1,18 @@
 language: py
 package: scorep
 install_method: spack
-format: 
+formats:
   - hdf5
   - zarr
   - netcdf4
-run_command:
+run_commands:
   serial: python -m scorep --thread=pthread --instrumenter-type=cTrace {runnable}
   MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cTrace {runnable}
-instrumenter:
-  start: | 
+instrumenters:
+  start: |
     "@scorep.user.region()"
   stop: |
-
-env_variabbles: 
+env_variables:
   SCOREP_ENABLE_TRACING: true
+export_method:
   SCOREP_EXPERIMENT_DIRECTORY: <profile_path>

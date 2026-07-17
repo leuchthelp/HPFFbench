@@ -30,6 +30,7 @@ from hpffbench.configloader import (
     BenchmarkConfig,
     GlobalConfigLoader,
     BenchmarkConfigLoader,
+    ProfilerConfigLoader,
 )
 from hpffbench.benchmarkmanager import BenchmarkManager
 from hpffbench.spackmanager import SpackManager
@@ -145,7 +146,7 @@ class Handler:
             raise RuntimeError("no matching benchmark configs found")
 
         if not self.__only_data:
-            self.__start()
+            self.start()
         else:
             logger.warning(
                 f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
@@ -382,8 +383,27 @@ class Handler:
                 ):
                     spack_manager.append(manager)
 
+            profilers: list[ProfilerConfigLoader | None] = [None]
+            if self.config.profiler:
+                for profiler in self.config.profilers:
+                    where_paths = Path(self.config.paths["path_to_profilers"]["path"])
+                    config_paths = itertools.chain(
+                        Path(where_paths).glob("*.yaml"),
+                        Path(where_paths).glob("*.yml"),
+                    )
+                    for profiler_path in config_paths:
+                        profiler_loaded = ProfilerConfigLoader(profiler_path)
+
+                        if profiler == profiler_loaded.package:
+                            profilers.append(profiler_loaded)
+
             combinations = itertools.product(
-                nodes, config_ranks, config_collective, spack_manager, config_no_caching
+                nodes,
+                config_ranks,
+                config_collective,
+                spack_manager,
+                config_no_caching,
+                profilers,
             )
 
             for combination in combinations:
@@ -392,6 +412,7 @@ class Handler:
                 collective = combination[2]
                 manager = combination[3]
                 no_caching = combination[4]
+                profiler_config = combination[5]
 
                 if not manager.initialized:
                     manager.initialize_env()
@@ -412,6 +433,8 @@ class Handler:
                     ranks=ranks,
                     spack_manager=manager,
                     no_caching=no_caching,
+                    profiler=self.config.profiler,
+                    profiler_config=profiler_config,
                 )
 
                 self.__benchmarks.append((bm.id, bm))
@@ -419,7 +442,7 @@ class Handler:
 
         return benchmarks
 
-    def __start(self):
+    def start(self):
         """
         Start running the benchmark by called each BenchmarkManagers `.run()` method on each item found within the list of tasks.
         This is done as a pool of Processes using the `pathos` module to `pickle` entire BenchmarkManager objects via `dill`. The ProcessPool

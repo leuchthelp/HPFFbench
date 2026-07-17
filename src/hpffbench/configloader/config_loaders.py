@@ -133,8 +133,8 @@ class ProfilerConfigLoader:
 
         self.language: str = self.config["language"]
         self.package: str = self.config["package"]
-        self.format: list[str] = self.config["format"]
-        self.run_command: RunCommands = self.config["run_command"]
+        self.formats: list[str] = self.config["formats"]
+        self.run_commands: RunCommands = self.config["run_commands"]
 
         # Optionals
         self.compile = False
@@ -168,7 +168,7 @@ class BenchmarkConfig(TypedDict):
 @dataclass
 class BenchmarkConfigLoader:
     format: str
-    create: str
+    create: str | None
     source: str
     language: str
     extension: str
@@ -198,11 +198,13 @@ class BenchmarkConfigLoader:
         self.format: str = self.config["format"]
         self.extension: str = self.config["extension"]
         self.create_commands: RunCommands = self.config["create_command"]
-        self.create: str = self.config["create"]
         self.run_commands: RunCommands = self.config["run_command"]
         self.source: str = self.config["source"]
 
         # Optionals
+        self.create = None
+        if "create" in self.config:
+            self.create: str = self.config["create"]
 
         if "par_backend" in self.config:
             par_backend: list[str] | str = self.config["par_backend"]
