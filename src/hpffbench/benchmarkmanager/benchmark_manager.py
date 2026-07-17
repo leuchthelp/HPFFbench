@@ -234,7 +234,7 @@ class BenchmarkManager:
         self.internal_i = 1
 
         self.no_caching = no_caching
-        self.local = False
+        self.local = True
 
         # Assemble ID
         id_str = (
@@ -293,7 +293,9 @@ class BenchmarkManager:
         # Environment config
 
         self.profiler = profiler
-        self.profiler_config = profiler_config
+
+        if profiler_config is not None:
+            self.profiler_config = profiler_config
         if self.profiler:
             profiling_res_path = Path(paths["path_res_profiling"]["path"])
             new_profiler_path = Path(f"{profiling_res_path.absolute()}/{self.id}")
@@ -311,8 +313,9 @@ class BenchmarkManager:
             f"language: {self.language}, "
             f"format: {self.format}, "
             f"iterations: {self.iterations}, "
-            f"in env: {self.spack_manager.env_name}. "
-            f"It will be stored in {self.use_path}"
+            f"in env: {self.spack_manager.env_name}, "
+            f'with profiler: {self.profiler} using "{self.profiler_config.package}". '
+            f"It will be stored in {self.use_path.absolute()}"
         )
 
     def run(self) -> tuple[str, BenchmarkManager]:
@@ -362,7 +365,7 @@ class BenchmarkManager:
             self.__execute_file()
 
         finally:
-            #shutil.rmtree(path=self.dir_path)
+            # shutil.rmtree(path=self.dir_path)
             pass
 
         return self.id, self
@@ -595,7 +598,7 @@ class BenchmarkManager:
         """
         # Get run command to execute the code with
         run_commands: RunCommands = self.bm_config.run_commands
-        if self.profiler and self.profiler_config:
+        if self.profiler:
             run_commands = self.profiler_config.run_commands
 
         command_type = "serial"
@@ -608,7 +611,7 @@ class BenchmarkManager:
         execute = self.src.replace("#MAIN", self.__replace_main(self.language), 1)
         if (
             self.profiler
-            and self.profiler_config
+            and self.profiler_config.instrumenter is not None
             and self.global_config.profiler_mode == "manual"
         ):
             execute = self.src.replace(
@@ -623,6 +626,10 @@ class BenchmarkManager:
                 logger.warning(
                     "No stopping instrumenter found, assuming you're using decorator or context managers."
                 )
+        else:
+            logger.warning(
+                f'No instrumenter methods found of {self.profiler_config.package} but mode was set to "{self.global_config.profiler_mode}" which requires instrumenter metthods. Continuing with mode: "auto" for now.'
+            )
 
         path_to_tmp_file = Path(f"{self.dir_path}/execute.{self.language}")
         with open(path_to_tmp_file, "w") as file:
@@ -683,12 +690,20 @@ class BenchmarkManager:
         original_run_command = str(run_command[-1])
         for i in range(self.iterations):
             env_vars: dict[str, str] = {}
-            if self.profiler and self.profiler_config:
+            if self.profiler:
                 tmp_command = original_run_command
                 profiling_res_path = f"{self.profiling_res_path.absolute()}/{self.id}-{self.current_time}-{i}"
                 env_vars.update(self.profiler_config.env_vars)
 
                 if self.profiler_config.export_method:
+                    logger.debug(self.profiler_config.export_method)
+                    for key in self.profiler_config.export_method.keys():
+                        item = self.profiler_config.export_method[key]
+                        item = item.replace(
+                            "<profile_path>", profiling_res_path, count=1
+                        )
+                        self.profiler_config.export_method[key] = item
+
                     env_vars.update(self.profiler_config.export_method)
                 else:
                     tmp_command = tmp_command.replace(

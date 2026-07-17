@@ -385,6 +385,7 @@ class Handler:
 
             profilers: list[ProfilerConfigLoader | None] = [None]
             if self.config.profiler:
+                profilers.clear()
                 for profiler in self.config.profilers:
                     where_paths = Path(self.config.paths["path_to_profilers"]["path"])
                     config_paths = itertools.chain(

@@ -74,7 +74,7 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "llvm@22.1.5",
+            "compiler": "gcc@15.3.0",
             "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
@@ -108,7 +108,7 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@13.3.0",
+            "compiler": "gcc@15.3.0",
             # "install": True
         },
     }
@@ -117,7 +117,7 @@ def main():
         "formats": ["hdf5"],
         "languages": ["py"],
         "paths": paths,
-        "iterations": 5,
+        "iterations": 1,
         "runs": tmp,
         "parallel": False,
         "collective": False,

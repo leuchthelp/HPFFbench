@@ -122,7 +122,7 @@ class ProfilerConfigLoader:
 
     formats: list[str]
     run_commands: RunCommands
-    instrumenter: InstrumenterMethods
+    instrumenter: InstrumenterMethods | None
     env_vars: dict[str, str]
     export_method: dict[str, str]
 
@@ -142,7 +142,6 @@ class ProfilerConfigLoader:
             self.export_method: dict[str, str] = self.config["export_method"]
         else:
             for command in self.run_commands.values():
-                logger.debug(command)
                 if "<profile_path>" not in str(command):
                     raise ValueError(
                         "<profile_path> not found in profiler command, while no alternative way to change the export location of profiler result were given."
@@ -161,7 +160,7 @@ class ProfilerConfigLoader:
         if "install_method" in self.config:
             self.install_method: str = self.config["install_method"]
 
-        self.instrumenter: InstrumenterMethods
+        self.instrumenter: InstrumenterMethods | None = None
         if "instrumenter" in self.config:
             self.instrumenter: InstrumenterMethods = self.config["instrumenter"]
 
@@ -380,7 +379,7 @@ class GlobalConfigLoader:
 
             if not parallel:
                 logger.warning(
-                    f"Parallel was set to {parallel} but collective was set: {collective}. Will be ignore as long as parallel is not True."
+                    f"Parallel was set to {parallel} but collective was set: {collective}. Will be ignored as long as parallel is not True."
                 )
 
         self.ranks = [1]

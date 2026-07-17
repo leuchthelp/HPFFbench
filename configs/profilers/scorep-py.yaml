@@ -8,7 +8,7 @@ formats:
 run_commands:
   serial: python -m scorep --thread=pthread --instrumenter-type=cTrace {runnable}
   MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cTrace {runnable}
-instrumenters:
+instrumenter:
   start: |
     import scorep.user  
     @scorep.user.region()
