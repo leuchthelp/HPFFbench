@@ -53,28 +53,28 @@ def main():
             "language": ["py", "c"],
             "packages": {
                 "scorep": {"versions": ["9.3"]},
-                "python": {"versions": ["3.14.0"], "fresh": True},
-                "openmpi": {"versions": ["5.0.8"], "fresh": True},
+                "python": {"versions": ["3.14.5"], "fresh": True},
+                "openmpi": {"versions": ["5.0.10"], "fresh": True},
                 "hdf5": {
                     "versions": ["1.14.6"],
                     "variants": "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
                 },
                 "argobots": {"versions": ["main"], "fresh": True},
                 "netcdf-c": {
-                    "versions": ["4.9.3"],
+                    "versions": ["4.10.0"],
                     "variants": "build_system=cmake",
                 },
                 "py-mpi4py": {
                     "versions": ["4.1.1"],
                 },
                 "py-h5py": {
-                    "versions": ["3.14.0"],
+                    "versions": ["3.16.0"],
                 },
                 "py-netcdf4": {
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@15.2",
+            "compiler": "llvm@22.1.5",
             "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
@@ -122,7 +122,7 @@ def main():
         "parallel": False,
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [5],
+        "ranks": [1],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": False,
@@ -133,7 +133,7 @@ def main():
         "spack_env": spack_envs,
         "delete_envs": False,
         "paths_create": True,
-        "profiler": False,
+        "profiler": True,
         "profilers": ["scorep"],
         "profiler_mode": "manual",
     }

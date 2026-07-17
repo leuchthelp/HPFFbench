@@ -362,7 +362,8 @@ class BenchmarkManager:
             self.__execute_file()
 
         finally:
-            shutil.rmtree(path=self.dir_path)
+            #shutil.rmtree(path=self.dir_path)
+            pass
 
         return self.id, self
 
@@ -608,7 +609,7 @@ class BenchmarkManager:
         if (
             self.profiler
             and self.profiler_config
-            and self.global_config.profiler_mode.lower() == "manual"
+            and self.global_config.profiler_mode == "manual"
         ):
             execute = self.src.replace(
                 "#INSTRUMENTER_START", self.profiler_config.instrumenter["start"], 1
@@ -617,6 +618,10 @@ class BenchmarkManager:
             if "stop" in self.profiler_config.instrumenter:
                 execute = self.src.replace(
                     "#INSTRUMENTER_STOP", self.profiler_config.instrumenter["stop"], 1
+                )
+            else:
+                logger.warning(
+                    "No stopping instrumenter found, assuming you're using decorator or context managers."
                 )
 
         path_to_tmp_file = Path(f"{self.dir_path}/execute.{self.language}")
@@ -677,15 +682,22 @@ class BenchmarkManager:
         logger.debug(f"run command used: {run_command}")
         original_run_command = str(run_command[-1])
         for i in range(self.iterations):
-            if self.profiler:
+            env_vars: dict[str, str] = {}
+            if self.profiler and self.profiler_config:
                 tmp_command = original_run_command
-                tmp_command = tmp_command.replace(
-                    "<profile_path>",
-                    f"{self.profiling_res_path.absolute()}/{self.id}-{self.current_time}-{i}",
-                    count=1,
-                )
-                run_command[-1] = tmp_command
-                logger.debug(f"Run command with profiler {run_command}")
+                profiling_res_path = f"{self.profiling_res_path.absolute()}/{self.id}-{self.current_time}-{i}"
+                env_vars.update(self.profiler_config.env_vars)
+
+                if self.profiler_config.export_method:
+                    env_vars.update(self.profiler_config.export_method)
+                else:
+                    tmp_command = tmp_command.replace(
+                        "<profile_path>",
+                        str(profiling_res_path),
+                        count=1,
+                    )
+                    run_command[-1] = tmp_command
+                    logger.debug(f"Run command with profiler {run_command}")
 
             if self.no_caching:
                 self.__no_caching_helper(run_command, i)

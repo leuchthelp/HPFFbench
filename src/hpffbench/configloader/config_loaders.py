@@ -113,17 +113,18 @@ class InstrumenterMethods(TypedDict):
 
 
 class ProfilerConfigLoader:
-    languages: str
+    language: str
     package: str
     compile: bool
 
     install_method: str | None
     compile_command: str | None
 
-    format: list[str]
-    run_command: RunCommands
+    formats: list[str]
+    run_commands: RunCommands
     instrumenter: InstrumenterMethods
     env_vars: dict[str, str]
+    export_method: dict[str, str]
 
     def __init__(self, path_to_config: Path):
 
@@ -135,6 +136,17 @@ class ProfilerConfigLoader:
         self.package: str = self.config["package"]
         self.formats: list[str] = self.config["formats"]
         self.run_commands: RunCommands = self.config["run_commands"]
+
+        self.export_method: dict[str, str] = {}
+        if "export_method" in self.config:
+            self.export_method: dict[str, str] = self.config["export_method"]
+        else:
+            for command in self.run_commands.values():
+                logger.debug(command)
+                if "<profile_path>" not in str(command):
+                    raise ValueError(
+                        "<profile_path> not found in profiler command, while no alternative way to change the export location of profiler result were given."
+                    )
 
         # Optionals
         self.compile = False

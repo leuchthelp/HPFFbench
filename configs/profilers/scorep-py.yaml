@@ -10,7 +10,8 @@ run_commands:
   MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cTrace {runnable}
 instrumenters:
   start: |
-    "@scorep.user.region()"
+    import scorep.user  
+    @scorep.user.region()
   stop: |
 env_variables:
   SCOREP_ENABLE_TRACING: true

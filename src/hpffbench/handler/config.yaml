@@ -6,7 +6,7 @@ paths:
   path_to_benchmarks: configs/benchmarks
   path_to_profilers: configs/profilers
   path_to_tmp: tmp
-  path_to_root: /home/leucht/Documents/HPFFbench
+  path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_results: results/general
   path_res_profiling: results/profiling
 iterations: 5
@@ -20,7 +20,7 @@ collective: false
 par_backend:
 - MPI
 ranks:
-- 10
+- 1
 nodes:
 - 1
 variable_to_benchmark:
@@ -68,11 +68,11 @@ spack_env:
         - '9.3'
       python:
         versions:
-        - 3.14.0
+        - 3.14.5
         fresh: true
       openmpi:
         versions:
-        - 5.0.8
+        - 5.0.10
         fresh: true
       hdf5:
         versions:
@@ -84,18 +84,18 @@ spack_env:
         fresh: true
       netcdf-c:
         versions:
-        - 4.9.3
+        - 4.10.0
         variants: build_system=cmake
       py-mpi4py:
         versions:
         - 4.1.1
       py-h5py:
         versions:
-        - 3.14.0
+        - 3.16.0
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: gcc@15.2
+    compiler: llvm@22.1.5
     additional: pip install zarr==3.2.1 scorep
     install: true
   test-env-async:
@@ -138,7 +138,7 @@ spack_env:
     compiler: gcc@13.3.0
 delete_envs: false
 paths_create: true
-profiler: false
+profiler: true
 profilers:
 - scorep
 profiler_mode: manual
