@@ -67,7 +67,7 @@ source: |
     else:
 
         #INSTRUMENTER_START
-        ds_hdf5.read("bench_complete", variables=variables, iterations=iterations)
+          ds_hdf5.read("bench_complete", variables=variables, iterations=iterations)
 
     result = ds_hdf5.log
 

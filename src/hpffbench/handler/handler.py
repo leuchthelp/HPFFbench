@@ -186,7 +186,7 @@ class Handler:
                         logger.warning(
                             f'Creating {path} as "paths_create" was set to {self.config.paths_create}'
                         )
-                        Path(path["path"]).mkdir()
+                        Path(path["path"]).mkdir(parents=True)
                     else:
                         raise ValueError(
                             f"Configured path: {path} for key: {key} does not exist. Please create it."

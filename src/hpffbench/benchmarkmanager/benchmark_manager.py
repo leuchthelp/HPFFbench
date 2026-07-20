@@ -291,11 +291,15 @@ class BenchmarkManager:
         self.show_metadata = True
 
         # Environment config
-
+        self.imports: str = ""
         self.profiler = profiler
 
+        profiler_config_msg = ""
         if profiler_config is not None:
             self.profiler_config = profiler_config
+            self.imports = "\n" + self.profiler_config.imports
+            profiler_config_msg = self.profiler_config.package
+
         if self.profiler:
             profiling_res_path = Path(paths["path_res_profiling"]["path"])
             new_profiler_path = Path(f"{profiling_res_path.absolute()}/{self.id}")
@@ -314,7 +318,7 @@ class BenchmarkManager:
             f"format: {self.format}, "
             f"iterations: {self.iterations}, "
             f"in env: {self.spack_manager.env_name}, "
-            f'with profiler: {self.profiler} using "{self.profiler_config.package}". '
+            f'with profiler: {self.profiler} using "{profiler_config_msg}". '
             f"It will be stored in {self.use_path.absolute()}"
         )
 
@@ -365,7 +369,7 @@ class BenchmarkManager:
             self.__execute_file()
 
         finally:
-            # shutil.rmtree(path=self.dir_path)
+            shutil.rmtree(path=self.dir_path)
             pass
 
         return self.id, self
@@ -609,27 +613,28 @@ class BenchmarkManager:
 
         # Create the executable to run the benchmark on a given file with
         execute = self.src.replace("#MAIN", self.__replace_main(self.language), 1)
-        if (
-            self.profiler
-            and self.profiler_config.instrumenter is not None
-            and self.global_config.profiler_mode == "manual"
-        ):
-            execute = self.src.replace(
-                "#INSTRUMENTER_START", self.profiler_config.instrumenter["start"], 1
-            )
-
-            if "stop" in self.profiler_config.instrumenter:
-                execute = self.src.replace(
-                    "#INSTRUMENTER_STOP", self.profiler_config.instrumenter["stop"], 1
+        if self.profiler and self.profiler_config.instrumenter is not None:
+            if self.global_config.profiler_mode == "manual":
+                execute = execute.replace(
+                    " #INSTRUMENTER_START",
+                    self.profiler_config.instrumenter["start"],
+                    1,
                 )
+
+                if "stop" in self.profiler_config.instrumenter:
+                    execute = execute.replace(
+                        "#INSTRUMENTER_STOP",
+                        self.profiler_config.instrumenter["stop"],
+                        1,
+                    )
+                else:
+                    logger.warning(
+                        "No stopping instrumenter found, assuming you're using decorator or context managers."
+                    )
             else:
                 logger.warning(
-                    "No stopping instrumenter found, assuming you're using decorator or context managers."
+                    f'No instrumenter methods found of {self.profiler_config.package} but mode was set to "{self.global_config.profiler_mode}" which requires instrumenter metthods. Continuing with mode: "auto" for now.'
                 )
-        else:
-            logger.warning(
-                f'No instrumenter methods found of {self.profiler_config.package} but mode was set to "{self.global_config.profiler_mode}" which requires instrumenter metthods. Continuing with mode: "auto" for now.'
-            )
 
         path_to_tmp_file = Path(f"{self.dir_path}/execute.{self.language}")
         with open(path_to_tmp_file, "w") as file:
@@ -686,7 +691,6 @@ class BenchmarkManager:
             run_command,
         ]
 
-        logger.debug(f"run command used: {run_command}")
         original_run_command = str(run_command[-1])
         for i in range(self.iterations):
             env_vars: dict[str, str] = {}
@@ -696,7 +700,6 @@ class BenchmarkManager:
                 env_vars.update(self.profiler_config.env_vars)
 
                 if self.profiler_config.export_method:
-                    logger.debug(self.profiler_config.export_method)
                     for key in self.profiler_config.export_method.keys():
                         item = self.profiler_config.export_method[key]
                         item = item.replace(
@@ -712,8 +715,10 @@ class BenchmarkManager:
                         count=1,
                     )
                     run_command[-1] = tmp_command
-                    logger.debug(f"Run command with profiler {run_command}")
 
+            logger.debug(f"Run command used {run_command}")
+            logger.debug(f"env vars: {env_vars}")
+            env_vars.update(os.environ)
             if self.no_caching:
                 self.__no_caching_helper(run_command, i)
 
@@ -723,6 +728,7 @@ class BenchmarkManager:
                 text=True,
                 cwd=self.dir_path,
                 check=True,
+                env=env_vars,
             )
 
             if logger.isEnabledFor(logging.DEBUG):
@@ -794,6 +800,8 @@ class BenchmarkManager:
 
             case "py":
                 return f"""
+{self.imports if self.language == "py" else ""}
+from importlib.util import find_spec
 import argparse
 import ast
 import os
@@ -826,10 +834,12 @@ def main():
                             path=args.location, 
                             collective=args.input_output,
                             )
-                    
-            from mpi4py import MPI
+
+            if find_spec("mpi4py") is not None:       
+                from mpi4py import MPI
+
             import json
-            if args.parallel is False or MPI.COMM_WORLD.rank == 0:
+            if args.parallel is False or (find_spec("mpi4py") is not None and MPI.COMM_WORLD.rank == 0):
                 from pathlib import Path
                 if Path("{self.results_path.absolute()}/{self.id}-{self.current_time}.json").exists():
                     with open("{self.results_path.absolute()}/{self.id}-{self.current_time}.json", "r") as t:

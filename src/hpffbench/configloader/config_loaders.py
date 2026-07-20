@@ -115,6 +115,7 @@ class InstrumenterMethods(TypedDict):
 class ProfilerConfigLoader:
     language: str
     package: str
+    imports: str
     compile: bool
 
     install_method: str | None
@@ -148,6 +149,10 @@ class ProfilerConfigLoader:
                     )
 
         # Optionals
+        self.imports = ""
+        if "imports" in self.config:
+            self.imports: str = self.config["imports"]
+
         self.compile = False
         if "compile" in self.config:
             self.compile: bool = self.config["compile"]
@@ -166,7 +171,7 @@ class ProfilerConfigLoader:
 
         self.env_vars: dict[str, str] = {}
         if "env_variables" in self.config:
-            self.env_vars: dict[str, str] = self.config
+            self.env_vars: dict[str, str] = self.config["env_variables"]
 
 
 class BenchmarkConfig(TypedDict):

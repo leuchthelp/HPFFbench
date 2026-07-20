@@ -1,7 +1,7 @@
 language: py
 package: pyspy
 install_method: pip
-formats: 
+formats:
   - hdf5
   - zarr
   - netcdf4
