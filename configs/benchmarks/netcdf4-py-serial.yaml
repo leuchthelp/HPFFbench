@@ -1,0 +1,145 @@
+parallel: False
+language: py
+extension: nc
+format: netcdf4
+create_command:
+  serial: python {runnable}
+create: |
+  from typing import TypedDict
+  import numpy as np
+  import netCDF4
+
+
+  class Form(TypedDict):
+      shape: list[int]
+      chunks: list[int]
+      dtype: str
+
+
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+
+
+  def create(
+      path: str,
+      variables: list[str] = [],
+      shapes: list[list[int]] = [],
+      chunks: list[list[int]] = [],
+      datatypes: list[str] = [],
+      parallel: bool = False,
+      collective: bool = False,
+  ):
+      form: dict[str, Form] = {}
+      for index, var in enumerate(variables):
+          form[var] = {
+              "shape": shapes[index],
+              "chunks": chunks[index],
+              "dtype": datatypes[index],
+          }
+
+      root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=False)
+      root.createGroup("/")
+      used = 0
+
+      for variable, element in form.items():
+          shape = element["shape"]
+          chunk = element["chunks"]
+          dtype = element["dtype"]
+
+          dimensions = []
+
+          for size in shape:
+              root.createDimension(f"{used}", size)
+              dimensions.append(f"{used}")
+              used += 1
+
+          if len(chunk) != 0:
+              x = root.createVariable(variable, dtype, dimensions, chunksizes=chunk)
+          else:
+              x = root.createVariable(variable, dtype, dimensions)
+
+          x[:] = np.random.random_sample(shape)
+
+      root.close()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+
+  #MAIN
+run_command:
+  serial: python {runnable}
+source: |
+  import time
+
+  import netCDF4
+
+
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+
+
+  #INSTRUMENTER_START
+  def bench_helper(
+      iterations: int,
+      variables: list[str],
+      dataset: netCDF4.Dataset,
+  ) -> list[int | float]:
+      bench = []
+      for _ in range(iterations):
+          start = time.monotonic()
+
+          for var in variables:
+              try:
+                  dataset[var][:]
+              except KeyError:
+                  print(f"Variable: {var} does not exist.")
+
+          bench.append(time.monotonic() - start)
+
+      dataset.close()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+      return bench
+
+
+  def bench(
+      path: str,
+      iterations: int,
+      variables: str,
+      parallel: bool = False,
+      collective: bool = False,
+  ) -> list[int | float] | None:
+
+      dataset = netCDF4.Dataset(path, mode="r", format="NETCDF4", parallel=parallel)
+      var_tmp = []
+
+      var_sizes: list[tuple[int, ...]] = []
+      for var in variables:
+          try:
+              var_size: tuple[int, ...] = dataset[var].shape
+              var_sizes.append(var_size)
+              var_tmp.append(var)
+          except KeyError:
+              print(f"Variable: {var} does not exist.")
+      print(f'for variable: {var_tmp} for engine: "hdf5", size: {var_sizes}')
+
+      result = bench_helper(iterations, var_tmp, dataset)
+
+      return result
+
+
+  #MAIN

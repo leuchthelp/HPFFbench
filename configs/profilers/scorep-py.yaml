@@ -9,7 +9,7 @@ run_commands:
   serial: python -m scorep --thread=pthread --instrumenter-type=cTrace {runnable}
   MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cTrace {runnable}
 instrumenter:
-  start: 'with scorep.user.region("benchmark"):'
+  start: "@scorep.user.region()"
   stop: |
 imports: |
   import scorep.user
@@ -18,6 +18,6 @@ env_variables:
   SCOREP_PROFILING_MAX_CALLPATH_DEPTH: "130"
   SCOREP_MEMORY_RECORDING: "True"
   SCOREP_MPI_MEMORY_RECORDING: "True"
-  SCOREP_TOTAL_MEMORY: "32000K"
+  SCOREP_TOTAL_MEMORY: "128000K"
 export_method:
   SCOREP_EXPERIMENT_DIRECTORY: <profile_path>

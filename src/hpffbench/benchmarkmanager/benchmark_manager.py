@@ -236,6 +236,15 @@ class BenchmarkManager:
         self.no_caching = no_caching
         self.local = True
 
+        self.imports: str = ""
+        self.profiler = profiler
+
+        profiler_config_msg = ""
+        if profiler_config is not None:
+            self.profiler_config = profiler_config
+            self.imports = "\n" + self.profiler_config.imports
+            profiler_config_msg = self.profiler_config.package
+
         # Assemble ID
         id_str = (
             str(self.run_config.variables)
@@ -256,11 +265,19 @@ class BenchmarkManager:
             + str(self.spack_manager.packages)
             + str(self.spack_manager.language)
             + str(self.spack_manager.env_name)
+            # Reasoning: profilers also influence the results since they have runtime overhead, so they need to be taken into account
+            + str(self.profiler)
+            + str(self.profiler_config if self.profiler else None)
             # Reasoning: If source code changes, do not consider the same benchmark even if it might be functionally the same, could still have an effect in performance
             + self.src
         )
 
         self.id = hashlib.sha256(id_str.encode()).hexdigest()
+
+        if self.profiler:
+            profiling_res_path = Path(paths["path_res_profiling"]["path"])
+            new_profiler_path = Path(f"{profiling_res_path.absolute()}/{self.id}")
+            self.profiling_res_path = new_profiler_path
 
         self.use_path = Path(paths["path_to_tmp"]["path"])
         self.root_path = Path(paths["path_to_root"]["path"])
@@ -291,19 +308,6 @@ class BenchmarkManager:
         self.show_metadata = True
 
         # Environment config
-        self.imports: str = ""
-        self.profiler = profiler
-
-        profiler_config_msg = ""
-        if profiler_config is not None:
-            self.profiler_config = profiler_config
-            self.imports = "\n" + self.profiler_config.imports
-            profiler_config_msg = self.profiler_config.package
-
-        if self.profiler:
-            profiling_res_path = Path(paths["path_res_profiling"]["path"])
-            new_profiler_path = Path(f"{profiling_res_path.absolute()}/{self.id}")
-            self.profiling_res_path = new_profiler_path
 
         logger.info(
             f"Managing Benchmark with; file-structure: {run_config.variables}, "
@@ -370,7 +374,6 @@ class BenchmarkManager:
 
         finally:
             shutil.rmtree(path=self.dir_path)
-            pass
 
         return self.id, self
 
@@ -615,8 +618,12 @@ class BenchmarkManager:
         execute = self.src.replace("#MAIN", self.__replace_main(self.language), 1)
         if self.profiler and self.profiler_config.instrumenter is not None:
             if self.global_config.profiler_mode == "manual":
+                execute = (
+                    f"{self.imports if self.language == 'py' else ''} \n" + execute
+                )
+
                 execute = execute.replace(
-                    " #INSTRUMENTER_START",
+                    "#INSTRUMENTER_START",
                     self.profiler_config.instrumenter["start"],
                     1,
                 )
@@ -800,11 +807,11 @@ class BenchmarkManager:
 
             case "py":
                 return f"""
-{self.imports if self.language == "py" else ""}
-from importlib.util import find_spec
 import argparse
 import ast
 import os
+
+from mpi4py import MPI
             
 def main():
 
@@ -835,11 +842,8 @@ def main():
                             collective=args.input_output,
                             )
 
-            if find_spec("mpi4py") is not None:       
-                from mpi4py import MPI
-
             import json
-            if args.parallel is False or (find_spec("mpi4py") is not None and MPI.COMM_WORLD.rank == 0):
+            if result:
                 from pathlib import Path
                 if Path("{self.results_path.absolute()}/{self.id}-{self.current_time}.json").exists():
                     with open("{self.results_path.absolute()}/{self.id}-{self.current_time}.json", "r") as t:

@@ -1,0 +1,189 @@
+parallel: True
+par_backend: MPI
+language: py
+extension: h5
+format: hdf5
+create_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+create: |
+  from typing import TypedDict
+  from mpi4py import MPI
+  import numpy as np
+  import h5py
+
+
+  class Form(TypedDict):
+      shape: list[int]
+      chunks: list[int]
+      dtype: str
+
+
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+
+
+  def create(
+      path: str,
+      variables: list[str] = [],
+      shapes: list[list[int]] = [],
+      chunks: list[list[int]] = [],
+      datatypes: list[str] = [],
+      parallel: bool = False,
+      collective: bool = False,
+  ):
+      form: dict[str, Form] = {}
+      for index, var in enumerate(variables):
+          form[var] = {
+              "shape": shapes[index],
+              "chunks": chunks[index],
+              "dtype": datatypes[index],
+          }
+
+      root = h5py.File(path, "w-", driver="mpio", comm=MPI.COMM_WORLD)
+      for variable, element in form.items():
+          shape = element["shape"]
+          chunk = element["chunks"]
+          dtype = element["dtype"]
+
+          if len(chunk) != 0:
+              x = root.create_dataset(
+                  variable, shape=shape, chunks=tuple(chunk), dtype=dtype
+              )
+          else:
+              x = root.create_dataset(variable, shape=shape, dtype=dtype)
+
+          rank = MPI.COMM_WORLD.rank
+          rsize = MPI.COMM_WORLD.size
+          total_size = shape[0]
+          size = int(total_size / rsize)
+
+          rstart = rank * size
+          rend = rstart + size
+
+          if collective:
+              print(bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC)
+              x[rstart:rend:] = np.random.random_sample(size)
+          else:
+              print(bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC)
+              if rank == rank:
+                  x[rstart:rend:] = np.random.random_sample(size)
+          MPI.COMM_WORLD.Barrier()
+
+      root.close()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+
+  #MAIN
+run_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+source: |
+  import time
+  import math
+
+  from mpi4py import MPI
+  import h5py
+
+
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+
+
+  #INSTRUMENTER_START
+  def bench_helper(
+      iterations: int,
+      variables: list[str],
+      dataset: h5py.File,
+      rank: int,
+      rsize: int,
+      collective: bool,
+  ) -> list[int | float]:
+      bench = []
+      for _ in range(iterations):
+          if rank == 0:
+              start = time.monotonic()
+
+          for var in variables:
+              try:
+                  total_size: int = math.prod(dataset[var].shape)
+                  size = int(total_size / rsize)
+                  rstart = rank * size
+                  rend = rstart + size
+
+                  if collective:
+                      print(
+                          bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+                      )
+                      dataset[var][rstart:rend:]
+                  else:
+                      print(
+                          bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
+                      )
+                      if rank == rank:
+                          dataset[var][rstart:rend:]
+
+              except KeyError:
+                  print(f"Variable: {var} does not exist.")
+
+          if rank == 0:
+              bench.append(time.monotonic() - start)
+
+          MPI.COMM_WORLD.Barrier()
+
+      dataset.close()
+      MPI.COMM_WORLD.Barrier()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+      return bench
+
+
+  def bench(
+      path: str,
+      iterations: int,
+      variables: str,
+      parallel: bool = False,
+      collective: bool = False,
+  ) -> list[int | float] | None:
+
+      dataset = h5py.File(path, mode="r", driver="mpio", comm=MPI.COMM_WORLD)
+
+      var_tmp = []
+      rank = MPI.COMM_WORLD.rank
+      rsize = MPI.COMM_WORLD.size
+
+      var_sizes: list[tuple[int, ...]] = []
+      for var in variables:
+          try:
+              var_size: tuple[int, ...] = dataset[var].shape
+              var_sizes.append(var_size)
+              var_tmp.append(var)
+          except KeyError:
+              print(f"Variable: {var} does not exist.")
+      print(
+          f'for variable: {var_tmp} for engine: "hdf5", rank: {rank}, size: {var_sizes}'
+      )
+
+      bench = bench_helper(iterations, var_tmp, dataset, rank, rsize, collective)
+
+      if rank == 0:
+          return bench
+
+
+  #MAIN

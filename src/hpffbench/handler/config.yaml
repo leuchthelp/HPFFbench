@@ -1,5 +1,7 @@
 formats:
 - hdf5
+- netcdf4
+- zarr
 languages:
 - py
 paths:
@@ -13,14 +15,14 @@ iterations: 1
 runs:
   run04:
     X:
-    - - 1342177280
+    - - 134217728
     - []
-parallel: true
+parallel: Both
 collective: false
 par_backend:
 - MPI
 ranks:
-- 8
+- 2
 nodes:
 - 1
 variable_to_benchmark:

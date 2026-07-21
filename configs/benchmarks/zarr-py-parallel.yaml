@@ -1,0 +1,173 @@
+parallel: True
+par_backend: MPI
+language: py
+extension: zarr
+format: zarr
+create_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+create: |
+  from typing import TypedDict
+  from mpi4py import MPI
+  import numpy as np
+  import zarr
+
+  class Form(TypedDict):
+    shape: list[int]
+    chunks: list[int]
+    dtype: str
+
+
+  class bcolors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+
+  def create(
+    path: str,
+    variables: list[str] = [],
+    shapes: list[list[int]] = [],
+    chunks: list[list[int]] = [],
+    datatypes: list[str] = [],
+    parallel: bool = False,
+    collective: bool = False,
+  ):
+    if MPI.COMM_WORLD.rank == 0:
+        form: dict[str, Form] = {}
+        for index, var in enumerate(variables):
+            form[var] = {
+                "shape": shapes[index],
+                "chunks": chunks[index],
+                "dtype": datatypes[index],
+            }
+
+        root = zarr.create_group(store=path, overwrite=True)
+        for variable, element in form.items():
+            shape = element["shape"]
+            chunk = element["chunks"]
+            dtype = element["dtype"]
+
+            if len(chunk) != 0:
+                x = root.create_array(name=variable, shape=shape, chunks=chunk, dtype=dtype)
+            else:
+                x = root.create_array(name=variable, shape=shape, dtype=dtype)
+
+            x[:] = np.random.random_sample(shape)
+
+        print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+
+  #MAIN
+run_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+source: |
+  from zarr.types import AnyArray
+  import time
+  import math
+
+  from mpi4py import MPI
+  import zarr
+
+
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+
+
+  #INSTRUMENTER_START
+  def bench_helper(
+      iterations: int,
+      variables: list[str],
+      arrays: dict[str, AnyArray],
+      rank: int,
+      rsize: int,
+      collective: bool,
+  ) -> list[int | float]:
+      bench = []
+      for _ in range(iterations):
+          if rank == 0:
+              start = time.monotonic()
+
+          for var in variables:
+              try:
+                  total_size: int = math.prod(arrays[var].shape)
+                  size = int(total_size / rsize)
+                  rstart = rank * size
+                  rend = rstart + size
+                  
+                  if collective:
+                      print(
+                          bcolors.WARNING
+                          + "Setting I/O to be collective not supported"
+                          + bcolors.ENDC
+                      )
+                  else:
+                      print(
+                          bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
+                      )
+                      arrays[var][rstart:rend:]
+
+              except KeyError:
+                  print(f"Variable: {var} does not exist.")
+
+          if rank == 0:
+              bench.append(time.monotonic() - start)
+
+          MPI.COMM_WORLD.Barrier()
+
+      MPI.COMM_WORLD.Barrier()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+      return bench
+
+
+  def bench(
+      path: str,
+      iterations: int,
+      variables: str,
+      parallel: bool = False,
+      collective: bool = False,
+  ) -> list[int | float] | None:
+
+      dataset = zarr.open(path, mode="r")
+
+      if not isinstance(dataset, zarr.Group):
+          raise ValueError("Not from kind of AnyArray for zarr")
+
+      arrays = dict(dataset.arrays())
+      var_tmp = []
+      rank = MPI.COMM_WORLD.rank
+      rsize = MPI.COMM_WORLD.size
+
+      var_sizes: list[tuple[int, ...]] = []
+      for var in variables:
+          try:
+              var_size: tuple[int, ...] = arrays[var].shape
+              var_sizes.append(var_size)
+              var_tmp.append(var)
+          except KeyError:
+              print(f"Variable: {var} does not exist.")
+      print(
+          f'for variable: {var_tmp} for engine: "zarr", rank: {rank}, size: {var_sizes}'
+      )
+
+      result = bench_helper(iterations, var_tmp, arrays, rank, rsize, collective)
+
+      if rank == 0:
+          return result
+
+  #MAIN

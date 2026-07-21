@@ -22,7 +22,7 @@ def main():
         # "run02": {"X": [[1 * 134217728], [], "f8"]},
         # "run03": {"X": [[1 * 134217728], []],},
         # "run03": {"X": [[5 * 134217728], []],},
-        "run04": {"X": [[10 * 134217728], []]},
+        "run04": {"X": [[1 * 134217728], []]},
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -114,15 +114,15 @@ def main():
     }
 
     new_setup = {
-        "formats": ["hdf5"],
+        "formats": ["hdf5", "netcdf4", "zarr"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 1,
         "runs": tmp,
-        "parallel": True,
+        "parallel": "Both",
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [8],
+        "ranks": [2],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": False,
