@@ -5,10 +5,8 @@ extension: nc
 format: netcdf4
 create_command:
   serial: python {runnable}
-  #MPI: mpiexec -n python {runnable}
 create: |
   from typing import TypedDict
-  from mpi4py import MPI
   import numpy as np
   import netCDF4
 
@@ -48,14 +46,15 @@ create: |
               "dtype": datatypes[index],
           }
 
-      root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=parallel)
+      root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=False)
       root.createGroup("/")
-
       used = 0
+
       for variable, element in form.items():
           shape = element["shape"]
           chunk = element["chunks"]
           dtype = element["dtype"]
+
           dimensions = []
 
           for size in shape:
@@ -68,22 +67,7 @@ create: |
           else:
               x = root.createVariable(variable, dtype, dimensions)
 
-          rank = MPI.COMM_WORLD.rank
-          rsize = MPI.COMM_WORLD.size
-          total_size = shape[0]
-          size = int(total_size / rsize)
-
-          rstart = rank * size
-          rend = rstart + size
-
-          if collective:
-              print(bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC)
-              x.set_collective(True)
-          else:
-              print(bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC)
-
-          x[rstart:rend:] = np.random.random_sample(size)
-          MPI.COMM_WORLD.Barrier()
+          x[:] = np.random.random_sample(shape)
 
       root.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
