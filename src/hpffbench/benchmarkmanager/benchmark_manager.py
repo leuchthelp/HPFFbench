@@ -155,11 +155,11 @@ class BenchmarkManager:
     engine: str
     extension: str
     datatype: list[str]
-    var_to_bm: str | list
+    var_to_bm: str | list[str]
     total_filesize: float
     unit: str
-    filesize_var: list
-    chunksize_var: list
+    filesize_var: list[str]
+    chunksize_var: list[str]
     iterations: int
     internal_i: int
     current_time: str
@@ -234,7 +234,7 @@ class BenchmarkManager:
         self.internal_i = 1
 
         self.no_caching = no_caching
-        self.local = True
+        self.local = False
 
         self.imports: str = ""
         self.profiler = profiler
@@ -622,9 +622,16 @@ class BenchmarkManager:
                     f"{self.imports if self.language == 'py' else ''} \n" + execute
                 )
 
+                inst_start = self.profiler_config.instrumenter["start"]
+                inst_start = inst_start.replace(
+                    "<format>",
+                    f'"{self.format}-{self.par_backend}-{self.filesize_var}-{self.chunksize_var}"',
+                    count=1,
+                )
+
                 execute = execute.replace(
                     "#INSTRUMENTER_START",
-                    self.profiler_config.instrumenter["start"],
+                    inst_start,
                     1,
                 )
 

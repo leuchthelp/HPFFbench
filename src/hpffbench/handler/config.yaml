@@ -11,26 +11,39 @@ paths:
   path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_results: results/general
   path_res_profiling: results/profiling
-iterations: 1
+iterations: 10
 runs:
-  run04:
+  run19:
     X:
     - - 13421772800
-    - []
+    - - 209715200.0
+  run20:
+    X:
+    - - 13421772800
+    - - 104857600.0
+  run21:
+    X:
+    - - 13421772800
+    - - 52428800.0
+  run22:
+    X:
+    - - 13421772800
+    - - 26214400.0
 parallel: true
 collective: false
 par_backend:
 - MPI
 ranks:
 - 16
+- 8
 nodes:
 - 1
 variable_to_benchmark:
 - X
-only_data: true
+only_data: false
 no_caching: true
 use_spack_env: true
-max_processes: 1
+max_processes: 20
 slurm_options: '
 
   #SBATCH --partition=compute
