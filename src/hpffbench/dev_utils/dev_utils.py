@@ -13,7 +13,7 @@ def calc_size_unit(input: list[int]) -> tuple[float ,str]:
     res = compare
     
     if compare >= 1 * 1024:
-        res = res 
+        res = res / 1024
         size="KB"
        
     if compare >= 1 * 1024 ** 2:
@@ -21,15 +21,15 @@ def calc_size_unit(input: list[int]) -> tuple[float ,str]:
         size = "MB"
         
     if compare >= 1 * 1024 ** 3:
-        res = res / 1024 ** 2 
+        res = res / 1024 
         size = "GB"
         
     if compare >= 1 * 1024 ** 4:
-        res = res / 1024 ** 3 
+        res = res / 1024 
         size = "TB"
         
     if compare >= 1 * 1024 ** 5:
-        res = res / 1024 ** 4
+        res = res / 1024
         size = "PB"
 
     return res, size

@@ -1,3 +1,4 @@
+from hpffbench.configloader.config_loaders import RunConfig
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import TypedDict
@@ -448,7 +449,7 @@ class BenchmarkManager:
             f"{flag_variable}", f"{flag_variable} {variables}"
         )
 
-        values = list(self.run_config.variables.values())
+        values: list[RunConfig] = list(self.run_config.variables.values())
         shapes: list[list[int]] = []
         chunks: list[list[int]] = []
         datatypes = self.datatype
@@ -710,7 +711,7 @@ class BenchmarkManager:
             env_vars: dict[str, str] = {}
             if self.profiler:
                 tmp_command = original_run_command
-                profiling_res_path = f"{self.profiling_res_path.absolute()}/{self.id}-{self.current_time}-{i}"
+                profiling_res_path = f"{self.profiling_res_path.absolute()}/{self.format}-{self.par_backend}-{self.filesize_var}-{self.chunksize_var}-{self.current_time}-{i}"
                 env_vars.update(self.profiler_config.env_vars)
 
                 if self.profiler_config.export_method:

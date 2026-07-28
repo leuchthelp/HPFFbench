@@ -1,6 +1,4 @@
 formats:
-- hdf5
-- netcdf4
 - zarr
 languages:
 - py
@@ -11,31 +9,34 @@ paths:
   path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_results: results/general
   path_res_profiling: results/profiling
-iterations: 10
+iterations: 1
 runs:
+  run18:
+    X:
+    - - 1342177280
+    - - 4194304
   run19:
     X:
-    - - 13421772800
-    - - 209715200.0
+    - - 1342177280
+    - - 2097152
   run20:
     X:
-    - - 13421772800
-    - - 104857600.0
+    - - 1342177280
+    - - 1048576
   run21:
     X:
-    - - 13421772800
-    - - 52428800.0
+    - - 1342177280
+    - - 524288
   run22:
     X:
-    - - 13421772800
-    - - 26214400.0
+    - - 1342177280
+    - - 262144
 parallel: true
 collective: false
 par_backend:
 - MPI
 ranks:
 - 16
-- 8
 nodes:
 - 1
 variable_to_benchmark:
@@ -43,7 +44,7 @@ variable_to_benchmark:
 only_data: false
 no_caching: true
 use_spack_env: true
-max_processes: 20
+max_processes: 1
 slurm_options: '
 
   #SBATCH --partition=compute

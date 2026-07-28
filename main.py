@@ -17,24 +17,17 @@ def main():
         "path_res_profiling": "results/profiling",
     }
 
-    chunk = 100 * 134217728 / 2
     tmp = {
         # "run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
         # "run02": {"X": [[1 * 134217728], [], "f8"]},
         # "run03": {"X": [[1 * 134217728], []],},
         # "run03": {"X": [[5 * 134217728], []],},
         # "run04": {"X": [[100 * 134217728], []]},
-        # "run14": {"X": [[100 * 134217728], [chunk]]},  # 512mb
-        # "run15": {"X": [[100 * 134217728], [chunk / 2 ]]}, #256mb
-        # "run16": {"X": [[100 * 134217728], [chunk / 2 / 2]]}, #128mb
-        # "run17": {"X": [[100 * 134217728], [chunk / 2 / 2 / 2]]}, #64mb
-        # "run18": {"X": [[100 * 134217728], [chunk / 2 / 2 / 2 / 2]]}, #32mb
-        "run19": {"X": [[100 * 134217728], [chunk / 2 / 2 / 2 / 2 / 2]]},  # 16mb
-        "run20": {"X": [[100 * 134217728], [chunk / 2 / 2 / 2 / 2 / 2 / 2]]},  # 8mb
-        "run21": {"X": [[100 * 134217728], [chunk / 2 / 2 / 2 / 2 / 2 / 2 / 2]]},  # 4mb
-        "run22": {
-            "X": [[100 * 134217728], [chunk / 2 / 2 / 2 / 2 / 2 / 2 / 2 / 2]]
-        },  # 2mb
+        "run18": {"X": [[100 * 134217728], [1 * 134217728 // 32]]},  # 32mb
+        "run19": {"X": [[100 * 134217728], [1 * 134217728 // 64]]},  # 16mb
+        "run20": {"X": [[100 * 134217728], [1 * 134217728 // 128]]},  # 8mb
+        "run21": {"X": [[100 * 134217728], [1 * 134217728 // 256]]},  # 4mb
+        "run22": {"X": [[100 * 134217728], [1 * 134217728 // 512]]},  # 2mb
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -126,10 +119,10 @@ def main():
     }
 
     new_setup = {
-        "formats": ["hdf5", "netcdf4", "zarr"],
+        "formats": ["zarr", "hdf5", "netcdf4"],
         "languages": ["py"],
         "paths": paths,
-        "iterations": 10,
+        "iterations": 5,
         "runs": tmp,
         "parallel": True,
         "collective": False,
@@ -155,7 +148,7 @@ def main():
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    Handler(path_to_config=path_to_config, log_lvl=logging.INFO)
+    Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
 
 
 if __name__ == "__main__":
