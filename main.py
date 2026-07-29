@@ -127,7 +127,7 @@ def main():
         "parallel": True,
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [16, 32, 64],
+        "ranks": [16, 32],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": False,
