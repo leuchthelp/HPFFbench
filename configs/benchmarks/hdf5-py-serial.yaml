@@ -90,8 +90,8 @@ source: |
       iterations: int,
       variables: list[str],
       dataset: h5py.File,
-  ) -> list[tuple[str, str]]:
-      bench: list[tuple[str, str]] = []
+  ) -> list[tuple[str, str, str]]:
+      bench: list[tuple[str, str, str]] = []
       for _ in range(iterations):
           start = time.monotonic()
 
@@ -102,7 +102,7 @@ source: |
               except KeyError:
                   print(f"Variable: {var} does not exist.")
 
-          bench.append("0", str(round(time.monotonic() - start, 32))))
+          bench.append("0", "None", str(round(time.monotonic() - start, 32))))
 
       dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
@@ -115,7 +115,7 @@ source: |
       variables: str,
       parallel: bool = False,
       collective: bool = False,
-  ) -> list[tuple[str, str]] | None:
+  ) -> list[tuple[str, str, str]] | None:
 
       dataset = h5py.File(path, mode="r")
       var_tmp = []
@@ -131,7 +131,6 @@ source: |
       print(f'for variable: {var_tmp} for engine: "hdf5", size: {var_sizes}')
 
       result = bench_helper(iterations, var_tmp, dataset)
-
       return result
 
 

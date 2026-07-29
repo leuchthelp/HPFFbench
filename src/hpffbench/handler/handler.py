@@ -487,6 +487,146 @@ class Handler:
     def __run_benchmark(self, benchmark: BenchmarkManager):
         return benchmark.run()
 
+    def __process_file(
+        self,
+        benchmark: BenchmarkManager,
+        path: Path,
+        path_name: str,
+        path_date: str,
+        df: pd.DataFrame,
+    ) -> pd.DataFrame:
+        logger.debug(f"full path {path}")
+        logger.debug(f"date of file @ {path_date}")
+        logger.info(f"currently on {path_name}")
+
+        with open(path, "r") as file:
+            initial: list[str] = json.load(file)
+
+        ranks: list[int] = []
+        used_nodes: list[str] = []
+        current: list[float] = []
+        for entry in initial:
+            split = entry.split("-")
+            rank = int(split[0])
+            node = split[1]
+            value = float(split[2])
+
+            ranks.append(rank)
+            used_nodes.append(node)
+            current.append(value)
+
+        logger.debug(ranks)
+        logger.debug(current)
+
+        mean = np.mean(current)
+        std = np.std(current)
+        rsd = std / mean
+
+        error = std / float(np.sqrt(len(current)))
+
+        for index, value in enumerate(current):
+            count: Counter[str] = Counter()
+            node_string = used_nodes[index]
+            symbol = node_string[0]
+            node_string = node_string.replace(symbol, "")
+            str_nodes = node_string.split(",")
+            final_nodes: list[list[str]] = []
+
+            for node in str_nodes:
+                if "-" in node:
+                    hold = node.split("-")
+
+                    node = [
+                        symbol + str(additional)
+                        for additional in range(int(hold[0]), int(hold[1]) + 1)
+                    ]
+                    final_nodes.append(node)
+
+                elif not isinstance(node, list):
+                    final_nodes.append([symbol + node])
+
+                count.update(list(itertools.chain.from_iterable(final_nodes)))
+
+                profiling = None
+                try:
+                    profile_path = Path(self.config.paths["path_profiling"]["path"])
+                    location_profiling = Path(
+                        f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json"
+                    )
+
+                    with open(location_profiling.absolute(), "r") as file:
+                        profiling = json.load(file)
+
+                        logger.debug(
+                            f"loads {location_profiling} for iteration {index}"
+                        )
+                except KeyError:
+                    pass
+
+                anomaly = False
+
+                clusters = []
+                eps = 0.12
+                points_sorted = sorted(current)
+                curr_point = points_sorted[0]
+                curr_cluster = [curr_point]
+
+                for point in points_sorted[1:]:
+                    if point <= curr_point + curr_point * eps:
+                        curr_cluster.append(point)
+                    else:
+                        clusters.append(curr_cluster)
+                        curr_cluster = [point]
+                    curr_point = point
+
+                clusters.append(curr_cluster)
+
+                if value not in clusters[0]:
+                    anomaly = True
+
+                logger.debug(
+                    f"clusters: {clusters}, value: {value}, anomaly: {anomaly}"
+                )
+
+                tmp = pd.DataFrame(
+                    data={
+                        "benchmark": benchmark.id,
+                        "date run": path_date,
+                        "run config": [benchmark.run_config],
+                        "time taken": value,
+                        "on rank": ranks[index],
+                        "throughput": benchmark.total_filesize / mean,
+                        "engine": benchmark.engine,
+                        "var to bm": [benchmark.var_to_bm],
+                        "total filesize": benchmark.total_filesize,
+                        "unit": benchmark.unit,
+                        "filesize per var": [benchmark.filesize_var],
+                        "filesize per chunk": [benchmark.chunksize_var],
+                        "no caching": benchmark.no_caching,
+                        "parallel": benchmark.parallel,
+                        "parallel backend": benchmark.par_backend,
+                        "collective": benchmark.collective,
+                        "ranks": benchmark.ranks,
+                        "language": benchmark.language,
+                        "format": str(benchmark.format),
+                        "mean time": mean,
+                        "standard deviation": std,
+                        "relative std": rsd,
+                        "error bar": error,
+                        "anomaly": anomaly,
+                        "nodes": benchmark.nodes,
+                        "used nodes": used_nodes[index],
+                        "node count": [count],
+                        "total node count": [Counter()],
+                        "total nc match": [Counter()],
+                        "profiling": [profiling],
+                    }
+                )
+
+                df: pd.DataFrame = pd.concat([df, tmp], ignore_index=True)
+
+        return df
+
     def __prepare_dataframe(self):
         """
         Gathers up all generated results, data and metadata and assembles a pandas Dataframe object. Finally exports the results as JSON.
@@ -496,143 +636,15 @@ class Handler:
         df = pd.DataFrame()
 
         benchmarks = dict(self.__benchmarks)
-
-        for path in root.rglob("*"):
-            if not path.is_dir():
-                path_name = ""
-                path_date = ""
-                if "nodes" not in path.name:
-                    tmp = path.name.replace(".json", "").split("-")
-                    path_name = tmp[0]
-
-                    if len(tmp) > 1:
-                        path_date = "-" + tmp[1]
+        for path in root.rglob("*.json"):
+            if not path.is_dir() and "nodes" not in path.name:
+                tmp = path.name.replace(".json", "").split("-")
+                path_name = tmp[0]
+                path_date = tmp[1]
 
                 if path_name in benchmarks.keys():
-                    logger.debug(f"full path {path}")
-                    logger.debug(f"date of file @ {path_date}")
-                    logger.info(f"currently on {path_name}")
-
                     benchmark = benchmarks[path_name]
-
-                    with open(path, "r") as file:
-                        current: list[float] = json.load(file)
-
-                    location_nodes = Path(
-                        f"{root.absolute()}/{path_name}{path_date}-nodes.json"
-                    )
-                    with open(location_nodes.absolute(), "r") as file:
-                        used_nodes: list[str] = json.load(file)
-
-                    mean = np.mean(current)
-                    std = np.std(current)
-                    rsd = std / mean
-
-                    error = std / float(np.sqrt(len(current)))
-
-                    for index, value in enumerate(current):
-                        count = Counter()
-                        string = used_nodes[index]
-                        symbol = string[0]
-                        string = string.replace(symbol, "")
-                        str_nodes = string.split(",")
-                        final_nodes: list[list[str]] = []
-
-                        for node in str_nodes:
-                            if "-" in node:
-                                hold = node.split("-")
-
-                                node = [
-                                    symbol + str(additional)
-                                    for additional in range(
-                                        int(hold[0]), int(hold[1]) + 1
-                                    )
-                                ]
-                                final_nodes.append(node)
-
-                            elif not isinstance(node, list):
-                                final_nodes.append([symbol + node])
-
-                        count.update(list(itertools.chain.from_iterable(final_nodes)))
-
-                        profiling = None
-                        try:
-                            profile_path = Path(
-                                self.config.paths["path_profiling"]["path"]
-                            )
-                            location_profiling = Path(
-                                f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json"
-                            )
-
-                            with open(location_profiling.absolute(), "r") as file:
-                                profiling = json.load(file)
-
-                            logger.debug(
-                                f"loads {location_profiling} for iteration {index}"
-                            )
-                        except KeyError:
-                            pass
-
-                        anomaly = False
-
-                        clusters = []
-                        eps = 0.12
-                        points_sorted = sorted(current)
-                        curr_point = points_sorted[0]
-                        curr_cluster = [curr_point]
-
-                        for point in points_sorted[1:]:
-                            if point <= curr_point + curr_point * eps:
-                                curr_cluster.append(point)
-                            else:
-                                clusters.append(curr_cluster)
-                                curr_cluster = [point]
-                            curr_point = point
-
-                        clusters.append(curr_cluster)
-
-                        if value not in clusters[0]:
-                            anomaly = True
-
-                        logger.debug(
-                            f"clusters: {clusters}, value: {value}, anomaly: {anomaly}"
-                        )
-
-                        tmp = pd.DataFrame(
-                            data={
-                                "benchmark": benchmark.id,
-                                "date run": path_date,
-                                "run config": [benchmark.run_config],
-                                "time taken": value,
-                                "throughput": benchmark.total_filesize / mean,
-                                "engine": benchmark.engine,
-                                "var to bm": [benchmark.var_to_bm],
-                                "total filesize": benchmark.total_filesize,
-                                "unit": benchmark.unit,
-                                "filesize per var": [benchmark.filesize_var],
-                                "filesize per chunk": [benchmark.chunksize_var],
-                                "no caching": benchmark.no_caching,
-                                "parallel": benchmark.parallel,
-                                "parallel backend": benchmark.par_backend,
-                                "collective": benchmark.collective,
-                                "ranks": benchmark.ranks,
-                                "language": benchmark.language,
-                                "format": str(benchmark.format),
-                                "mean time": mean,
-                                "standard deviation": std,
-                                "relative std": rsd,
-                                "error bar": error,
-                                "anomaly": anomaly,
-                                "nodes": benchmark.nodes,
-                                "used nodes": used_nodes[index],
-                                "node count": [count],
-                                "total node count": [Counter()],
-                                "total nc match": [Counter()],
-                                "profiling": [profiling],
-                            }
-                        )
-
-                        df: pd.DataFrame = pd.concat([df, tmp], ignore_index=True)
+                    df = self.__process_file(benchmark, path, path_name, path_date, df)
 
         res_path: str = self.config.paths["path_to_results"]["path"]
 

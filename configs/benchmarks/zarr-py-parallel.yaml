@@ -94,11 +94,12 @@ source: |
       iterations: int,
       variables: list[str],
       arrays: dict[str, AnyArray],
+      node: str,
       rank: int,
       rsize: int,
       collective: bool,
-  ) -> list[tuple[str, str]]:
-      bench: list[tuple[str, str]] = []
+  ) -> list[tuple[str, str, str]]:
+      bench: list[tuple[str, str, str]] = []
       for _ in range(iterations):
           start = time.monotonic()
 
@@ -125,7 +126,7 @@ source: |
                   print(f"Variable: {var} does not exist.")
 
           
-          bench.append((str(rank), str(round(time.monotonic() - start, 32))))
+          bench.append((str(rank), node, str(round(time.monotonic() - start, 32))))
           MPI.COMM_WORLD.Barrier()
 
       MPI.COMM_WORLD.Barrier()
@@ -140,7 +141,7 @@ source: |
       variables: str,
       parallel: bool = False,
       collective: bool = False,
-  ) -> list[tuple[str, str]]:
+  ) -> list[tuple[str, str, str]]:
 
       dataset = zarr.open(path, mode="r")
 
@@ -165,7 +166,11 @@ source: |
           f'for variable: {var_tmp} for engine: "zarr", rank: {rank}, size: {var_sizes}'
       )
 
-      result: list[tuple[str, str]] = bench_helper(iterations, var_tmp, arrays, rank, rsize, collective)
+      node = "None"
+      if "SLURMD_NODENAME" in os.environ:
+          node = os.environ["SLURMD_NODENAME"]
+
+      result: list[tuple[str, str, str]] = bench_helper(iterations, var_tmp, arrays, node, rank, rsize, collective)
     
       gathered = comm.gather(result, root=0)
       if rank == 0:

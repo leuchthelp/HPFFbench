@@ -843,7 +843,7 @@ def main():
     match args.benchmark:
         case 1:
             
-            result: list[tuple[str, str]] | None = bench(iterations=args.iterations, 
+            result: list[tuple[str, str, str]] | None = bench(iterations=args.iterations, 
                             variables=args.var_to_bm, 
                             parallel=args.parallel, 
                             path=args.location, 
@@ -878,17 +878,6 @@ def main():
                     tmp = tmp.replace("[", "")
                     tmp = tmp.replace("]", "")
                     nodes.append(tmp)
-                
-                nodes_path = "{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json"
-                if Path(nodes_path).exists():
-                    with open(nodes_path, "r") as t:
-                        tmp = []
-                        tmp.extend(json.load(t))
-                        tmp.extend(nodes)
-                        nodes = tmp
-
-                with open(nodes_path, "w") as f:
-                    json.dump(nodes, f)
                 
         case -1:
             variables   = args.variables.split(",")

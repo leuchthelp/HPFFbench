@@ -130,7 +130,7 @@ def main():
         "ranks": [4],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
-        "only_data": False,
+        "only_data": True,
         "no_caching": True,
         "use_spack_env": True,
         "max_processes": 1,
