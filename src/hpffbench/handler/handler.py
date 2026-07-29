@@ -515,9 +515,6 @@ class Handler:
             used_nodes.append(node)
             current.append(value)
 
-        logger.debug(ranks)
-        logger.debug(current)
-
         mean = np.mean(current)
         std = np.std(current)
         rsd = std / mean
@@ -547,24 +544,10 @@ class Handler:
 
                 count.update(list(itertools.chain.from_iterable(final_nodes)))
 
-                profiling = None
-                try:
-                    profile_path = Path(self.config.paths["path_profiling"]["path"])
-                    location_profiling = Path(
-                        f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json"
-                    )
-
-                    with open(location_profiling.absolute(), "r") as file:
-                        profiling = json.load(file)
-
-                        logger.debug(
-                            f"loads {location_profiling} for iteration {index}"
-                        )
-                except KeyError:
-                    pass
+                profile_path = Path(self.config.paths["path_res_profiling"]["path"])
+                location_profiling = Path(f"{profile_path.absolute()}/{path_name}/")
 
                 anomaly = False
-
                 clusters = []
                 eps = 0.12
                 points_sorted = sorted(current)
@@ -619,7 +602,7 @@ class Handler:
                         "node count": [count],
                         "total node count": [Counter()],
                         "total nc match": [Counter()],
-                        "profiling": [profiling],
+                        "profiling": [location_profiling],
                     }
                 )
 

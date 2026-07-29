@@ -235,7 +235,7 @@ class BenchmarkManager:
         self.internal_i = 1
 
         self.no_caching = no_caching
-        self.local = False
+        self.local = True
 
         self.imports: str = ""
         self.profiler = profiler
@@ -857,27 +857,17 @@ def main():
                 converted: list[str] = []
                 for entry in result:
                     converted.append(("-").join(entry))
-                result = converted
 
                 res_path = "{self.results_path.absolute()}/{self.id}-{self.current_time}.json"
                 if Path(res_path).exists():
                     with open(res_path, "r") as t:
                         tmp: list[str] = []
                         tmp.extend(json.load(t))
-                        tmp.extend(result)
-                        result = tmp
+                        tmp.extend(converted)
+                        converted = tmp
 
                 with open(res_path, "w") as f:
-                    json.dump(result, f)
-                
-                nodes = []
-                for _ in range(args.iterations):
-                    tmp = "None"
-                    if "SLURM_JOB_NODELIST" in os.environ:
-                        tmp = os.environ["SLURM_JOB_NODELIST"]
-                    tmp = tmp.replace("[", "")
-                    tmp = tmp.replace("]", "")
-                    nodes.append(tmp)
+                    json.dump(converted, f)
                 
         case -1:
             variables   = args.variables.split(",")

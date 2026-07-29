@@ -79,7 +79,7 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@15.2.0",
+            "compiler": "gcc@15.3.0",
             "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
@@ -119,7 +119,7 @@ def main():
     }
 
     new_setup = {
-        "formats": ["zarr"],
+        "formats": ["zarr", "hdf5", "netcdf4"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 3,
@@ -130,7 +130,7 @@ def main():
         "ranks": [4],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
-        "only_data": True,
+        "only_data": False,
         "no_caching": True,
         "use_spack_env": True,
         "max_processes": 1,
