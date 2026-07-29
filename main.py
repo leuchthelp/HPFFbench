@@ -79,7 +79,7 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@15.3.0",
+            "compiler": "gcc@15.2.0",
             "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
@@ -119,10 +119,10 @@ def main():
     }
 
     new_setup = {
-        "formats": ["hdf5"],
+        "formats": ["zarr"],
         "languages": ["py"],
         "paths": paths,
-        "iterations": 3,
+        "iterations": 1,
         "runs": tmp,
         "parallel": True,
         "collective": False,

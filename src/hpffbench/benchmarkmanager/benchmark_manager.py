@@ -235,7 +235,7 @@ class BenchmarkManager:
         self.internal_i = 1
 
         self.no_caching = no_caching
-        self.local = True
+        self.local = False
 
         self.imports: str = ""
         self.profiler = profiler
@@ -268,12 +268,14 @@ class BenchmarkManager:
             + str(self.spack_manager.env_name)
             # Reasoning: profilers also influence the results since they have runtime overhead, so they need to be taken into account
             + str(self.profiler)
-            + str(self.profiler_config if self.profiler else None)
+            + str(asdict(self.profiler_config) if self.profiler else None)
             # Reasoning: If source code changes, do not consider the same benchmark even if it might be functionally the same, could still have an effect in performance
             + self.src
         )
 
         self.id = hashlib.sha256(id_str.encode()).hexdigest()
+
+        logger.debug(self.id)
 
         if self.profiler:
             profiling_res_path = Path(paths["path_res_profiling"]["path"])
@@ -1370,11 +1372,6 @@ int main(int argc, char *argv[])
                 tmp = tmp.replace(
                     "<result-path>",
                     f"{self.results_path.absolute()}/{self.id}-{self.current_time}",
-                    1,
-                )
-                tmp = tmp.replace(
-                    "<nodes-path>",
-                    f"{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes",
                     1,
                 )
                 return tmp

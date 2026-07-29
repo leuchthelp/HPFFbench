@@ -545,7 +545,7 @@ class Handler:
                 count.update(list(itertools.chain.from_iterable(final_nodes)))
 
                 profile_path = Path(self.config.paths["path_res_profiling"]["path"])
-                location_profiling = Path(f"{profile_path.absolute()}/{path_name}/")
+                location_profiling = Path(f"{profile_path.absolute()}/{path_name}")
 
                 anomaly = False
                 clusters = []
@@ -602,7 +602,7 @@ class Handler:
                         "node count": [count],
                         "total node count": [Counter()],
                         "total nc match": [Counter()],
-                        "profiling": [location_profiling],
+                        "profiling": [str(location_profiling)],
                     }
                 )
 
@@ -620,11 +620,13 @@ class Handler:
 
         benchmarks = dict(self.__benchmarks)
         for path in root.rglob("*.json"):
-            if not path.is_dir() and "nodes" not in path.name:
+            if not path.is_dir() and "results" not in path.name:
                 tmp = path.name.replace(".json", "").split("-")
                 path_name = tmp[0]
                 path_date = tmp[1]
 
+                logger.debug(path_name)
+                logger.debug(benchmarks.keys())
                 if path_name in benchmarks.keys():
                     benchmark = benchmarks[path_name]
                     df = self.__process_file(benchmark, path, path_name, path_date, df)
@@ -644,11 +646,12 @@ class Handler:
                 if nodes in df.at[index, "node count"]:
                     df.at[index, "total nc match"][nodes] = count
 
-        logger.debug(df)
         df.sort_values(
             by=["total filesize", "ranks", "engine", "format"],
             ascending=[True, True, True, False],
             inplace=True,
             ignore_index=True,
         )
+
+        logger.debug(df)
         df.to_json(Path(f"{res_path}/results.json"))

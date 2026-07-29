@@ -111,7 +111,7 @@ class InstrumenterMethods(TypedDict):
     start: ReadOnly[str]
     stop: ReadOnly[NotRequired[str]]
 
-
+@dataclass
 class ProfilerConfigLoader:
     language: str
     package: str
