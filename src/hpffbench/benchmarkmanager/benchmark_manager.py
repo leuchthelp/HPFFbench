@@ -843,7 +843,7 @@ def main():
     match args.benchmark:
         case 1:
             
-            result = bench(iterations=args.iterations, 
+            result: list[tuple[str, str]] | None = bench(iterations=args.iterations, 
                             variables=args.var_to_bm, 
                             parallel=args.parallel, 
                             path=args.location, 
@@ -853,14 +853,21 @@ def main():
             import json
             if result:
                 from pathlib import Path
-                if Path("{self.results_path.absolute()}/{self.id}-{self.current_time}.json").exists():
-                    with open("{self.results_path.absolute()}/{self.id}-{self.current_time}.json", "r") as t:
-                        tmp = []
+                
+                converted: list[str] = []
+                for entry in result:
+                    converted.append(("-").join(entry))
+                result = converted
+
+                res_path = "{self.results_path.absolute()}/{self.id}-{self.current_time}.json"
+                if Path(res_path).exists():
+                    with open(res_path, "r") as t:
+                        tmp: list[str] = []
                         tmp.extend(json.load(t))
                         tmp.extend(result)
                         result = tmp
 
-                with open("{self.results_path.absolute()}/{self.id}-{self.current_time}.json", "w") as f:
+                with open(res_path, "w") as f:
                     json.dump(result, f)
                 
                 nodes = []
@@ -872,14 +879,15 @@ def main():
                     tmp = tmp.replace("]", "")
                     nodes.append(tmp)
                 
-                if Path("{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json").exists():
-                    with open("{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json", "r") as t:
+                nodes_path = "{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json"
+                if Path(nodes_path).exists():
+                    with open(nodes_path, "r") as t:
                         tmp = []
                         tmp.extend(json.load(t))
                         tmp.extend(nodes)
                         nodes = tmp
 
-                with open("{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json", "w") as f:
+                with open(nodes_path, "w") as f:
                     json.dump(nodes, f)
                 
         case -1:

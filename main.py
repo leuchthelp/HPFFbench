@@ -20,14 +20,14 @@ def main():
     tmp = {
         # "run01": {"X": [[1 * 134217728], [], "f8"], "Y": [[1 * 134217728], [], "f4"]},
         # "run02": {"X": [[1 * 134217728], [], "f8"]},
-        # "run03": {"X": [[1 * 134217728], []],},
+        "run03": {"X": [[1 * 134217728], []],},
         # "run03": {"X": [[5 * 134217728], []],},
         # "run04": {"X": [[100 * 134217728], []]},
-        "run18": {"X": [[100 * 134217728], [1 * 134217728 // 32]]},  # 32mb
-        "run19": {"X": [[100 * 134217728], [1 * 134217728 // 64]]},  # 16mb
-        "run20": {"X": [[100 * 134217728], [1 * 134217728 // 128]]},  # 8mb
-        "run21": {"X": [[100 * 134217728], [1 * 134217728 // 256]]},  # 4mb
-        "run22": {"X": [[100 * 134217728], [1 * 134217728 // 512]]},  # 2mb
+        # "run18": {"X": [[100 * 134217728], [1 * 134217728 // 32]]},  # 32mb
+        # "run19": {"X": [[100 * 134217728], [1 * 134217728 // 64]]},  # 16mb
+        # "run20": {"X": [[100 * 134217728], [1 * 134217728 // 128]]},  # 8mb
+        # "run21": {"X": [[100 * 134217728], [1 * 134217728 // 256]]},  # 4mb
+        # "run22": {"X": [[100 * 134217728], [1 * 134217728 // 512]]},  # 2mb
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -79,7 +79,7 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@15.3.0",
+            "compiler": "gcc@15.2.0",
             "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
@@ -119,26 +119,26 @@ def main():
     }
 
     new_setup = {
-        "formats": ["zarr", "hdf5", "netcdf4"],
+        "formats": ["zarr"],
         "languages": ["py"],
         "paths": paths,
-        "iterations": 5,
+        "iterations": 3,
         "runs": tmp,
         "parallel": True,
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [16, 8],
+        "ranks": [4],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": False,
         "no_caching": True,
         "use_spack_env": True,
-        "max_processes": 20,
+        "max_processes": 1,
         "slurm_options": slurm_options,
         "spack_env": spack_envs,
         "delete_envs": False,
         "paths_create": True,
-        "profiler": True,
+        "profiler": False,
         "profilers": ["scorep"],
         "profiler_mode": "manual",
     }

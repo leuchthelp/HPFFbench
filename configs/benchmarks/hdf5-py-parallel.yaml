@@ -87,6 +87,7 @@ run_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
 source: |
+  from itertools import chain
   import time
   import math
 
@@ -114,8 +115,8 @@ source: |
       rank: int,
       rsize: int,
       collective: bool,
-  ) -> list[int | float]:
-      bench = []
+  ) ->  list[tuple[str, str]]:
+      bench:  list[tuple[str, str]] = []
       for _ in range(iterations):
           if rank == 0:
               start = time.monotonic()
@@ -142,9 +143,8 @@ source: |
               except KeyError:
                   print(f"Variable: {var} does not exist.")
 
-          if rank == 0:
-              bench.append(time.monotonic() - start)
-
+          
+          bench.append((str(rank), str(round(time.monotonic() - start, 32))))
           MPI.COMM_WORLD.Barrier()
 
       dataset.close()
@@ -160,11 +160,12 @@ source: |
       variables: str,
       parallel: bool = False,
       collective: bool = False,
-  ) -> list[int | float] | None:
+  ) ->  list[tuple[str, str]] | None:
 
       dataset = h5py.File(path, mode="r", driver="mpio", comm=MPI.COMM_WORLD)
 
       var_tmp = []
+      comm = MPI.COMM_WORLD
       rank = MPI.COMM_WORLD.rank
       rsize = MPI.COMM_WORLD.size
 
@@ -180,10 +181,11 @@ source: |
           f'for variable: {var_tmp} for engine: "hdf5", rank: {rank}, size: {var_sizes}'
       )
 
-      bench = bench_helper(iterations, var_tmp, dataset, rank, rsize, collective)
+      result: list[tuple[str, str]] = bench_helper(iterations, var_tmp, dataset, rank, rsize, collective)
 
+      gathered = comm.gather(result, root=0)
       if rank == 0:
-          return bench
+          return list(chain.from_iterable(gathered))
 
 
   #MAIN
