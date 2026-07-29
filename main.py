@@ -148,7 +148,7 @@ def main():
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
+    Handler(path_to_config=path_to_config, log_lvl=logging.INFO)
 
 
 if __name__ == "__main__":
