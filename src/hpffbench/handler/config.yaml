@@ -8,21 +8,21 @@ paths:
   path_to_benchmarks: configs/benchmarks
   path_to_profilers: configs/profilers
   path_to_tmp: tmp
-  path_to_root: /home/leucht/Documents/HPFFbench
+  path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_results: results/general
   path_res_profiling: results/profiling
-iterations: 1
+iterations: 5
 runs:
   run03:
     X:
-    - - 134217728
+    - - 1342177280
     - []
 parallel: true
 collective: false
 par_backend:
 - MPI
 ranks:
-- 4
+- 16
 nodes:
 - 1
 variable_to_benchmark:
@@ -97,7 +97,7 @@ spack_env:
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: gcc@15.2.0
+    compiler: gcc@15.3.0
     additional: pip install zarr==3.2.1 scorep
     install: true
   test-env-async:

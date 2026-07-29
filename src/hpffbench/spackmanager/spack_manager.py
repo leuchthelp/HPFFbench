@@ -1,3 +1,4 @@
+from ClusterShell.Worker.fastsubprocess import CalledProcessError
 import itertools
 import logging
 import shutil
@@ -135,15 +136,16 @@ class SpackManager:
                 file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
                 file.write(f"spack env activate {self.env_name}\n")
 
-            p = subprocess.run(
-                ["bash", f"{self.env_location.absolute()}/check-location.sh"],
-                text=True,
-                capture_output=True,
-                check=True,
-            )
-
-            if p.returncode == 0:
+            try:
+                subprocess.run(
+                    ["bash", f"{self.env_location.absolute()}/check-location.sh"],
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
                 self.env_name_present = True
+            except CalledProcessError:
+                pass
 
             for combination in combinations:
                 package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
