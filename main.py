@@ -119,7 +119,7 @@ def main():
     }
 
     new_setup = {
-        "formats": ["zarr"],
+        "formats": ["netcdf4", "zarr", "hdf5"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 1,

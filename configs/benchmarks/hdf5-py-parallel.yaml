@@ -118,9 +118,8 @@ source: |
   ) ->  list[tuple[str, str, str]]:
       bench:  list[tuple[str, str, str]] = []
       for _ in range(iterations):
-          if rank == 0:
-              start = time.monotonic()
-
+          
+          start = time.monotonic()
           for var in variables:
               try:
                   total_size: int = math.prod(dataset[var].shape)

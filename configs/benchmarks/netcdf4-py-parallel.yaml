@@ -109,9 +109,8 @@ source: |
   ) -> list[tuple[str, str, str]]:
       bench: list[tuple[str, str, str]] = []
       for _ in range(iterations):
-          if rank == 0:
-              start = time.monotonic()
-
+          
+          start = time.monotonic()
           for var in variables:
               try:
                   total_size: int = math.prod(dataset[var].shape)
@@ -179,9 +178,9 @@ source: |
 
       result: list[tuple[str, str, str]] = bench_helper(iterations, var_tmp, dataset, node, rank, rsize, collective)
 
-      gathered = comm.gather(result, root=0)
+      #gathered = comm.gather(result, root=0)
       if rank == 0:
-          return list(chain.from_iterable(gathered))
+          return result
 
 
   #MAIN

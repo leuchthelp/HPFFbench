@@ -1,6 +1,7 @@
-from typing import cast
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
+from typing import cast
 import subprocess
 import itertools
 import logging
@@ -574,7 +575,7 @@ class Handler:
                 tmp = pd.DataFrame(
                     data={
                         "benchmark": benchmark.id,
-                        "date run": path_date,
+                        "date run": datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S"),
                         "run config": [benchmark.run_config],
                         "time taken": value,
                         "on rank": ranks[index],
