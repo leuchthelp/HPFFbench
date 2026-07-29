@@ -1,7 +1,5 @@
 formats:
-- zarr
 - hdf5
-- netcdf4
 languages:
 - py
 paths:
@@ -140,7 +138,7 @@ spack_env:
     compiler: gcc@15.3.0
 delete_envs: false
 paths_create: true
-profiler: false
+profiler: true
 profilers:
 - scorep
 profiler_mode: manual

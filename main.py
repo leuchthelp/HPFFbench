@@ -119,7 +119,7 @@ def main():
     }
 
     new_setup = {
-        "formats": ["zarr", "hdf5", "netcdf4"],
+        "formats": ["hdf5"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 3,
@@ -138,7 +138,7 @@ def main():
         "spack_env": spack_envs,
         "delete_envs": False,
         "paths_create": True,
-        "profiler": False,
+        "profiler": True,
         "profilers": ["scorep"],
         "profiler_mode": "manual",
     }

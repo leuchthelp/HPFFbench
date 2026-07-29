@@ -633,14 +633,19 @@ class BenchmarkManager:
                 execute = execute.replace(
                     "#INSTRUMENTER_START",
                     inst_start,
-                    1,
                 )
 
                 if "stop" in self.profiler_config.instrumenter:
+                    inst_stop = self.profiler_config.instrumenter["stop"]
+                    inst_stop = inst_stop.replace(
+                        "<format>",
+                        f'"{self.format}-{self.par_backend}-{self.filesize_var}-{self.chunksize_var}"',
+                        count=1,
+                    )
+
                     execute = execute.replace(
                         "#INSTRUMENTER_STOP",
-                        self.profiler_config.instrumenter["stop"],
-                        1,
+                        inst_stop,
                     )
                 else:
                     logger.warning(

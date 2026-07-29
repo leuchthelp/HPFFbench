@@ -98,7 +98,6 @@ source: |
       UNDERLINE = "\033[4m"
 
 
-  #INSTRUMENTER_START
   def bench_helper(
       iterations: int,
       variables: list[str],
@@ -129,8 +128,10 @@ source: |
                       print(
                           bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
                       )
-
+                  
+                  #INSTRUMENTER_START
                   dataset[var][rstart:rend:]
+                  #INSTRUMENTER_STOP
 
               except KeyError:
                   print(f"Variable: {var} does not exist.")
