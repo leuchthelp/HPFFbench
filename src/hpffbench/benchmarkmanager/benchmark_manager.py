@@ -1,26 +1,27 @@
-from hpffbench.configloader.config_loaders import RunConfig
-from dataclasses import dataclass, asdict
-from datetime import datetime
-from typing import TypedDict
-from pathlib import Path
-import subprocess
-import logging
 import hashlib
-import shutil
-import yaml
+import logging
 import os
 import re
+import shutil
+import subprocess
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import TypedDict
+
+import yaml
 
 from hpffbench.configloader import (
+    BenchmarkConfig,
+    BenchmarkConfigLoader,
+    GlobalConfigLoader,
+    ProfilerConfigLoader,
     Run,
     RunCommands,
-    BenchmarkConfig,
-    GlobalConfigLoader,
-    BenchmarkConfigLoader,
-    ProfilerConfigLoader,
 )
-from hpffbench.spackmanager import SpackManager
+from hpffbench.configloader.config_loaders import RunConfig
 from hpffbench.dev_utils import calc_size_unit
+from hpffbench.spackmanager import SpackManager
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +187,7 @@ class BenchmarkManager:
         paths = global_config.paths
 
         # Object config
-        self.current_time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        self.current_time = datetime.now().astimezone().strftime("%Y_%m_%d_%H_%M_%S")
         self.handler_id = handler_id
         self.bm_config = bm_config
         self.global_config = global_config
@@ -226,7 +227,7 @@ class BenchmarkManager:
         self.format = requested["format"]
 
         datatype: list[str] = []
-        for _, item in run_config.variables.items():
+        for item in run_config.variables.values():
             datatype.append(item["datatype"])
         self.datatype: list[str] = datatype
 
@@ -235,7 +236,7 @@ class BenchmarkManager:
         self.internal_i = 1
 
         self.no_caching = no_caching
-        self.local = False
+        self.local = True
 
         self.imports: str = ""
         self.profiler = profiler
@@ -285,7 +286,7 @@ class BenchmarkManager:
         self.use_path = Path(paths["path_to_tmp"]["path"])
         self.root_path = Path(paths["path_to_root"]["path"])
         self.results_path = Path(paths["path_to_results"]["path"])
-        self.dir_path = Path(f"{self.use_path}/{str(self.id)}")
+        self.dir_path = Path(f"{self.use_path}/{self.id!s}")
 
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
@@ -548,7 +549,7 @@ class BenchmarkManager:
                 "{runnable}", f"{path.absolute()}"
             )
         else:
-            raise ValueError(
+            raise TypeError(
                 "Compile was True, but somehow we got here without a compile_command being supplied ..."
             )
 
@@ -579,7 +580,7 @@ class BenchmarkManager:
             file.write("#!/bin/bash\n")
             try:
                 subprocess.run(
-                    "git --version".split(), check=True, capture_output=True, text=True
+                    ["git", "--version"], check=True, capture_output=True, text=True
                 )
             except subprocess.CalledProcessError:
                 file.write("module load git\n")
@@ -722,7 +723,7 @@ class BenchmarkManager:
                 env_vars.update(self.profiler_config.env_vars)
 
                 if self.profiler_config.export_method:
-                    for key in self.profiler_config.export_method.keys():
+                    for key in self.profiler_config.export_method:
                         item = self.profiler_config.export_method[key]
                         item = item.replace(
                             "<profile_path>", profiling_res_path, count=1
@@ -1426,7 +1427,7 @@ int main(int argc, char *argv[])
         load_git = ""
         try:
             subprocess.run(
-                "git --version".split(), check=True, capture_output=True, text=True
+                ["git", "--version"], check=True, capture_output=True, text=True
             )
         except subprocess.CalledProcessError:
             load_git = "module load git"

@@ -1,8 +1,8 @@
-from typing import TypedDict, NotRequired, Any, Literal, ReadOnly
-from dataclasses import dataclass
-from pathlib import Path
 import itertools
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Literal, NotRequired, ReadOnly, TypedDict
 
 import yaml
 
@@ -88,8 +88,8 @@ class SpackEnv:
             "language": env["language"],
             "compiler": env["compiler"],
             "packages": packages,
-            "additional": env["additional"] if "additional" in env else "",
-            "install": env["install"] if "install" in env else False,
+            "additional": env.get("additional", ""),
+            "install": env.get("install", False),
         }
 
 
@@ -110,6 +110,7 @@ class RunCommands(TypedDict):
 class InstrumenterMethods(TypedDict):
     start: ReadOnly[str]
     stop: ReadOnly[NotRequired[str]]
+
 
 @dataclass
 class ProfilerConfigLoader:
@@ -287,12 +288,12 @@ class GlobalConfigLoader:
                     self.config = yaml.safe_load(stream=file)
                     logger.info("Success loading config.yaml")
 
-            except FileNotFoundError or IsADirectoryError as e:
-                FileNotFoundError(
+            except (FileNotFoundError, IsADirectoryError) as e:
+                raise FileNotFoundError(
                     f"config.yaml not found, please ensure a valid config exists! Additional details: {e}"
                 )
             except OSError as e:
-                OSError(
+                raise OSError(
                     f"Path to config.yaml could not found, please check it is valid! Additional details: {e}"
                 )
             except yaml.YAMLError as e:

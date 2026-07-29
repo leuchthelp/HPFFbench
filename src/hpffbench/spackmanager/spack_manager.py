@@ -1,10 +1,10 @@
-from dataclasses import dataclass
-from pathlib import Path
-import subprocess
 import itertools
 import logging
 import shutil
+import subprocess
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 
 from hpffbench.configloader import ProcessedPath, SpackEnv
 
@@ -139,6 +139,7 @@ class SpackManager:
                 ["bash", f"{self.env_location.absolute()}/check-location.sh"],
                 text=True,
                 capture_output=True,
+                check=True,
             )
 
             if p.returncode == 0:
@@ -150,64 +151,62 @@ class SpackManager:
                 if name == "python":
                     self.python_version = package
 
-                if not self.__only_data:
+                if not self.__only_data and self.env_name_present:
                     # Check if package can be found in environment, usually fails if version or compiler is mismatched with what is available in spack at the time.
 
-                    if self.env_name_present:
-                        with open(
-                            f"{self.env_location.absolute()}/check-location.sh", "w"
-                        ) as file:
-                            file.write("#!/bin/bash\n")
-                            file.write("set -e\n")
-                            file.write(
-                                f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
-                            )
-                            file.write(f"spack -e {self.env_name} find {package}\n")
+                    with open(
+                        f"{self.env_location.absolute()}/check-location.sh", "w"
+                    ) as file:
+                        file.write("#!/bin/bash\n")
+                        file.write("set -e\n")
+                        file.write(
+                            f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
+                        )
+                        file.write(f"spack -e {self.env_name} find {package}\n")
 
-                        try:
-                            p = subprocess.run(
-                                [
-                                    "bash",
-                                    f"{self.env_location.absolute()}/check-location.sh",
-                                ],
-                                check=True,
-                                text=True,
-                                capture_output=True,
-                            )
-                        except subprocess.CalledProcessError:
-                            raise RuntimeError(
-                                f'At least one package "{package}" failed installing. Usually due to spack package / compiler version mismatch.'
-                            )
-
-                        if not Path(f"{self.env_location}/.venv").is_dir():
-                            raise OSError(
-                                "additional pip packages have not installed properly"
-                            )
-
-                        with open(
-                            f"{self.env_location.absolute()}/check-location.sh", "w"
-                        ) as file:
-                            file.write("#!/bin/bash\n")
-                            file.write(
-                                f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
-                            )
-                            file.write(
-                                f"spack -e {self.env_name} location -i {package}\n"
-                            )
-
+                    try:
                         p = subprocess.run(
                             [
                                 "bash",
                                 f"{self.env_location.absolute()}/check-location.sh",
                             ],
+                            check=True,
                             text=True,
                             capture_output=True,
                         )
-                        if p.returncode != 0:
-                            raise RuntimeError(f"{package}, unknown cause {p.stderr}")
-                        self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+                    except subprocess.CalledProcessError:
+                        raise RuntimeError(
+                            f'At least one package "{package}" failed installing. Usually due to spack package / compiler version mismatch.'
+                        )
 
-                        self.initialized = True
+                    if not Path(f"{self.env_location}/.venv").is_dir():
+                        raise OSError(
+                            "additional pip packages have not installed properly"
+                        )
+
+                    with open(
+                        f"{self.env_location.absolute()}/check-location.sh", "w"
+                    ) as file:
+                        file.write("#!/bin/bash\n")
+                        file.write(
+                            f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
+                        )
+                        file.write(f"spack -e {self.env_name} location -i {package}\n")
+
+                    p = subprocess.run(
+                        [
+                            "bash",
+                            f"{self.env_location.absolute()}/check-location.sh",
+                        ],
+                        text=True,
+                        capture_output=True,
+                        check=True,
+                    )
+                    if p.returncode != 0:
+                        raise RuntimeError(f"{package}, unknown cause {p.stderr}")
+                    self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+
+                    self.initialized = True
 
     def initialize_env(self):
         """
@@ -236,7 +235,7 @@ class SpackManager:
 
                 try:
                     subprocess.run(
-                        "git --version".split(), check=True, capture_output=True
+                        ["git", "--version"], check=True, capture_output=True
                     )
                 except subprocess.CalledProcessError:
                     file.write("module load git\n")
@@ -315,6 +314,7 @@ class SpackManager:
                     ["bash", f"{self.env_location.absolute()}/check-location.sh"],
                     text=True,
                     capture_output=True,
+                    check=True,
                 )
                 if p.returncode != 0:
                     raise RuntimeError(
@@ -415,7 +415,7 @@ class SpackManager:
                 file.write("#!/bin/bash  \n")
                 try:
                     subprocess.run(
-                        "git --version".split(),
+                        ["git", "--version"],
                         check=True,
                         capture_output=True,
                         text=True,

@@ -1,12 +1,12 @@
-from typing import TypedDict, TypeAlias, Literal
-import time
 import math
+import time
+from typing import Literal, TypeAlias, TypedDict
 
-from mpi4py import MPI
-import numpy as np
-import netCDF4
-import zarr
 import h5py
+import netCDF4
+import numpy as np
+import zarr
+from mpi4py import MPI
 
 
 class Form(TypedDict):
@@ -27,7 +27,7 @@ class bcolors:
     UNDERLINE = "\033[4m"
 
 
-Mode: TypeAlias = Literal["r", "r+", "a", "w"]
+type Mode = Literal["r", "r+", "a", "w"]
 
 
 class Datastruct:

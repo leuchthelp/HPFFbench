@@ -1,41 +1,38 @@
+import hashlib
+import itertools
+import json
+import logging
+import os
+import subprocess
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import cast
-import subprocess
-import itertools
-import logging
-import hashlib
-import json
-import os
 
-from rich.traceback import install as install_rich_traceback
-from rich.logging import RichHandler
-from rich.console import Console
-from rich.progress import (
-    TimeRemainingColumn,
-    MofNCompleteColumn,
-    TaskProgressColumn,
-    TimeElapsedColumn,
-    TextColumn,
-    BarColumn,
-    Progress,
-)
-
-from pathos.pools import ProcessPool
-import pandas as pd
 import numpy as np
+import pandas as pd
+from pathos.pools import ProcessPool
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
+from rich.traceback import install as install_rich_traceback
 
-
+from hpffbench.benchmarkmanager import BenchmarkManager
 from hpffbench.configloader import (
     BenchmarkConfig,
-    GlobalConfigLoader,
     BenchmarkConfigLoader,
+    GlobalConfigLoader,
     ProfilerConfigLoader,
 )
-from hpffbench.benchmarkmanager import BenchmarkManager
 from hpffbench.spackmanager import SpackManager
-
 
 logger = logging.getLogger(__name__)
 
@@ -318,9 +315,9 @@ class Handler:
 
         tasks: list[list[BenchmarkManager]] = []
         for requested in requested_cap:
-            logger.debug(f"requested: {str(requested)}")
+            logger.debug(f"requested: {requested!s}")
             logger.debug(f"available: {determined_cap.keys()}")
-            if str(requested) in determined_cap.keys():
+            if str(requested) in determined_cap:
                 logger.info("Success")
 
                 tasks.append(
@@ -361,7 +358,7 @@ class Handler:
         """
         benchmarks: list[BenchmarkManager] = []
 
-        for _, run_config in self.config.runs.items():
+        for run_config in self.config.runs.values():
             nodes = self.config.nodes
             slurm_options = ""
             config_ranks: list[int] = [1]
@@ -575,7 +572,7 @@ class Handler:
                 tmp = pd.DataFrame(
                     data={
                         "benchmark": benchmark.id,
-                        "date run": datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S"),
+                        "date run": datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S").astimezone(),
                         "run config": [benchmark.run_config],
                         "time taken": value,
                         "on rank": ranks[index],
@@ -628,7 +625,7 @@ class Handler:
 
                 logger.debug(path_name)
                 logger.debug(benchmarks.keys())
-                if path_name in benchmarks.keys():
+                if path_name in benchmarks:
                     benchmark = benchmarks[path_name]
                     df = self.__process_file(benchmark, path, path_name, path_date, df)
 
