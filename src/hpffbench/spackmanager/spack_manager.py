@@ -1,4 +1,3 @@
-from ClusterShell.Worker.fastsubprocess import CalledProcessError
 import itertools
 import logging
 import shutil
@@ -144,7 +143,7 @@ class SpackManager:
                     check=True,
                 )
                 self.env_name_present = True
-            except CalledProcessError:
+            except subprocess.CalledProcessError:
                 pass
 
             for combination in combinations:

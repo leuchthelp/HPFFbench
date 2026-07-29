@@ -133,7 +133,7 @@ def main():
         "only_data": False,
         "no_caching": True,
         "use_spack_env": True,
-        "max_processes": 1,
+        "max_processes": 20,
         "slurm_options": slurm_options,
         "spack_env": spack_envs,
         "delete_envs": False,
