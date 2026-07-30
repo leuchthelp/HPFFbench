@@ -1,6 +1,4 @@
 formats:
-- netcdf4
-- zarr
 - hdf5
 languages:
 - py
@@ -8,38 +6,21 @@ paths:
   path_to_benchmarks: configs/benchmarks
   path_to_profilers: configs/profilers
   path_to_tmp: tmp
-  path_to_root: /work/ku0598/k203191/HPFFbench
+  path_to_root: /home/leucht/Documents/HPFFbench
   path_to_results: results/general
   path_res_profiling: results/profiling
-iterations: 5
+iterations: 2
 runs:
-  run18:
-    X:
-    - - 13421772800
-    - - 4194304
-  run19:
-    X:
-    - - 13421772800
-    - - 2097152
   run20:
     X:
-    - - 13421772800
+    - - 1342177280
     - - 1048576
-  run21:
-    X:
-    - - 13421772800
-    - - 524288
-  run22:
-    X:
-    - - 13421772800
-    - - 262144
 parallel: true
 collective: false
 par_backend:
 - MPI
 ranks:
-- 16
-- 32
+- 4
 nodes:
 - 1
 variable_to_benchmark:
@@ -114,7 +95,7 @@ spack_env:
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: gcc@15.3.0
+    compiler: gcc@15.2.0
     additional: pip install zarr==3.2.1 scorep
     install: true
   test-env-async:

@@ -286,7 +286,7 @@ class BenchmarkManager:
         self.use_path = Path(paths["path_to_tmp"]["path"])
         self.root_path = Path(paths["path_to_root"]["path"])
         self.results_path = Path(paths["path_to_results"]["path"])
-        self.dir_path = Path(f"{self.use_path}/{self.id!s}")
+        self.dir_path = Path(f"{self.use_path}/{self.id}")
 
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
@@ -377,7 +377,8 @@ class BenchmarkManager:
             self.__execute_file()
 
         finally:
-            shutil.rmtree(path=self.dir_path)
+            # shutil.rmtree(path=self.dir_path)
+            pass
 
         return self.id, self
 
@@ -766,13 +767,11 @@ class BenchmarkManager:
         for path in self.dir_path.rglob(f"*.{self.extension}"):
             current_path = path
 
-        self.__move_files()
+        logger.debug(f"current location: {current_path} -> new location: {new_path}")
+        self.__prepare_files()
         new_file_location = shutil.move(
             current_path.absolute(),
             f"{new_path.absolute()}/{iteration}.{self.extension}",
-        )
-        logger.debug(
-            f"current location: {self.location} -> new location: {new_file_location}"
         )
 
         tmp_command = str(run_command[-1]).replace(
@@ -782,9 +781,9 @@ class BenchmarkManager:
 
         logger.debug(f"new run command: {run_command}")
         self.location = new_file_location
-        self.__move_files()
+        self.__prepare_files()
 
-    def __move_files(self):
+    def __prepare_files(self):
         purge_files = []
         current_path = Path(self.location)
         if current_path.is_file():

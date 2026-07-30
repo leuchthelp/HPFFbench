@@ -23,11 +23,11 @@ def main():
         # "run03": {"X": [[10 * 134217728], []],},
         # "run03": {"X": [[5 * 134217728], []],},
         # "run04": {"X": [[100 * 134217728], []]},
-        "run18": {"X": [[100 * 134217728], [1 * 134217728 // 32]]},  # 32mb
-        "run19": {"X": [[100 * 134217728], [1 * 134217728 // 64]]},  # 16mb
-        "run20": {"X": [[100 * 134217728], [1 * 134217728 // 128]]},  # 8mb
-        "run21": {"X": [[100 * 134217728], [1 * 134217728 // 256]]},  # 4mb
-        "run22": {"X": [[100 * 134217728], [1 * 134217728 // 512]]},  # 2mb
+        # "run18": {"X": [[100 * 134217728], [1 * 134217728 // 32]]},  # 32mb
+        # "run19": {"X": [[100 * 134217728], [1 * 134217728 // 64]]},  # 16mb
+        "run20": {"X": [[10 * 134217728], [1 * 134217728 // 128]]},  # 8mb
+        # "run21": {"X": [[100 * 134217728], [1 * 134217728 // 256]]},  # 4mb
+        # "run22": {"X": [[100 * 134217728], [1 * 134217728 // 512]]},  # 2mb
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -79,7 +79,7 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@15.3.0",
+            "compiler": "gcc@15.2.0",
             "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
@@ -119,15 +119,15 @@ def main():
     }
 
     new_setup = {
-        "formats": ["netcdf4", "zarr", "hdf5"],
+        "formats": ["hdf5"],
         "languages": ["py"],
         "paths": paths,
-        "iterations": 5,
+        "iterations": 2,
         "runs": tmp,
         "parallel": True,
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [16, 32],
+        "ranks": [4],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": False,
@@ -148,7 +148,7 @@ def main():
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    Handler(path_to_config=path_to_config, log_lvl=logging.INFO)
+    Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
 
 
 if __name__ == "__main__":

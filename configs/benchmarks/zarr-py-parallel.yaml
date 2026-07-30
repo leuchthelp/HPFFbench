@@ -174,7 +174,7 @@ source: |
       result: list[tuple[str, str, str]] = bench_helper(iterations, var_tmp, arrays, node, rank, rsize, collective)
     
       gathered = comm.gather(result, root=0)
-      if rank == 0:
+      if rank == 0 and gathered:
           return list(chain.from_iterable(gathered))
 
   #MAIN
