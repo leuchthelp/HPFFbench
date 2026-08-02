@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=compute
+#SBATCH --partition=shared
 #SBATCH --account=ku0598
 #SBATCH --nodes=1
 #SBACTH --mem=0
@@ -11,4 +11,4 @@
 # Begin of section with executable commands
 set -e
 ls -l
-python $1
+uv run $1

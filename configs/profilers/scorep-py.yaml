@@ -1,0 +1,23 @@
+language: py
+package: scorep
+install_method: spack
+formats:
+  - hdf5
+  - zarr
+  - netcdf4
+run_commands:
+  serial: python -m scorep --thread=pthread --instrumenter-type=cTrace {runnable}
+  MPI: mpiexec -n python -m scorep --mpp=mpi --thread=pthread --instrumenter-type=cTrace {runnable}
+instrumenter:
+  start: "scorep.user.region_begin(<format>)"
+  stop: "scorep.user.region_end(<format>)"
+imports: |
+  import scorep.user
+env_variables:
+  SCOREP_ENABLE_TRACING: "True"
+  SCOREP_PROFILING_MAX_CALLPATH_DEPTH: "130"
+  SCOREP_MEMORY_RECORDING: "True"
+  SCOREP_MPI_MEMORY_RECORDING: "True"
+  SCOREP_TOTAL_MEMORY: "1024000K"
+export_method:
+  SCOREP_EXPERIMENT_DIRECTORY: <profile_path>

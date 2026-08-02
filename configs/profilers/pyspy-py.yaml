@@ -1,0 +1,10 @@
+language: py
+package: pyspy
+install_method: pip
+formats:
+  - hdf5
+  - zarr
+  - netcdf4
+run_commands:
+  serial: py-spy record --rate 100 --gil --idle --native --threads --function --subprocesses --format speedscope -o <profile_path>.json -- python {runnable}
+  MPI: mpiexec -n py-spy record --rate 100 --idle --subprocesses --full-filenames -F -n --format speedscope -o <profile_path>.json -- python {runnable}

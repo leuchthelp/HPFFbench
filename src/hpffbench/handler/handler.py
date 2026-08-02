@@ -1,35 +1,38 @@
-from typing import cast
-from collections import Counter
-from pathlib import Path
-import subprocess
-import itertools
-import logging
 import hashlib
+import itertools
 import json
+import logging
 import os
+import subprocess
+from collections import Counter
+from datetime import datetime
+from pathlib import Path
+from typing import cast
 
-from rich.traceback import install as install_rich_traceback
-from rich.logging import RichHandler
-from rich.console import Console
-from rich.progress import (
-    TimeRemainingColumn,
-    MofNCompleteColumn,
-    TaskProgressColumn,
-    TimeElapsedColumn,
-    TextColumn,
-    BarColumn,
-    Progress,
-)
-
-from pathos.pools import ProcessPool
-import pandas as pd
 import numpy as np
+import pandas as pd
+from pathos.pools import ProcessPool
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
+from rich.traceback import install as install_rich_traceback
 
-
-from hpffbench.configloader import ConfigLoader, BenchmarkConfigLoader, BenchmarkConfig
 from hpffbench.benchmarkmanager import BenchmarkManager
+from hpffbench.configloader import (
+    BenchmarkConfig,
+    BenchmarkConfigLoader,
+    GlobalConfigLoader,
+    ProfilerConfigLoader,
+)
 from hpffbench.spackmanager import SpackManager
-
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +144,7 @@ class Handler:
             raise RuntimeError("no matching benchmark configs found")
 
         if not self.__only_data:
-            self.__start()
+            self.start()
         else:
             logger.warning(
                 f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
@@ -167,7 +170,7 @@ class Handler:
             If there is an error with the `config.yaml`
 
         """
-        self.config = ConfigLoader(path_to_config)
+        self.config = GlobalConfigLoader(path_to_config)
 
     def __check_paths(self):
         """
@@ -177,9 +180,15 @@ class Handler:
         for key, path in self.config.paths.items():
             if not path["skip"]:
                 if not Path(path["path"]).exists():
-                    raise ValueError(
-                        f"Configured path: {path} for key: {key} does not exist. Please create it."
-                    )
+                    if self.config.paths_create:
+                        logger.warning(
+                            f'Creating {path} as "paths_create" was set to {self.config.paths_create}'
+                        )
+                        Path(path["path"]).mkdir(parents=True)
+                    else:
+                        raise ValueError(
+                            f"Configured path: {path} for key: {key} does not exist. Please create it."
+                        )
             else:
                 logger.warning(f"{path} was skipped, proceed with caution")
 
@@ -306,9 +315,9 @@ class Handler:
 
         tasks: list[list[BenchmarkManager]] = []
         for requested in requested_cap:
-            logger.debug(f"requested: {str(requested)}")
+            logger.debug(f"requested: {requested!s}")
             logger.debug(f"available: {determined_cap.keys()}")
-            if str(requested) in determined_cap.keys():
+            if str(requested) in determined_cap:
                 logger.info("Success")
 
                 tasks.append(
@@ -349,19 +358,16 @@ class Handler:
         """
         benchmarks: list[BenchmarkManager] = []
 
-        for _, run_config in self.config.runs.items():
+        for run_config in self.config.runs.values():
             nodes = self.config.nodes
             slurm_options = ""
-            collective: list[bool | None] = [None]
-            ranks: list[int] = [1]
+            config_ranks: list[int] = [1]
+            config_collective: list[bool | None] = [None]
+            config_no_caching: list[bool] = self.config.no_caching
 
             if parallel:
-                ranks = self.config.ranks
+                config_ranks = self.config.ranks
                 config_collective = self.config.collective
-                if isinstance(config_collective, str) and config_collective == "Both":
-                    collective = [False, True]
-                elif isinstance(config_collective, bool):
-                    collective = [config_collective]
 
             # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
             if self.slurm_avail or self.__only_data:
@@ -375,13 +381,37 @@ class Handler:
                 ):
                     spack_manager.append(manager)
 
-            combinations = itertools.product(nodes, ranks, collective, spack_manager)
+            profilers: list[ProfilerConfigLoader | None] = [None]
+            if self.config.profiler:
+                profilers.clear()
+                for profiler in self.config.profilers:
+                    where_paths = Path(self.config.paths["path_to_profilers"]["path"])
+                    config_paths = itertools.chain(
+                        Path(where_paths).glob("*.yaml"),
+                        Path(where_paths).glob("*.yml"),
+                    )
+                    for profiler_path in config_paths:
+                        profiler_loaded = ProfilerConfigLoader(profiler_path)
+
+                        if profiler == profiler_loaded.package:
+                            profilers.append(profiler_loaded)
+
+            combinations = itertools.product(
+                nodes,
+                config_ranks,
+                config_collective,
+                spack_manager,
+                config_no_caching,
+                profilers,
+            )
 
             for combination in combinations:
                 node = combination[0]
-                rank = combination[1]
-                state = combination[2]
+                ranks = combination[1]
+                collective = combination[2]
                 manager = combination[3]
+                no_caching = combination[4]
+                profiler_config = combination[5]
 
                 if not manager.initialized:
                     manager.initialize_env()
@@ -398,9 +428,12 @@ class Handler:
                     requested=requested,
                     nodes=node,
                     parallel=parallel,
-                    collective=state,
-                    ranks=rank,
+                    collective=collective,
+                    ranks=ranks,
                     spack_manager=manager,
+                    no_caching=no_caching,
+                    profiler=self.config.profiler,
+                    profiler_config=profiler_config,
                 )
 
                 self.__benchmarks.append((bm.id, bm))
@@ -408,7 +441,7 @@ class Handler:
 
         return benchmarks
 
-    def __start(self):
+    def start(self):
         """
         Start running the benchmark by called each BenchmarkManagers `.run()` method on each item found within the list of tasks.
         This is done as a pool of Processes using the `pathos` module to `pickle` entire BenchmarkManager objects via `dill`. The ProcessPool
@@ -452,6 +485,129 @@ class Handler:
     def __run_benchmark(self, benchmark: BenchmarkManager):
         return benchmark.run()
 
+    def __process_file(
+        self,
+        benchmark: BenchmarkManager,
+        path: Path,
+        path_name: str,
+        path_date: str,
+        df: pd.DataFrame,
+    ) -> pd.DataFrame:
+        logger.debug(f"full path {path}")
+        logger.debug(f"date of file @ {path_date}")
+        logger.info(f"currently on {path_name}")
+
+        with open(path, "r") as file:
+            initial: list[str] = json.load(file)
+
+        ranks: list[int] = []
+        used_nodes: list[str] = []
+        current: list[float] = []
+        for entry in initial:
+            split = entry.split("-")
+            rank = int(split[0])
+            node = split[1]
+            value = float(split[2])
+
+            ranks.append(rank)
+            used_nodes.append(node)
+            current.append(value)
+
+        mean = np.mean(current)
+        std = np.std(current)
+        rsd = std / mean
+
+        error = std / float(np.sqrt(len(current)))
+
+        for index, value in enumerate(current):
+            count: Counter[str] = Counter()
+            node_string = used_nodes[index]
+            symbol = node_string[0]
+            node_string = node_string.replace(symbol, "")
+            str_nodes = node_string.split(",")
+            final_nodes: list[list[str]] = []
+
+            for node in str_nodes:
+                if "-" in node:
+                    hold = node.split("-")
+
+                    node = [
+                        symbol + str(additional)
+                        for additional in range(int(hold[0]), int(hold[1]) + 1)
+                    ]
+                    final_nodes.append(node)
+
+                elif not isinstance(node, list):
+                    final_nodes.append([symbol + node])
+
+                count.update(list(itertools.chain.from_iterable(final_nodes)))
+
+                profile_path = Path(self.config.paths["path_res_profiling"]["path"])
+                location_profiling = Path(f"{profile_path.absolute()}/{path_name}")
+
+                anomaly = False
+                clusters = []
+                eps = 0.12
+                points_sorted = sorted(current)
+                curr_point = points_sorted[0]
+                curr_cluster = [curr_point]
+
+                for point in points_sorted[1:]:
+                    if point <= curr_point + curr_point * eps:
+                        curr_cluster.append(point)
+                    else:
+                        clusters.append(curr_cluster)
+                        curr_cluster = [point]
+                    curr_point = point
+
+                clusters.append(curr_cluster)
+
+                if value not in clusters[0]:
+                    anomaly = True
+
+                logger.debug(
+                    f"clusters: {clusters}, value: {value}, anomaly: {anomaly}"
+                )
+
+                tmp = pd.DataFrame(
+                    data={
+                        "benchmark": benchmark.id,
+                        "date run": datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S").astimezone(),
+                        "run config": [benchmark.run_config],
+                        "time taken": value,
+                        "on rank": ranks[index],
+                        "throughput": benchmark.total_filesize / mean,
+                        "engine": benchmark.engine,
+                        "var to bm": [benchmark.var_to_bm],
+                        "total filesize": benchmark.total_filesize,
+                        "unit": benchmark.unit,
+                        "filesize per var": [benchmark.filesize_var],
+                        "filesize per chunk": [benchmark.chunksize_var],
+                        "no caching": benchmark.no_caching,
+                        "parallel": benchmark.parallel,
+                        "parallel backend": benchmark.par_backend,
+                        "collective": benchmark.collective,
+                        "ranks": benchmark.ranks,
+                        "language": benchmark.language,
+                        "format": str(benchmark.format),
+                        "mean time": mean,
+                        "standard deviation": std,
+                        "relative std": rsd,
+                        "error bar": error,
+                        "anomaly": anomaly,
+                        "nodes": benchmark.nodes,
+                        "used nodes": used_nodes[index],
+                        "node count": [count],
+                        "total node count": [Counter()],
+                        "total nc match": [Counter()],
+                        "profiling": [str(location_profiling)],
+                    }
+                )
+
+                df: pd.DataFrame = pd.concat([df, tmp], ignore_index=True)
+
+        return df
+
     def __prepare_dataframe(self):
         """
         Gathers up all generated results, data and metadata and assembles a pandas Dataframe object. Finally exports the results as JSON.
@@ -461,143 +617,17 @@ class Handler:
         df = pd.DataFrame()
 
         benchmarks = dict(self.__benchmarks)
+        for path in root.rglob("*.json"):
+            if not path.is_dir() and "results" not in path.name:
+                tmp = path.name.replace(".json", "").split("-")
+                path_name = tmp[0]
+                path_date = tmp[1]
 
-        for path in root.rglob("*"):
-            if not path.is_dir():
-                path_name = ""
-                path_date = ""
-                if "nodes" not in path.name:
-                    tmp = path.name.replace(".json", "").split("-")
-                    path_name = tmp[0]
-
-                    if len(tmp) > 1:
-                        path_date = "-" + tmp[1]
-
-                if path_name in benchmarks.keys():
-                    logger.debug(f"full path {path}")
-                    logger.debug(f"date of file @ {path_date}")
-                    logger.info(f"currently on {path_name}")
-
+                logger.debug(path_name)
+                logger.debug(benchmarks.keys())
+                if path_name in benchmarks:
                     benchmark = benchmarks[path_name]
-
-                    with open(path, "r") as file:
-                        current: list[float] = json.load(file)
-
-                    location_nodes = Path(
-                        f"{root.absolute()}/{path_name}{path_date}-nodes.json"
-                    )
-                    with open(location_nodes.absolute(), "r") as file:
-                        used_nodes: list[str] = json.load(file)
-
-                    mean = np.mean(current)
-                    std = np.std(current)
-                    rsd = std / mean
-
-                    error = std / float(np.sqrt(len(current)))
-
-                    for index, value in enumerate(current):
-                        count = Counter()
-                        string = used_nodes[index]
-                        symbol = string[0]
-                        string = string.replace(symbol, "")
-                        str_nodes = string.split(",")
-                        final_nodes: list[list[str]] = []
-
-                        for node in str_nodes:
-                            if "-" in node:
-                                hold = node.split("-")
-
-                                node = [
-                                    symbol + str(additional)
-                                    for additional in range(
-                                        int(hold[0]), int(hold[1]) + 1
-                                    )
-                                ]
-                                final_nodes.append(node)
-
-                            elif not isinstance(node, list):
-                                final_nodes.append([symbol + node])
-
-                        count.update(list(itertools.chain.from_iterable(final_nodes)))
-
-                        profiling = None
-                        try:
-                            profile_path = Path(
-                                self.config.paths["path_profiling"]["path"]
-                            )
-                            location_profiling = Path(
-                                f"{profile_path.absolute()}/{path_name}/{path_name}{path_date}-{index}.json"
-                            )
-
-                            with open(location_profiling.absolute(), "r") as file:
-                                profiling = json.load(file)
-
-                            logger.debug(
-                                f"loads {location_profiling} for iteration {index}"
-                            )
-                        except KeyError:
-                            pass
-
-                        anomaly = False
-
-                        clusters = []
-                        eps = 0.12
-                        points_sorted = sorted(current)
-                        curr_point = points_sorted[0]
-                        curr_cluster = [curr_point]
-
-                        for point in points_sorted[1:]:
-                            if point <= curr_point + curr_point * eps:
-                                curr_cluster.append(point)
-                            else:
-                                clusters.append(curr_cluster)
-                                curr_cluster = [point]
-                            curr_point = point
-
-                        clusters.append(curr_cluster)
-
-                        if value not in clusters[0]:
-                            anomaly = True
-
-                        logger.debug(
-                            f"clusters: {clusters}, value: {value}, anomaly: {anomaly}"
-                        )
-
-                        tmp = pd.DataFrame(
-                            data={
-                                "benchmark": benchmark.id,
-                                "date run": path_date,
-                                "run config": [benchmark.run_config],
-                                "time taken": value,
-                                "throughput": benchmark.total_filesize / mean,
-                                "engine": benchmark.engine,
-                                "var to bm": [benchmark.var_to_bm],
-                                "total filesize": benchmark.total_filesize,
-                                "unit": benchmark.unit,
-                                "filesize per var": [benchmark.filesize_var],
-                                "filesize per chunk": [benchmark.chunksize_var],
-                                "no caching": benchmark.no_caching,
-                                "parallel": benchmark.parallel,
-                                "parallel backend": benchmark.par_backend,
-                                "collective": benchmark.collective,
-                                "ranks": benchmark.ranks,
-                                "language": benchmark.language,
-                                "format": str(benchmark.format),
-                                "mean time": mean,
-                                "standard deviation": std,
-                                "relative std": rsd,
-                                "error bar": error,
-                                "anomaly": anomaly,
-                                "nodes": benchmark.nodes,
-                                "used nodes": used_nodes[index],
-                                "node count": [count],
-                                "total node count": [Counter()],
-                                "total nc match": [Counter()],
-                                "profiling": [profiling],
-                            }
-                        )
-
-                        df: pd.DataFrame = pd.concat([df, tmp], ignore_index=True)
+                    df = self.__process_file(benchmark, path, path_name, path_date, df)
 
         res_path: str = self.config.paths["path_to_results"]["path"]
 
@@ -614,11 +644,12 @@ class Handler:
                 if nodes in df.at[index, "node count"]:
                     df.at[index, "total nc match"][nodes] = count
 
-        logger.debug(df)
         df.sort_values(
             by=["total filesize", "ranks", "engine", "format"],
             ascending=[True, True, True, False],
             inplace=True,
             ignore_index=True,
         )
+
+        logger.debug(df)
         df.to_json(Path(f"{res_path}/results.json"))

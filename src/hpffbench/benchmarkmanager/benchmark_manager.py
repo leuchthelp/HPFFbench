@@ -1,24 +1,34 @@
-from dataclasses import dataclass, asdict
-from datetime import datetime
-from pathlib import Path
-import subprocess
-import logging
 import hashlib
-import shutil
-import yaml
+import logging
 import os
 import re
+import shutil
+import subprocess
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import TypedDict
+
+import yaml
 
 from hpffbench.configloader import (
-    ConfigLoader,
-    Run,
     BenchmarkConfig,
     BenchmarkConfigLoader,
+    GlobalConfigLoader,
+    ProfilerConfigLoader,
+    Run,
+    RunCommands,
 )
-from hpffbench.spackmanager import SpackManager
+from hpffbench.configloader.config_loaders import RunConfig
 from hpffbench.dev_utils import calc_size_unit
+from hpffbench.spackmanager import SpackManager
 
 logger = logging.getLogger(__name__)
+
+
+class CompileInfo(TypedDict):
+    compiled_file_location: str
+    ld_library_path: str
 
 
 @dataclass
@@ -141,16 +151,17 @@ class BenchmarkManager:
     par_backend: None | str
     ranks: int
     collective: None | bool
+    no_caching: bool
     language: str
     format: str
     engine: str
     extension: str
     datatype: list[str]
-    var_to_bm: str | list
+    var_to_bm: str | list[str]
     total_filesize: float
     unit: str
-    filesize_var: list
-    chunksize_var: list
+    filesize_var: list[str]
+    chunksize_var: list[str]
     iterations: int
     internal_i: int
     current_time: str
@@ -160,20 +171,23 @@ class BenchmarkManager:
         handler_id: str,
         run_config: Run,
         bm_config: BenchmarkConfigLoader,
-        global_config: ConfigLoader,
         nodes: int,
         slurm_avail: bool,
+        global_config: GlobalConfigLoader,
         slurm_options: str,
         parallel: bool,
         collective: None | bool,
         ranks: int,
         requested: BenchmarkConfig,
         spack_manager: SpackManager,
+        no_caching: bool,
+        profiler: bool,
+        profiler_config: ProfilerConfigLoader | None,
     ):
         paths = global_config.paths
 
         # Object config
-        self.current_time = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        self.current_time = datetime.now().astimezone().strftime("%Y_%m_%d_%H_%M_%S")
         self.handler_id = handler_id
         self.bm_config = bm_config
         self.global_config = global_config
@@ -213,7 +227,7 @@ class BenchmarkManager:
         self.format = requested["format"]
 
         datatype: list[str] = []
-        for _, item in run_config.variables.items():
+        for item in run_config.variables.values():
             datatype.append(item["datatype"])
         self.datatype: list[str] = datatype
 
@@ -221,8 +235,17 @@ class BenchmarkManager:
         self.iterations = self.global_config.iterations
         self.internal_i = 1
 
-        self.no_caching = self.global_config.no_caching
+        self.no_caching = no_caching
         self.local = False
+
+        self.imports: str = ""
+        self.profiler = profiler
+
+        profiler_config_msg = ""
+        if profiler_config is not None:
+            self.profiler_config = profiler_config
+            self.imports = "\n" + self.profiler_config.imports
+            profiler_config_msg = self.profiler_config.package
 
         # Assemble ID
         id_str = (
@@ -244,16 +267,26 @@ class BenchmarkManager:
             + str(self.spack_manager.packages)
             + str(self.spack_manager.language)
             + str(self.spack_manager.env_name)
+            # Reasoning: profilers also influence the results since they have runtime overhead, so they need to be taken into account
+            + str(self.profiler)
+            + str(asdict(self.profiler_config) if self.profiler else None)
             # Reasoning: If source code changes, do not consider the same benchmark even if it might be functionally the same, could still have an effect in performance
             + self.src
         )
 
         self.id = hashlib.sha256(id_str.encode()).hexdigest()
 
+        logger.debug(self.id)
+
+        if self.profiler:
+            profiling_res_path = Path(paths["path_res_profiling"]["path"])
+            new_profiler_path = Path(f"{profiling_res_path.absolute()}/{self.id}")
+            self.profiling_res_path = new_profiler_path
+
         self.use_path = Path(paths["path_to_tmp"]["path"])
         self.root_path = Path(paths["path_to_root"]["path"])
         self.results_path = Path(paths["path_to_results"]["path"])
-        self.dir_path = Path(f"{self.use_path}/{str(self.id)}")
+        self.dir_path = Path(f"{self.use_path}/{self.id}")
 
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
@@ -276,13 +309,9 @@ class BenchmarkManager:
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
-        self.show_metdata = True
+        self.show_metadata = True
 
         # Environment config
-
-        self.__profiler = self.global_config.profiler
-        if self.__profiler:
-            self.profiling_path = Path(paths["path_profiling"]["path"])
 
         logger.info(
             f"Managing Benchmark with; file-structure: {run_config.variables}, "
@@ -296,8 +325,9 @@ class BenchmarkManager:
             f"language: {self.language}, "
             f"format: {self.format}, "
             f"iterations: {self.iterations}, "
-            f"in env: {self.spack_manager.env_name}. "
-            f"It will be stored in {self.use_path}"
+            f"in env: {self.spack_manager.env_name}, "
+            f'with profiler: {self.profiler} using "{profiler_config_msg}". '
+            f"It will be stored in {self.use_path.absolute()}"
         )
 
     def run(self) -> tuple[str, BenchmarkManager]:
@@ -330,27 +360,29 @@ class BenchmarkManager:
         self.dir_path.mkdir(parents=True)
 
         try:
-            if self.show_metdata:
+            if self.show_metadata:
                 with open(f"{self.dir_path}/metadata.yaml", "w") as f:
                     yaml.safe_dump(asdict(self), f)
 
-            if self.__profiler:
-                new_profiler_path = Path(f"{self.profiling_path.absolute()}/{self.id}")
-                new_profiler_path.mkdir(parents=True, exist_ok=True)
-                self.profiling_path = new_profiler_path
+            if self.profiler:
+                self.profiling_res_path.mkdir(parents=True, exist_ok=True)
 
             if self.create is not None:
-                self.__create_file()
+                self.__create_file(self.create)
+            else:
+                logger.warning(
+                    'Not creating a source file since "create" is not supplied. Please make sure your executing code references a valid dataset.'
+                )
 
             self.__execute_file()
 
         finally:
-            #shutil.rmtree(path=self.dir_path)
+            # shutil.rmtree(path=self.dir_path)
             pass
 
         return self.id, self
 
-    def __create_file(self):
+    def __create_file(self, create: str):
         """
         Will create a `create_file`. This type of file contains the source code needed `create` a requested file for a given format and language.
         This file with either be a `bash` or `sbatch` script depending on the environment the benchmark-framework is being run in.
@@ -361,64 +393,37 @@ class BenchmarkManager:
         Finally it executes the `create_file` with the `create_command`.
         """
         # Get create command
-        create_commands = self.bm_config.create_commands
-
-        create_command = ""
+        create_commands: RunCommands = self.bm_config.create_commands
         language = self.language
         compile = self.compile
 
+        command_type = "serial"
+        if self.par_backend in create_commands:
+            command_type = self.par_backend
+
         # I'm to lazy to reimplement creating the given file in c again, so will just reuse easier python code as files should be identical
         if "lazy" in create_commands:
-            try:
-                create_command = create_commands["lazy"][0]
-                language = create_commands["lazy"][1]
-                compile = create_commands["lazy"][2]
-            except IndexError as e:
-                raise IndentationError(
-                    "Lazy option is not a proper lazy command. A lazy command needs [command, language, compile flag (turn off/on compilation)]."
-                ) from e
+            create_command = create_commands["lazy"]["command"]
+            language = create_commands["lazy"]["language"]
+            compile = create_commands["lazy"]["compile"]
         else:
-            try:
-                create_command = create_commands["serial"]
-
-                if self.__profiler:
-                    if "profile" in create_commands:
-                        create_command = create_commands["profile"]
-                    else:
-                        logger.warning(
-                            'Profiler was set to "True" on create, but no valid profile command supplied - continuing without profiling'
-                        )
-
-            except KeyError as e:
-                if self.bm_config.parallel:
-                    pass
-                else:
-                    raise e
+            create_command = str(create_commands[command_type])  # ty:ignore[invalid-key]
 
         # Create the file that contains code to create the given dataset
-        create = self.create.replace("#MAIN", self.__replace_main(language))
+        create = create.replace("#MAIN", self.__replace_main(language))
 
         path_to_create_file = Path(f"{self.dir_path}/create.{language}")
         with open(path_to_create_file, "w") as file:
             file.write(create)
 
         create_file = f"create.{language}"
-        compiled_file_info = ("", "")
+        compiled_file_info: CompileInfo = {
+            "compiled_file_location": "",
+            "ld_library_path": "",
+        }
         if compile:
             compiled_file_info = self.__compile_file(path=path_to_create_file)
-            create_file = f"./{compiled_file_info[0]}"
-
-        if self.par_backend in create_commands.keys():
-            create_command = create_commands[self.par_backend]
-
-            if self.__profiler:
-                check_profiling = f"profile-{self.par_backend}"
-                if check_profiling in create_commands:
-                    create_command = create_commands[check_profiling]
-                else:
-                    logger.warning(
-                        f'Profiler was set to "True" on create with {self.par_backend}, but no valid profile command supplied - continuing without profiling'
-                    )
+            create_file = f"./{compiled_file_info['compiled_file_location']}"
 
         if self.par_backend is not None:
             create_command = create_command + " -p"
@@ -426,13 +431,6 @@ class BenchmarkManager:
 
             if self.collective:
                 create_command = create_command + f"-I {self.collective}"
-
-        if self.__profiler:
-            create_command = create_command.replace(
-                "<profile_path>",
-                f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}",
-                1,
-            )
 
         create_command = create_command.replace("{runnable}", f"{create_file} ", 1)
         create_command = create_command.replace(" -p", f" -p {self.parallel} ", 1)
@@ -455,7 +453,7 @@ class BenchmarkManager:
             f"{flag_variable}", f"{flag_variable} {variables}"
         )
 
-        values = list(self.run_config.variables.values())
+        values: list[RunConfig] = list(self.run_config.variables.values())
         shapes: list[list[int]] = []
         chunks: list[list[int]] = []
         datatypes = self.datatype
@@ -473,22 +471,17 @@ class BenchmarkManager:
             flag="-D", command=create_command, data=datatypes
         )
 
+        shell_type = "bash"
         if self.slurm_avail and not self.local:
-            create_command = [
-                "sbatch",
-                self.__assemble_bash(
-                    path=self.bash_location, compile_file_info=compiled_file_info
-                ),
-                create_command,
-            ]
-        else:
-            create_command = [
-                "bash",
-                self.__assemble_bash(
-                    path=self.bash_location, compile_file_info=compiled_file_info
-                ),
-                create_command,
-            ]
+            shell_type = "sbatch"
+
+        create_command = [
+            shell_type,
+            self.__assemble_bash(
+                self.bash_location, compile_file_info=compiled_file_info
+            ),
+            create_command,
+        ]
 
         logger.debug(f"create command used: {create_command}")
         p = subprocess.run(
@@ -533,7 +526,7 @@ class BenchmarkManager:
 
         return command
 
-    def __compile_file(self, path: Path) -> tuple[str, str]:
+    def __compile_file(self, path: Path) -> CompileInfo:
         """
         Compiles a file at a given path. Resolves required metadata from self.
 
@@ -557,7 +550,7 @@ class BenchmarkManager:
                 "{runnable}", f"{path.absolute()}"
             )
         else:
-            raise ValueError(
+            raise TypeError(
                 "Compile was True, but somehow we got here without a compile_command being supplied ..."
             )
 
@@ -588,7 +581,7 @@ class BenchmarkManager:
             file.write("#!/bin/bash\n")
             try:
                 subprocess.run(
-                    "git --version".split(), check=True, capture_output=True, text=True
+                    ["git", "--version"], check=True, capture_output=True, text=True
                 )
             except subprocess.CalledProcessError:
                 file.write("module load git\n")
@@ -605,7 +598,10 @@ class BenchmarkManager:
             logger.error(p.stderr)
         logger.debug(p.stdout)
 
-        return compiled_file, ld_library_path
+        return {
+            "compiled_file_location": compiled_file,
+            "ld_library_path": ld_library_path,
+        }
 
     def __execute_file(self):
         """
@@ -613,49 +609,69 @@ class BenchmarkManager:
         If a compiled language is requested, also compiles the necessary file and finally executes it.
         """
         # Get run command to execute the code with
-        run_commands: dict[str, str] = self.bm_config.run_commands
-        run_command = ""
-        try:
-            run_command = run_commands["serial"]
+        run_commands: RunCommands = self.bm_config.run_commands
+        if self.profiler:
+            run_commands = self.profiler_config.run_commands
 
-            if self.__profiler:
-                if "profile" in run_commands:
-                    run_command = run_commands["profile"]
-                else:
-                    logger.warning(
-                        'Profiler was set to "True" on run, but no valid profile command supplied - continuing without profiling'
-                    )
+        command_type = "serial"
+        if self.par_backend in run_commands:
+            command_type = self.par_backend
 
-        except KeyError as e:
-            if self.bm_config.parallel:
-                pass
-            else:
-                raise e
+        run_command = str(run_commands[command_type])  # ty:ignore[invalid-key]
 
         # Create the executable to run the benchmark on a given file with
         execute = self.src.replace("#MAIN", self.__replace_main(self.language), 1)
+        if self.profiler and self.profiler_config.instrumenter is not None:
+            if self.global_config.profiler_mode == "manual":
+                execute = (
+                    f"{self.imports if self.language == 'py' else ''} \n" + execute
+                )
+
+                inst_start = self.profiler_config.instrumenter["start"]
+                inst_start = inst_start.replace(
+                    "<format>",
+                    f'"{self.format}-{self.par_backend}-{self.filesize_var}-{self.chunksize_var}"',
+                    count=1,
+                )
+
+                execute = execute.replace(
+                    "#INSTRUMENTER_START",
+                    inst_start,
+                )
+
+                if "stop" in self.profiler_config.instrumenter:
+                    inst_stop = self.profiler_config.instrumenter["stop"]
+                    inst_stop = inst_stop.replace(
+                        "<format>",
+                        f'"{self.format}-{self.par_backend}-{self.filesize_var}-{self.chunksize_var}"',
+                        count=1,
+                    )
+
+                    execute = execute.replace(
+                        "#INSTRUMENTER_STOP",
+                        inst_stop,
+                    )
+                else:
+                    logger.warning(
+                        "No stopping instrumenter found, assuming you're using decorator or context managers."
+                    )
+            else:
+                logger.warning(
+                    f'No instrumenter methods found of {self.profiler_config.package} but mode was set to "{self.global_config.profiler_mode}" which requires instrumenter metthods. Continuing with mode: "auto" for now.'
+                )
 
         path_to_tmp_file = Path(f"{self.dir_path}/execute.{self.language}")
         with open(path_to_tmp_file, "w") as file:
             file.write(execute)
 
         tmp_file = f"execute.{self.language}"
-        compiled_file_info = ("", "")
+        compiled_file_info: CompileInfo = {
+            "compiled_file_location": "",
+            "ld_library_path": "",
+        }
         if self.compile:
             compiled_file_info = self.__compile_file(path=path_to_tmp_file)
-            tmp_file = f"./{compiled_file_info[0]}"
-
-        if self.par_backend in run_commands.keys():
-            run_command = run_commands[self.par_backend]
-
-            if self.__profiler:
-                check_profiling = f"profile-{self.par_backend}"
-                if check_profiling in run_commands:
-                    run_command = run_commands[check_profiling]
-                else:
-                    logger.warning(
-                        f'Profiler was set to "True" on run with {self.par_backend}, but no valid profile command supplied - continuing without profiling'
-                    )
+            tmp_file = f"./{compiled_file_info['compiled_file_location']}"
 
         if self.par_backend is not None:
             run_command = run_command + " -p"
@@ -687,94 +703,48 @@ class BenchmarkManager:
 
             run_command = run_command + f"-s {sum([sum(x) for x in size])}"
 
+        shell_type = "bash"
         if self.slurm_avail and not self.local:
-            run_command = [
-                "sbatch",
-                self.__assemble_bash(
-                    self.bash_location, compile_file_info=compiled_file_info
-                ),
-                run_command,
-            ]
-        else:
-            run_command = [
-                "bash",
-                self.__assemble_bash(
-                    self.bash_location, compile_file_info=compiled_file_info
-                ),
-                run_command,
-            ]
+            shell_type = "sbatch"
 
-        logger.debug(f"run command used: {run_command}")
+        run_command = [
+            shell_type,
+            self.__assemble_bash(
+                self.bash_location, compile_file_info=compiled_file_info
+            ),
+            run_command,
+        ]
+
         original_run_command = str(run_command[-1])
         for i in range(self.iterations):
-            if self.__profiler:
+            env_vars: dict[str, str] = {}
+            if self.profiler:
                 tmp_command = original_run_command
-                tmp_command = tmp_command.replace(
-                    "<profile_path>",
-                    f"{self.profiling_path.absolute()}/{self.id}-{self.current_time}-{i}",
-                    count=1,
-                )
-                run_command[-1] = tmp_command
-                logger.debug(f"Run command with profiler {run_command}")
+                profiling_res_path = f"{self.profiling_res_path.absolute()}/{self.format}-{self.par_backend}-{self.filesize_var}-{self.chunksize_var}-{self.current_time}-{i}"
+                env_vars.update(self.profiler_config.env_vars)
 
+                if self.profiler_config.export_method:
+                    for key in self.profiler_config.export_method:
+                        item = self.profiler_config.export_method[key]
+                        item = item.replace(
+                            "<profile_path>", profiling_res_path, count=1
+                        )
+                        self.profiler_config.export_method[key] = item
+
+                    env_vars.update(self.profiler_config.export_method)
+                else:
+                    tmp_command = tmp_command.replace(
+                        "<profile_path>",
+                        str(profiling_res_path),
+                        count=1,
+                    )
+                    run_command[-1] = tmp_command
+
+            logger.debug(f"Run command used {run_command}")
+            logger.debug(f"env vars: {env_vars}")
+            env_vars.update(os.environ)
             if self.no_caching:
-                new_path = Path(f"{self.dir_path}/{i}")
-                new_path.mkdir(parents=True)
-
-                current_path = Path()
-                for path in self.dir_path.rglob(f"*.{self.extension}"):
-                    current_path = path
-
-                # Need to just pass on failure thanks to zarr file being directories full of metadata ...
-                purge_files = []
-                if current_path.is_file():
-                    purge_files.append(current_path)
-                else:
-                    purge_files = current_path.rglob("*")
-
-                for path in purge_files:
-                    if path.is_file():
-                        with open(path, "r+") as file:
-                            file.flush()
-                            os.fsync(file.fileno())
-                            if hasattr(os, "posix_fadvise"):
-                                os.posix_fadvise(
-                                    file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED
-                                )
-
-                new_file_location = shutil.move(
-                    current_path.absolute(),
-                    f"{new_path.absolute()}/{i}.{self.extension}",
-                )
-                logger.debug(
-                    f"current location: {self.location} -> new location: {new_file_location}"
-                )
-
-                tmp_command = str(run_command[-1]).replace(
-                    f"-l {self.location}", f"-l {new_file_location}"
-                )
-                run_command[-1] = tmp_command
-
-                logger.debug(f"new run command: {run_command}")
-                self.location = new_file_location
-
-                # Need to just pass on failure thanks to zarr file being directories full of metadata ...
-                purge_files = []
-                current_path = Path(self.location)
-                if current_path.is_file():
-                    purge_files.append(current_path)
-                else:
-                    purge_files = current_path.rglob("*")
-
-                for path in purge_files:
-                    if path.is_file():
-                        with open(path, "r+") as file:
-                            file.flush()
-                            os.fsync(file.fileno())
-                            if hasattr(os, "posix_fadvise"):
-                                os.posix_fadvise(
-                                    file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED
-                                )
+                self.__no_caching_helper(run_command, i)
 
             p = subprocess.run(
                 run_command,
@@ -782,11 +752,52 @@ class BenchmarkManager:
                 text=True,
                 cwd=self.dir_path,
                 check=True,
+                env=env_vars,
             )
 
             if logger.isEnabledFor(logging.DEBUG):
                 logger.error(p.stderr)
             logger.debug(p.stdout)
+
+    def __no_caching_helper(self, run_command: list[str], iteration: int):
+        new_path = Path(f"{self.dir_path}/{iteration}")
+        new_path.mkdir(parents=True)
+
+        current_path = Path()
+        for path in self.dir_path.rglob(f"*.{self.extension}"):
+            current_path = path
+
+        logger.debug(f"current location: {current_path} -> new location: {new_path}")
+        self.__prepare_files()
+        new_file_location = shutil.move(
+            current_path.absolute(),
+            f"{new_path.absolute()}/{iteration}.{self.extension}",
+        )
+
+        tmp_command = str(run_command[-1]).replace(
+            f"-l {self.location}", f"-l {new_file_location}"
+        )
+        run_command[-1] = tmp_command
+
+        logger.debug(f"new run command: {run_command}")
+        self.location = new_file_location
+        self.__prepare_files()
+
+    def __prepare_files(self):
+        purge_files = []
+        current_path = Path(self.location)
+        if current_path.is_file():
+            purge_files.append(current_path)
+        else:
+            purge_files = current_path.rglob("*")
+
+        for path in purge_files:
+            if path.is_file():
+                with open(path, "r+") as file:
+                    file.flush()
+                    os.fsync(file.fileno())
+                    if hasattr(os, "posix_fadvise"):
+                        os.posix_fadvise(file.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
 
     def __replace_main(self, language: str) -> str:
         """
@@ -814,6 +825,8 @@ class BenchmarkManager:
 import argparse
 import ast
 import os
+
+from mpi4py import MPI
             
 def main():
 
@@ -837,45 +850,31 @@ def main():
     match args.benchmark:
         case 1:
             
-            result = bench(iterations=args.iterations, 
+            result: list[tuple[str, str, str]] | None = bench(iterations=args.iterations, 
                             variables=args.var_to_bm, 
                             parallel=args.parallel, 
                             path=args.location, 
                             collective=args.input_output,
                             )
-                    
-            from mpi4py import MPI
+
             import json
-            if args.parallel is False or MPI.COMM_WORLD.rank == 0:
+            if result:
                 from pathlib import Path
-                if Path("{self.results_path.absolute()}/{self.id}-{self.current_time}.json").exists():
-                    with open("{self.results_path.absolute()}/{self.id}-{self.current_time}.json", "r") as t:
-                        tmp = []
-                        tmp.extend(json.load(t))
-                        tmp.extend(result)
-                        result = tmp
-
-                with open("{self.results_path.absolute()}/{self.id}-{self.current_time}.json", "w") as f:
-                    json.dump(result, f)
                 
-                nodes = []
-                for _ in range(args.iterations):
-                    tmp = "None"
-                    if "SLURM_JOB_NODELIST" in os.environ:
-                        tmp = os.environ["SLURM_JOB_NODELIST"]
-                    tmp = tmp.replace("[", "")
-                    tmp = tmp.replace("]", "")
-                    nodes.append(tmp)
-                
-                if Path("{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json").exists():
-                    with open("{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json", "r") as t:
-                        tmp = []
-                        tmp.extend(json.load(t))
-                        tmp.extend(nodes)
-                        nodes = tmp
+                converted: list[str] = []
+                for entry in result:
+                    converted.append(("-").join(entry))
 
-                with open("{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes.json", "w") as f:
-                    json.dump(nodes, f)
+                res_path = "{self.results_path.absolute()}/{self.id}-{self.current_time}.json"
+                if Path(res_path).exists():
+                    with open(res_path, "r") as t:
+                        tmp: list[str] = []
+                        tmp.extend(json.load(t))
+                        tmp.extend(converted)
+                        converted = tmp
+
+                with open(res_path, "w") as f:
+                    json.dump(converted, f)
                 
         case -1:
             variables   = args.variables.split(",")
@@ -1375,11 +1374,6 @@ int main(int argc, char *argv[])
                     f"{self.results_path.absolute()}/{self.id}-{self.current_time}",
                     1,
                 )
-                tmp = tmp.replace(
-                    "<nodes-path>",
-                    f"{self.results_path.absolute()}/{self.id}-{self.current_time}-nodes",
-                    1,
-                )
                 return tmp
 
             case _:
@@ -1387,7 +1381,7 @@ int main(int argc, char *argv[])
                     f"{language} is not support by the BenchmarkConfig. Somehow we came all the way until here without catching that."
                 )
 
-    def __assemble_bash(self, path: str, compile_file_info: tuple) -> str:
+    def __assemble_bash(self, path: str, compile_file_info: CompileInfo) -> str:
         """
         Assembles the final `bash` or `sbatch` file containing all required information to execute whatever source provided.
 
@@ -1432,7 +1426,7 @@ int main(int argc, char *argv[])
         load_git = ""
         try:
             subprocess.run(
-                "git --version".split(), check=True, capture_output=True, text=True
+                ["git", "--version"], check=True, capture_output=True, text=True
             )
         except subprocess.CalledProcessError:
             load_git = "module load git"
@@ -1459,7 +1453,7 @@ ls -lh
 
 source {self.spack_manager.env_location.absolute()}/.venv/bin/activate
 
-{compile_file_info[1]}
+{compile_file_info["ld_library_path"]}
 
 $1
 
