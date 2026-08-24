@@ -257,6 +257,8 @@ class BenchmarkManager:
             + str(self.bm_config.par_backend)
             + str(self.parallel)
             + str(self.bm_config.parallel)
+            + str(self.task)
+            + str(self.bm_config.task)
             + str(self.format)
             + str(self.bm_config.format)
             + str(self.ranks)
@@ -317,6 +319,7 @@ class BenchmarkManager:
 
         logger.info(
             f"Managing Benchmark with; file-structure: {run_config.variables}, "
+            f"as task: {self.task}, "
             f"no caching: {self.no_caching}, "
             f"nodes: {self.nodes}, "
             f"datatype: {self.datatype}, "

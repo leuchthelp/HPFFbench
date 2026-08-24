@@ -112,6 +112,7 @@ class Handler:
         self.__use_spack_env = self.config.use_spack_env
         self.__max_processes = self.config.max_processes
         parallel = self.config.parallel
+        profiler = self.config.profiler
 
         self.spack_manager: list[SpackManager] = []
         for env_name, spack_env in self.config.spack_envs.items():
@@ -126,20 +127,18 @@ class Handler:
                 )
             )
 
-        if isinstance(parallel, str) and parallel == "Both":
-            self.__tasks = self.__create_benchmark(
-                parallel=False, determined_cap=self.__capabilities
-            )
+        self.__tasks: list[list[BenchmarkManager]] = []
+        combinations = itertools.product(parallel, profiler)
+        for combination in combinations:
             self.__tasks.extend(
                 self.__create_benchmark(
-                    parallel=True, determined_cap=self.__capabilities
+                    parallel=combination[0],
+                    profiler=combination[1],
+                    determined_cap=self.__capabilities,
                 )
             )
-        elif isinstance(parallel, bool):
-            self.__tasks = self.__create_benchmark(
-                parallel=parallel, determined_cap=self.__capabilities
-            )
 
+        logger.debug(self.__tasks)
         if not self.__tasks:
             raise RuntimeError("no matching benchmark configs found")
 
@@ -301,7 +300,10 @@ class Handler:
         return tmp
 
     def __create_benchmark(
-        self, parallel: bool, determined_cap: dict[str, BenchmarkConfigLoader]
+        self,
+        parallel: bool,
+        profiler: bool,
+        determined_cap: dict[str, BenchmarkConfigLoader],
     ) -> list[list[BenchmarkManager]]:
         """
         Gather tasks to be performed and pass required metadata to configure a single benchmark to be run.
@@ -332,6 +334,7 @@ class Handler:
                 tasks.append(
                     self.__create_benchmark_manager(
                         parallel=parallel,
+                        profiler=profiler,
                         requested=requested,
                         bm_config=determined_cap[str(requested)],
                     )
@@ -342,9 +345,10 @@ class Handler:
     def __create_benchmark_manager(
         self,
         parallel: bool,
+        profiler: bool,
         requested: BenchmarkConfig,
         bm_config: BenchmarkConfigLoader,
-    ):
+    ) -> list[BenchmarkManager]:
         """
         Gather up additional metadata to create a BenchmarkManager object.
 
@@ -366,10 +370,9 @@ class Handler:
             List of BenchmarkManager objects.
         """
         benchmarks: list[BenchmarkManager] = []
-
         for run_config in self.config.runs.values():
             nodes = self.config.nodes
-            slurm_options = ""
+            slurm_options = [""]
             config_ranks: list[int] = [1]
             config_collective: list[bool | None] = [None]
             config_no_caching: list[bool] = self.config.no_caching
@@ -377,6 +380,10 @@ class Handler:
             if parallel:
                 config_ranks = self.config.ranks
                 config_collective = self.config.collective
+
+            # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
+            if self.slurm_avail or self.__only_data:
+                slurm_options = self.config.slurm_options
 
             spack_manager: list[SpackManager] = []
             for manager in self.spack_manager:
@@ -387,9 +394,9 @@ class Handler:
                     spack_manager.append(manager)
 
             profilers: list[ProfilerConfigLoader | None] = [None]
-            if self.config.profiler:
+            if profiler:
                 profilers.clear()
-                for profiler in self.config.profilers:
+                for req_profiler in self.config.profilers:
                     where_paths = Path(self.config.paths["path_to_profilers"]["path"])
                     config_paths = itertools.chain(
                         Path(where_paths).glob("*.yaml"),
@@ -398,7 +405,7 @@ class Handler:
                     for profiler_path in config_paths:
                         profiler_loaded = ProfilerConfigLoader(profiler_path)
 
-                        if profiler == profiler_loaded.package:
+                        if req_profiler == profiler_loaded.package:
                             profilers.append(profiler_loaded)
 
             combinations = itertools.product(
@@ -418,10 +425,7 @@ class Handler:
                 manager = combination[3]
                 no_caching = combination[4]
                 profiler_config = combination[5]
-
-                # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
-                if self.slurm_avail or self.__only_data:
-                    slurm_options = combination[6]
+                slurm_option = combination[6]
 
                 if not manager.initialized:
                     manager.initialize_env()
@@ -434,7 +438,7 @@ class Handler:
                     bm_config=bm_config,
                     global_config=self.config,
                     slurm_avail=self.slurm_avail,
-                    slurm_options=slurm_options,
+                    slurm_options=slurm_option,
                     requested=requested,
                     nodes=node,
                     parallel=parallel,
@@ -442,12 +446,15 @@ class Handler:
                     ranks=ranks,
                     spack_manager=manager,
                     no_caching=no_caching,
-                    profiler=self.config.profiler,
+                    profiler=profiler,
                     profiler_config=profiler_config,
                 )
 
                 self.__benchmarks.append((bm.id, bm))
                 benchmarks.append(bm)
+
+        if not benchmarks:
+            raise ValueError("Not benchmarks have been created, something is wrong.")
 
         return benchmarks
 
@@ -479,8 +486,8 @@ class Handler:
             TimeRemainingColumn(),
             TimeElapsedColumn(),
         )
-        task = progress.add_task("[cyan]Benchmarks still to run", total=len(bm_list))
 
+        task = progress.add_task("[cyan]Benchmarks still to run", total=len(bm_list))
         with progress:
             for result in pool.uimap(self.__run_benchmark, bm_list):
                 self.__benchmarks.append(result)
@@ -586,6 +593,7 @@ class Handler:
                             path_date, "%Y_%m_%d_%H_%M_%S"
                         ).astimezone(),
                         "run config": [benchmark.run_config],
+                        "task": benchmark.task,
                         "time taken": value,
                         "on rank": ranks[index],
                         "throughput": benchmark.total_filesize / mean,

@@ -1,3 +1,5 @@
+tasks:
+- read
 formats:
 - hdf5
 languages:
@@ -6,7 +8,7 @@ paths:
   path_to_benchmarks: configs/benchmarks
   path_to_profilers: configs/profilers
   path_to_tmp: tmp
-  path_to_root: /home/leucht/Documents/HPFFbench
+  path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_results: results/general
   path_res_profiling: results/profiling
 iterations: 2
@@ -29,7 +31,8 @@ only_data: false
 no_caching: true
 use_spack_env: true
 max_processes: 20
-slurm_options: '
+slurm_options:
+- '
 
   #SBATCH --partition=compute
 
@@ -95,7 +98,7 @@ spack_env:
       py-netcdf4:
         versions:
         - 1.7.2
-    compiler: gcc@15.2.0
+    compiler: gcc@15.3.0
     additional: pip install zarr==3.2.1 scorep
     install: true
   test-env-async:
@@ -138,7 +141,7 @@ spack_env:
     compiler: gcc@15.3.0
 delete_envs: false
 paths_create: true
-profiler: true
+profiler: false
 profilers:
 - scorep
 profiler_mode: manual

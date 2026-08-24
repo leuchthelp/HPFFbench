@@ -79,7 +79,7 @@ def main():
                     "versions": ["1.7.2"],
                 },
             },
-            "compiler": "gcc@15.2.0",
+            "compiler": "gcc@15.3.0",
             "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
         },
@@ -139,7 +139,7 @@ def main():
         "spack_env": spack_envs,
         "delete_envs": False,
         "paths_create": True,
-        "profiler": True,
+        "profiler": False,
         "profilers": ["scorep"],
         "profiler_mode": "manual",
     }

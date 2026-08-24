@@ -269,7 +269,8 @@ class GlobalConfigLoader:
     spack_envs: dict[str, SpackEnv]
 
     max_processes: int | None
-    parallel: Literal["Both", True, False]
+    profiler: list[bool]
+    parallel: list[bool]
     collective: list[bool | None]
     no_caching: list[bool]
 
@@ -360,16 +361,18 @@ class GlobalConfigLoader:
         if "paths_create" in self.config:
             self.paths_create: bool = self.config["paths_create"]
 
-        self.parallel: Literal["Both", True, False] = False
+        self.parallel: list[bool] = [False]
         if "parallel" in self.config:
-            parallel: bool | str = self.config["parallel"]
+            config_parallel: bool | str = self.config["parallel"]
 
-            if parallel != "Both" and not isinstance(parallel, bool):
+            if not isinstance(config_parallel, bool) and config_parallel != "Both":
                 raise ValueError(
                     '"parallel" can only either be "True", "False" or "Both"'
                 )
-
-            self.parallel: Literal["Both", True, False] = parallel
+            elif not isinstance(config_parallel, bool) and config_parallel == "Both":
+                self.profiler: list[bool] = [False, True]
+            else:
+                self.profiler: list[bool] = [config_parallel]
         else:
             logger.info(
                 '"parallel" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True.'
@@ -388,9 +391,9 @@ class GlobalConfigLoader:
             elif isinstance(collective, bool):
                 self.collective = [collective]
 
-            if not parallel:
+            if True not in self.parallel:
                 logger.warning(
-                    f"Parallel was set to {parallel} but collective was set: {collective}. Will be ignored as long as parallel is not True."
+                    f"Parallel was set to {self.parallel} but collective was set: {collective}. Will be ignored as long as parallel is not True or for runs which are not parallelized."
                 )
 
         self.ranks = [1]
@@ -423,10 +426,6 @@ class GlobalConfigLoader:
         if "delete_envs" in self.config:
             self.delete_envs: bool = self.config["delete_envs"]
 
-        self.profiler = False
-        if "profiler" in self.config:
-            self.profiler: bool = self.config["profiler"]
-
         self.no_caching = [True]
         if "no_caching" in self.config:
             no_caching: bool | str = self.config["no_caching"]
@@ -435,6 +434,23 @@ class GlobalConfigLoader:
                 self.no_caching = [False, True]
             elif isinstance(no_caching, bool):
                 self.no_caching = [no_caching]
+
+        self.profiler: list[bool] = [False]
+        if "profiler" in self.config:
+            config_profiler: bool | str = self.config["profiler"]
+
+            if not isinstance(config_profiler, bool) and config_profiler != "Both":
+                raise ValueError(
+                    '"profiler" can only either be "True", "False" or "Both"'
+                )
+            elif not isinstance(config_profiler, bool) and config_profiler == "Both":
+                self.profiler: list[bool] = [False, True]
+            else:
+                self.profiler: list[bool] = [config_profiler]
+        else:
+            logger.info(
+                '"profiler" is unset! Be aware profiler will be automatically set to False as long as it remains unset. You will be unable to run profiled benchmarks until you set it to True.'
+            )
 
         self.profilers: list[str] = []
         if "profilers" in self.config:
