@@ -377,7 +377,7 @@ class BenchmarkManager:
             self.__execute_file()
 
         finally:
-            # shutil.rmtree(path=self.dir_path)
+            shutil.rmtree(path=self.dir_path)
             pass
 
         return self.id, self
