@@ -1,4 +1,5 @@
 parallel: False
+task: "read"
 language: py
 extension: h5
 format: hdf5

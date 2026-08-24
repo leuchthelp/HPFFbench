@@ -176,6 +176,7 @@ class ProfilerConfigLoader:
 
 
 class BenchmarkConfig(TypedDict):
+    task: ReadOnly[str]
     format: ReadOnly[str]
     language: ReadOnly[str]
     parallel: ReadOnly[bool]
@@ -184,6 +185,7 @@ class BenchmarkConfig(TypedDict):
 
 @dataclass
 class BenchmarkConfigLoader:
+    task: str
     format: str
     create: str | None
     source: str
@@ -211,6 +213,7 @@ class BenchmarkConfigLoader:
         elif isinstance(parallel, bool):
             self.parallel = [parallel]
 
+        self.task: str = self.config["task"]
         self.language: str = self.config["language"]
         self.format: str = self.config["format"]
         self.extension: str = self.config["extension"]
@@ -244,7 +247,6 @@ class BenchmarkConfigLoader:
 
 class GlobalConfigLoader:
     iterations: int
-    slurm_options: str
     paths_create: bool
     only_data: bool
     use_spack_env: bool
@@ -252,8 +254,10 @@ class GlobalConfigLoader:
 
     ranks: list[int]
     nodes: list[int]
+    tasks: list[str]
     formats: list[str]
     languages: list[str]
+    slurm_options: list[str]
     variable_to_benchmark: list[str]
     profilers: list[str]
     profiler_mode: Literal["manual", "auto"]
@@ -299,12 +303,13 @@ class GlobalConfigLoader:
             except yaml.YAMLError as e:
                 yaml.YAMLError(f"Error loading config.yaml! Additional details: {e}")
 
+        self.tasks: list[str] = self.config["tasks"]
         self.formats: list[str] = self.config["formats"]
         self.languages: list[str] = self.config["languages"]
         self.iterations: int = self.config["iterations"]
         self.nodes: list[int] = self.config["nodes"]
         self.variable_to_benchmark: list[str] = self.config["variable_to_benchmark"]
-        self.slurm_options: str = self.config["slurm_options"]
+        self.slurm_options: list[str] = self.config["slurm_options"]
 
         if "paths" in self.config:
             paths: dict[str, str | ProcessedPath] = self.config["paths"]

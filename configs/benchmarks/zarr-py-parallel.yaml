@@ -1,5 +1,6 @@
 parallel: True
 par_backend: MPI
+task: "read"
 language: py
 extension: zarr
 format: zarr

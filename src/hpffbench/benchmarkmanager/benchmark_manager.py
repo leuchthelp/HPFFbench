@@ -146,6 +146,7 @@ class BenchmarkManager:
     id: str
     run_config: Run
     bm_config: BenchmarkConfigLoader
+    task: str
     nodes: int
     parallel: bool
     par_backend: None | str
@@ -204,6 +205,7 @@ class BenchmarkManager:
 
         # Benchmark config
         self.run_config = run_config
+        self.task = requested["task"]
         self.nodes = nodes
         self.parallel = parallel
         self.collective = collective

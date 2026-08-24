@@ -226,6 +226,7 @@ class Handler:
                 for entry in current.parallel:
                     if not entry or not isinstance(current.par_backend, list):
                         benchmark_config: BenchmarkConfig = {
+                            "task": current.task,
                             "format": current.format,
                             "language": current.language,
                             "parallel": entry,
@@ -235,6 +236,7 @@ class Handler:
                     else:
                         for backend in current.par_backend:
                             benchmark_config: BenchmarkConfig = {
+                                "task": current.task,
                                 "format": current.format,
                                 "language": current.language,
                                 "parallel": entry,
@@ -261,13 +263,17 @@ class Handler:
         list
             Contains all requested benchmarks by the user.
         """
-        languages: list[tuple[str, str]] = []
-        for language in self.config.languages:
-            languages.append(("language", language))
+        tasks: list[tuple[str, str]] = []
+        for task in self.config.tasks:
+            tasks.append(("task", task))
 
         formats: list[tuple[str, str]] = []
         for format in self.config.formats:
             formats.append(("format", format))
+
+        languages: list[tuple[str, str]] = []
+        for language in self.config.languages:
+            languages.append(("language", language))
 
         par_backends: list[tuple[str, str | None]] = [("par_backend", None)]
         if parallel:
@@ -278,12 +284,15 @@ class Handler:
                 for par_backend in self.config.par_backend:
                     par_backends.append(("par_backend", par_backend))
 
-        combinations = itertools.product(*[
-            formats,
-            languages,
-            [("parallel", parallel)],
-            par_backends,
-        ])
+        combinations = itertools.product(
+            *[
+                tasks,
+                formats,
+                languages,
+                [("parallel", parallel)],
+                par_backends,
+            ]
+        )
 
         tmp: list[BenchmarkConfig] = []
         for combination in combinations:
@@ -369,10 +378,6 @@ class Handler:
                 config_ranks = self.config.ranks
                 config_collective = self.config.collective
 
-            # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
-            if self.slurm_avail or self.__only_data:
-                slurm_options = self.config.slurm_options
-
             spack_manager: list[SpackManager] = []
             for manager in self.spack_manager:
                 if (
@@ -403,6 +408,7 @@ class Handler:
                 spack_manager,
                 config_no_caching,
                 profilers,
+                slurm_options,
             )
 
             for combination in combinations:
@@ -412,6 +418,10 @@ class Handler:
                 manager = combination[3]
                 no_caching = combination[4]
                 profiler_config = combination[5]
+
+                # If within a Slurm environment; slurm options need to be supplied as they have to include account for allocation
+                if self.slurm_avail or self.__only_data:
+                    slurm_options = combination[6]
 
                 if not manager.initialized:
                     manager.initialize_env()
@@ -572,7 +582,9 @@ class Handler:
                 tmp = pd.DataFrame(
                     data={
                         "benchmark": benchmark.id,
-                        "date run": datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S").astimezone(),
+                        "date run": datetime.strptime(
+                            path_date, "%Y_%m_%d_%H_%M_%S"
+                        ).astimezone(),
                         "run config": [benchmark.run_config],
                         "time taken": value,
                         "on rank": ranks[index],

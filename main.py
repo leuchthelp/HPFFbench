@@ -119,6 +119,7 @@ def main():
     }
 
     new_setup = {
+        "tasks": ["read"],
         "formats": ["hdf5"],
         "languages": ["py"],
         "paths": paths,
@@ -134,7 +135,7 @@ def main():
         "no_caching": True,
         "use_spack_env": True,
         "max_processes": 20,
-        "slurm_options": slurm_options,
+        "slurm_options": [slurm_options],
         "spack_env": spack_envs,
         "delete_envs": False,
         "paths_create": True,
