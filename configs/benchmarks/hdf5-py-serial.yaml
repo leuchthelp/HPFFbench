@@ -103,7 +103,7 @@ source: |
               except KeyError:
                   print(f"Variable: {var} does not exist.")
 
-          bench.append("0", "None", str(round(time.monotonic() - start, 32))))
+          bench.append(("0", "None", str(round(time.monotonic() - start, 32))))
 
       dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
