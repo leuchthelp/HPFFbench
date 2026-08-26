@@ -370,9 +370,9 @@ class GlobalConfigLoader:
                     '"parallel" can only either be "True", "False" or "Both"'
                 )
             elif not isinstance(config_parallel, bool) and config_parallel == "Both":
-                self.profiler: list[bool] = [False, True]
+                self.parallel: list[bool] = [False, True]
             else:
-                self.profiler: list[bool] = [config_parallel]
+                self.parallel: list[bool] = [config_parallel]
         else:
             logger.info(
                 '"parallel" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True.'

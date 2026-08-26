@@ -2,6 +2,8 @@ tasks:
 - read
 formats:
 - hdf5
+- zarr
+- netcdf4
 languages:
 - py
 paths:
@@ -13,16 +15,39 @@ paths:
   path_res_profiling: results/profiling
 iterations: 2
 runs:
+  run17:
+    X:
+    - - 1342177280
+    - - 8388608
+  run18:
+    X:
+    - - 1342177280
+    - - 4194304
+  run19:
+    X:
+    - - 1342177280
+    - - 2097152
   run20:
     X:
     - - 1342177280
     - - 1048576
-parallel: true
+  run21:
+    X:
+    - - 1342177280
+    - - 524288
+  run22:
+    X:
+    - - 1342177280
+    - - 262144
+parallel: Both
 collective: false
 par_backend:
 - MPI
 ranks:
-- 4
+- 8
+- 16
+- 32
+- 64
 nodes:
 - 1
 variable_to_benchmark:

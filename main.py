@@ -23,11 +23,12 @@ def main():
         # "run03": {"X": [[10 * 134217728], []],},
         # "run03": {"X": [[5 * 134217728], []],},
         # "run04": {"X": [[100 * 134217728], []]},
-        # "run18": {"X": [[100 * 134217728], [1 * 134217728 // 32]]},  # 32mb
-        # "run19": {"X": [[100 * 134217728], [1 * 134217728 // 64]]},  # 16mb
+        "run17": {"X": [[10 * 134217728], [1 * 134217728 // 16]]},  # 64mb
+        "run18": {"X": [[10 * 134217728], [1 * 134217728 // 32]]},  # 32mb
+        "run19": {"X": [[10 * 134217728], [1 * 134217728 // 64]]},  # 16mb
         "run20": {"X": [[10 * 134217728], [1 * 134217728 // 128]]},  # 8mb
-        # "run21": {"X": [[100 * 134217728], [1 * 134217728 // 256]]},  # 4mb
-        # "run22": {"X": [[100 * 134217728], [1 * 134217728 // 512]]},  # 2mb
+        "run21": {"X": [[10 * 134217728], [1 * 134217728 // 256]]},  # 4mb
+        "run22": {"X": [[10 * 134217728], [1 * 134217728 // 512]]},  # 2mb
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -120,15 +121,15 @@ def main():
 
     new_setup = {
         "tasks": ["read"],
-        "formats": ["hdf5"],
+        "formats": ["hdf5", "zarr", "netcdf4"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 2,
         "runs": tmp,
-        "parallel": True,
+        "parallel": "Both",
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [4],
+        "ranks": [8, 16, 32, 64],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": False,
@@ -149,7 +150,7 @@ def main():
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
+    Handler(path_to_config=path_to_config, log_lvl=logging.INFO)
 
 
 if __name__ == "__main__":
