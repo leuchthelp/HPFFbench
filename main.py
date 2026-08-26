@@ -124,7 +124,7 @@ def main():
         "formats": ["hdf5", "zarr", "netcdf4"],
         "languages": ["py"],
         "paths": paths,
-        "iterations": 2,
+        "iterations": 5,
         "runs": tmp,
         "parallel": "Both",
         "collective": False,
