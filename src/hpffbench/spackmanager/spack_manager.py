@@ -6,7 +6,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from hpffbench.configloader import ProcessedPath, SpackEnv
+from hpffbench.configloader import ProcessedPath, SpackEnv, SpackPackageConfig
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +70,9 @@ class SpackManager:
     handler_id: str
     env_name: str
     spack_env: SpackEnv
-    target: list
-    language: list
-    packages: dict
+    target: list[dict[str, str]]
+    language: list[str]
+    packages: dict[str, SpackPackageConfig]
     additional: str
     env_location: Path
     package_locations: dict
