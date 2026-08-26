@@ -85,6 +85,7 @@ source: |
   def bench_helper(
       iterations: int,
       variables: list[str],
+      node: str,
       arrays: dict[str, AnyArray],
   ) -> list[tuple[str, str, str]]:
       bench: list[tuple[str, str, str]] = []
@@ -97,7 +98,7 @@ source: |
               except KeyError:
                   print(f"Variable: {var} does not exist.")
 
-          bench.append(("0", "None", str(round(time.monotonic() - start, 32))))
+          bench.append(("0", node, str(round(time.monotonic() - start, 32))))
 
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
       return bench
@@ -129,7 +130,11 @@ source: |
               print(f"Variable: {var} does not exist.")
       print(f'for variable: {var_tmp} for engine: "zarr", size: {var_sizes}')
 
-      result = bench_helper(iterations, var_tmp, arrays)
+      node = "None"
+      if "SLURMD_NODENAME" in os.environ:
+          node = os.environ["SLURMD_NODENAME"]
+
+      result = bench_helper(iterations, var_tmp, node, arrays)
 
       return result
 

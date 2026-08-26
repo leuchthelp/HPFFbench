@@ -98,6 +98,7 @@ source: |
   def bench_helper(
       iterations: int,
       variables: list[str],
+      node: str,
       dataset: netCDF4.Dataset,
   ) -> list[tuple[str, str, str]]:
       bench: list[tuple[str, str, str]] = []
@@ -110,7 +111,7 @@ source: |
               except KeyError:
                   print(f"Variable: {var} does not exist.")
 
-          bench.append(("0", "None", str(round(time.monotonic() - start, 32))))
+          bench.append(("0", node, str(round(time.monotonic() - start, 32))))
 
       dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
@@ -138,7 +139,11 @@ source: |
               print(f"Variable: {var} does not exist.")
       print(f'for variable: {var_tmp} for engine: "hdf5", size: {var_sizes}')
 
-      result = bench_helper(iterations, var_tmp, dataset)
+      node = "None"
+      if "SLURMD_NODENAME" in os.environ:
+          node = os.environ["SLURMD_NODENAME"]
+
+      result = bench_helper(iterations, var_tmp, node, dataset)
 
       return result
 

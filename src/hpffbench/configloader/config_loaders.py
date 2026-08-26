@@ -375,7 +375,7 @@ class GlobalConfigLoader:
                 self.parallel: list[bool] = [config_parallel]
         else:
             logger.info(
-                '"parallel" is unset! Be aware parallel will be automatically set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True.'
+                '"parallel" is unset! Be aware parallel will be set to False as long as it remains unset. You will be unable to run parallelized benchmarks until you set it to True.'
             )
 
         self.par_backend = None
@@ -449,7 +449,7 @@ class GlobalConfigLoader:
                 self.profiler: list[bool] = [config_profiler]
         else:
             logger.info(
-                '"profiler" is unset! Be aware profiler will be automatically set to False as long as it remains unset. You will be unable to run profiled benchmarks until you set it to True.'
+                '"profiler" is unset! Be aware profiler will be set to False as long as it remains unset. You will be unable to run profiled benchmarks until you set it to True.'
             )
 
         self.profilers: list[str] = []
