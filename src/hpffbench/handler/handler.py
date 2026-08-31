@@ -7,8 +7,9 @@ import subprocess
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import cast, Any
 
+import xarray as xr
 import numpy as np
 import pandas as pd
 from pathos.pools import ProcessPool
@@ -673,3 +674,154 @@ class Handler:
 
         logger.debug(df)
         df.to_json(Path(f"{res_path}/results.json"))
+
+    def __build_overview_array(
+        self, benchmark: BenchmarkManager, date_run: datetime
+    ) -> xr.DataArray:
+        dims: list[str] = [
+            "date_run",
+            "benchmark_id",
+            "on_node",
+            "on_rank",
+            "time_taken",
+            "throughput",
+            "mean_time",
+            "mean_throughput",
+            "std",
+            "relative_std",
+            "error_bar",
+            "anomaly_hint",
+        ]
+
+        benchmark_id = benchmark.id
+
+        data: list[list[Any]] = [[date_run, benchmark_id]]
+
+        return xr.DataArray(data=data, dims=dims)
+
+    def __build_bm_config_array(self, benchmark: BenchmarkManager) -> xr.DataArray:
+        dims: list[str] = [
+            "benchmark_id",
+            "format",
+            "task_type",
+            "language",
+            "engine",
+            "nodes",
+            "parallel",
+            "parallel_backend",
+            "ranks",
+            "access_kind",
+        ]
+
+        benchmark_id = benchmark.id
+
+        data: list[list[Any]] = [[benchmark_id]]
+
+        return xr.DataArray(data=data, dims=dims)
+
+    def __build_file_config_array(self, benchmark: BenchmarkManager) -> xr.DataArray:
+        dims: list[str] = [
+            "benchmark_id",
+            "total_filesize",
+            "var_to_bm",
+            "filesize_per_var",
+            "unit_var",
+            "filesize_per_chunk",
+            "unit_chunk",
+        ]
+
+        benchmark_id = benchmark.id
+
+        data: list[list[Any]] = [[benchmark_id]]
+
+        return xr.DataArray(data=data, dims=dims)
+
+    def __build_nodes_array(
+        self, benchmark: BenchmarkManager, date_run: datetime
+    ) -> xr.DataArray:
+        dims: list[str] = [
+            "date_run",
+            "benchmark_id",
+            "node_count",
+            "used_nodes",
+        ]
+
+        benchmark_id = benchmark.id
+
+        data: list[list[Any]] = [[date_run, benchmark_id]]
+
+        return xr.DataArray(data=data, dims=dims)
+
+    def __build_package_array(
+        self, benchmark_id: str, spack_manager: SpackManager
+    ) -> xr.DataArray:
+        dims: list[str] = [
+            "benchmark_id",
+            "package_name",
+            "package_version",
+            "package_flag",
+        ]
+
+        data: list[list[Any]] = [[benchmark_id]]
+
+        return xr.DataArray(data=data, dims=dims)
+
+    def __build_packages_array(
+        self, benchmark_id: str, spack_manager: SpackManager
+    ) -> xr.DataArray:
+        dims: list[str] = [
+            "benchmark_id",
+            "install_method",
+        ]
+
+        data: list[list[Any]] = [[benchmark_id]]
+
+        return xr.DataArray(data=data, dims=dims)
+
+    def __build_dataset(
+        self, benchmark: BenchmarkManager, date_run: datetime
+    ) -> xr.Dataset:
+        data_vars: dict[str, xr.DataArray] = {}
+
+        return xr.Dataset(data_vars=data_vars)
+
+    def __build_datasets(self) -> dict[str, xr.Dataset]:
+        final: dict[str, xr.Dataset] = {}
+
+        root = Path(self.config.paths["path_to_results"]["path"])
+
+        benchmarks = dict(self.__benchmarks)
+
+        for path in root.rglob("*.json"):
+            if not path.is_dir() and "results" not in path.name:
+                tmp = path.name.replace(".json", "").split("-")
+                path_name = tmp[0]
+                path_date = tmp[1]
+
+                if path_name in benchmarks:
+                    benchmark = benchmarks[path_name]
+                    date_run = datetime.strptime(
+                        path_date, "%Y_%m_%d_%H_%M_%S"
+                    ).astimezone()
+
+                    if path_name in final:
+                        ds = self.__build_dataset(benchmark, date_run)
+                        final[path_name].merge(
+                            ds, compat="identical", combine_attrs="identical"
+                        )
+                    else:
+                        final[path_name] = self.__build_dataset(benchmark, date_run)
+
+        return final
+
+    def __build_datatree(self):
+        dt = xr.DataTree.from_dict(self.__build_datasets())
+
+        res_path: str = self.config.paths["path_to_results"]["path"]
+        res_file_path: Path = Path(f"{res_path}/results.zarr")
+
+        if res_file_path.exists():
+            existing: xr.DataTree = xr.open_zarr(res_file_path)
+            dt = xr.merge([existing, dt], compat="identical", combine_attrs="identical")
+
+        dt.to_zarr(res_file_path)

@@ -17,7 +17,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "rich>=15.0.0",
     "ty>=0.0.55",
-    "zarr>=3.2.1",
+    "xarray>=2026.7.0",
 ]
 
 [dependency-groups]
