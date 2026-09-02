@@ -7,11 +7,11 @@ import subprocess
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import cast, Any
+from typing import Any, cast
 
-import xarray as xr
 import numpy as np
 import pandas as pd
+import xarray as xr
 from pathos.pools import ProcessPool
 from rich.console import Console
 from rich.logging import RichHandler
@@ -675,49 +675,121 @@ class Handler:
         logger.debug(df)
         df.to_json(Path(f"{res_path}/results.json"))
 
+    def __calc_anomaly_prob(
+        self, measures: list[float]
+    ) -> tuple[list[float], list[bool]]:
+        clusters = []
+        eps = 0.12
+        points_sorted = sorted(measures)
+        curr_point = points_sorted[0]
+        curr_cluster = [curr_point]
+
+        for point in points_sorted[1:]:
+            if point <= curr_point + curr_point * eps:
+                curr_cluster.append(point)
+            else:
+                clusters.append(curr_cluster)
+                curr_cluster = [point]
+                curr_point = point
+
+        clusters.append(curr_cluster)
+
+        anomaly_prob: list[float] = []
+        anomaly_class: list[bool] = []
+
+        # Very naive approach, need something better
+        for value in measures:
+            if value not in clusters[0]:
+                prob = next(
+                    idx for idx, elem in enumerate(clusters[1:]) if value in elem
+                ) / len(clusters)
+
+                anomaly_prob.append(prob)
+                anomaly_class.append(True)
+
+        return anomaly_prob, anomaly_class
+
     def __build_overview_array(
-        self, benchmark: BenchmarkManager, date_run: datetime
+        self, res_path: Path, date_run: datetime
     ) -> xr.DataArray:
-        dims: list[str] = [
-            "date_run",
-            "benchmark_id",
-            "on_node",
-            "on_rank",
-            "time_taken",
-            "throughput",
-            "mean_time",
-            "mean_throughput",
-            "std",
-            "relative_std",
-            "error_bar",
-            "anomaly_hint",
-        ]
+        with open(res_path, "r") as file:
+            initial: list[str] = json.load(file)
 
-        benchmark_id = benchmark.id
+        used_nodes: list[str] = []
+        ranks: list[int] = []
+        measures: list[float] = []
+        for entry in initial:
+            split = entry.split("-")
+            rank = int(split[0])
+            node = split[1]
+            value = float(split[2])
 
-        data: list[list[Any]] = [[date_run, benchmark_id]]
+            ranks.append(rank)
+            used_nodes.append(node)
+            measures.append(value)
 
-        return xr.DataArray(data=data, dims=dims)
+        count_per_rank = Counter(ranks)
+        iterations: list[int] = []
+        for rank, count in count_per_rank.items():
+            iterations.extend([rank] * count)
+
+        time_mean = np.mean(measures)
+        time_std = np.std(measures)
+        time_rsd = time_std / time_mean
+        time_error = time_std / float(np.sqrt(len(measures)))
+
+        throughputs = [time / time_mean for time in measures]
+        throughput_mean = np.mean(throughputs)
+        throughput_std = np.std(throughputs)
+        throughput_rsd = throughput_std / throughput_mean
+        throughput_err = throughput_std / float(np.sqrt(len(throughputs)))
+
+        anomaly_prob, anomaly_class = self.__calc_anomaly_prob(measures=measures)
+
+        coords: dict[str, Any] = {
+            "date_run": date_run,
+            "iterations": iterations,
+            "on_node": ("iterations", used_nodes),
+            "on_rank": ("iterations", ranks),
+            "mean_time": ("iterations", time_mean),
+            "time_std": ("iterations", time_std),
+            "time_relative_std": ("iterations", time_rsd),
+            "time_error_bar": ("iterations", time_error),
+            "throughput_per_measure": ("iterations", throughputs),
+            "mean_throughput": ("iterations", throughput_mean),
+            "throughput_std": ("iterations", throughput_std),
+            "throughput_relative_std": ("iterations", throughput_rsd),
+            "throughput_error_bar": ("iterations", throughput_err),
+            "anomaly_hint_prob": ("iterations", anomaly_prob),
+            "anomaly_hint_classification": ("iterations", anomaly_class),
+        }
+
+        data: list[list[Any]] = [measures]
+        return xr.DataArray(
+            data=data,
+            coords=coords,
+            attrs={
+                "description": "Time taken per benchmark run (lower is better)",
+                "units": "ms (microseconds)",
+            },
+        )
 
     def __build_bm_config_array(self, benchmark: BenchmarkManager) -> xr.DataArray:
-        dims: list[str] = [
-            "benchmark_id",
-            "format",
-            "task_type",
-            "language",
-            "engine",
-            "nodes",
-            "parallel",
-            "parallel_backend",
-            "ranks",
-            "access_kind",
-        ]
+        coords: dict[str, Any] = {
+            "format": [],
+            "task_type": [],
+            "language": [],
+            "engine": [],
+            "nodes": [],
+            "parallel": [],
+            "parallel_backend": [],
+            "ranks": [],
+            "access_kind": [],
+        }
 
-        benchmark_id = benchmark.id
+        data: list[list[Any]] = []
 
-        data: list[list[Any]] = [[benchmark_id]]
-
-        return xr.DataArray(data=data, dims=dims)
+        return xr.DataArray(data=data, coords=coords)
 
     def __build_file_config_array(self, benchmark: BenchmarkManager) -> xr.DataArray:
         dims: list[str] = [
@@ -752,7 +824,7 @@ class Handler:
 
         return xr.DataArray(data=data, dims=dims)
 
-    def __build_package_array(
+    def __build_used_package_array(
         self, benchmark_id: str, spack_manager: SpackManager
     ) -> xr.DataArray:
         dims: list[str] = [
@@ -766,7 +838,7 @@ class Handler:
 
         return xr.DataArray(data=data, dims=dims)
 
-    def __build_packages_array(
+    def __build_avail_packages_array(
         self, benchmark_id: str, spack_manager: SpackManager
     ) -> xr.DataArray:
         dims: list[str] = [
@@ -779,9 +851,33 @@ class Handler:
         return xr.DataArray(data=data, dims=dims)
 
     def __build_dataset(
-        self, benchmark: BenchmarkManager, date_run: datetime
+        self, res_path: Path, benchmark: BenchmarkManager, date_run: datetime
     ) -> xr.Dataset:
-        data_vars: dict[str, xr.DataArray] = {}
+
+        overview_array = self.__build_overview_array(
+            res_path=res_path, date_run=date_run
+        )
+        bm_config_array = self.__build_bm_config_array(benchmark=benchmark)
+        file_config_array = self.__build_file_config_array(benchmark=benchmark)
+        nodes_array = self.__build_nodes_array(benchmark=benchmark, date_run=date_run)
+
+        benchmark_id = benchmark.id
+        spack_manager = benchmark.spack_manager
+        used_package_array = self.__build_used_package_array(
+            benchmark_id=benchmark_id, spack_manager=spack_manager
+        )
+        avail_packages_array = self.__build_avail_packages_array(
+            benchmark_id=benchmark_id, spack_manager=spack_manager
+        )
+
+        data_vars: dict[str, xr.DataArray] = {
+            "overview_array": overview_array,
+            "bm_config_array": bm_config_array,
+            "file_config_array": file_config_array,
+            "nodes_array": nodes_array,
+            "used_package_array": used_package_array,
+            "avail_packages_array": avail_packages_array,
+        }
 
         return xr.Dataset(data_vars=data_vars)
 
@@ -805,12 +901,14 @@ class Handler:
                     ).astimezone()
 
                     if path_name in final:
-                        ds = self.__build_dataset(benchmark, date_run)
+                        ds = self.__build_dataset(path, benchmark, date_run)
                         final[path_name].merge(
                             ds, compat="identical", combine_attrs="identical"
                         )
                     else:
-                        final[path_name] = self.__build_dataset(benchmark, date_run)
+                        final[path_name] = self.__build_dataset(
+                            path, benchmark, date_run
+                        )
 
         return final
 

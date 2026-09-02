@@ -33,10 +33,10 @@ type Mode = Literal["r", "r+", "a", "w"]
 class Datastruct:
     def __init__(
         self,
+        shape: list[int],
+        chunks: list[int],
         dataset: zarr.Group | h5py.File | netCDF4.Dataset | None = None,
         path: str = "",
-        shape: list[int] = [],
-        chunks: list[int] = [],
         mode: Mode = "r",
         engine: str = "",
         compression: str = "",
@@ -161,7 +161,7 @@ class Datastruct:
                     print(
                         bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
                     )
-                    if rank == rank:
+                    if rank == rank:  # noqa: PLR0124
                         x[rstart:rend:] = np.random.random_sample(size)
                 MPI.COMM_WORLD.Barrier()
 
@@ -254,7 +254,7 @@ class Datastruct:
         match self.engine:
             case "zarr":
                 if not isinstance(self.dataset, zarr.Group):
-                    raise ValueError("Not from kind of AnyArray for zarr")
+                    raise TypeError("Not from kind of AnyArray for zarr")
 
                 arrays = dict(self.dataset.arrays())
 
@@ -272,7 +272,7 @@ class Datastruct:
 
             case "hdf5":
                 if not isinstance(self.dataset, h5py.File):
-                    raise ValueError("Not from kind of File for hdf5 h5py")
+                    raise TypeError("Not from kind of File for hdf5 h5py")
 
                 var_size: tuple[int, ...] = self.dataset[var].shape
                 for i in range(iterations):
@@ -289,7 +289,7 @@ class Datastruct:
 
             case "netcdf4":
                 if not isinstance(self.dataset, netCDF4.Dataset):
-                    raise ValueError("Not from kind of dataset for netcdf4")
+                    raise TypeError("Not from kind of dataset for netcdf4")
 
                 var_size: tuple[int, ...] = self.dataset[var].shape
                 for i in range(iterations):
@@ -315,7 +315,7 @@ class Datastruct:
         match self.engine:
             case "zarr":
                 if not isinstance(self.dataset, zarr.Group):
-                    raise ValueError("Not from kind of AnyArray for zarr")
+                    raise TypeError("Not from kind of AnyArray for zarr")
 
                 arrays = dict(self.dataset.arrays())
 
@@ -346,7 +346,7 @@ class Datastruct:
 
             case "hdf5":
                 if not isinstance(self.dataset, h5py.File):
-                    raise ValueError("Not from kind of File for hdf5 h5py")
+                    raise TypeError("Not from kind of File for hdf5 h5py")
 
                 for i in range(iterations):
                     var_size: tuple[int, ...] = self.dataset[var].shape
@@ -378,7 +378,7 @@ class Datastruct:
 
             case "netcdf4":
                 if not isinstance(self.dataset, netCDF4.Dataset):
-                    raise ValueError("Not from kind of dataset for netcdf4")
+                    raise TypeError("Not from kind of dataset for netcdf4")
 
                 for i in range(iterations):
                     var_size: tuple[int, ...] = self.dataset[var].shape
@@ -419,7 +419,7 @@ class Datastruct:
         match self.engine:
             case "zarr":
                 if not isinstance(self.dataset, zarr.Group):
-                    raise ValueError("Not from kind of AnyArray for zarr")
+                    raise TypeError("Not from kind of AnyArray for zarr")
 
                 arrays = dict(self.dataset.arrays())
                 for var in variables:
@@ -449,7 +449,7 @@ class Datastruct:
 
             case "hdf5":
                 if not isinstance(self.dataset, h5py.File):
-                    raise ValueError("Not from kind of File for hdf5 h5py")
+                    raise TypeError("Not from kind of File for hdf5 h5py")
 
                 for var in variables:
                     try:
@@ -480,7 +480,7 @@ class Datastruct:
 
             case "netcdf4":
                 if not isinstance(self.dataset, netCDF4.Dataset):
-                    raise ValueError("Not from kind of dataset for netcdf4")
+                    raise TypeError("Not from kind of dataset for netcdf4")
 
                 for var in variables:
                     try:
@@ -527,7 +527,7 @@ class Datastruct:
 
     def __bench_complete_parallel_zarr(self, variables: list[str], iterations: int):
         if not isinstance(self.dataset, zarr.Group):
-            raise ValueError("Not from kind of AnyArray for zarr")
+            raise TypeError("Not from kind of AnyArray for zarr")
 
         arrays = dict(self.dataset.arrays())
 
@@ -591,7 +591,7 @@ class Datastruct:
 
     def __bench_complete_parallel_hdf5(self, variables: list[str], iterations: int):
         if not isinstance(self.dataset, h5py.File):
-            raise ValueError("Not from kind of File for hdf5 h5py")
+            raise TypeError("Not from kind of File for hdf5 h5py")
 
         bench = []
         var_tmp = []
@@ -636,7 +636,7 @@ class Datastruct:
                             + "Setting I/O to be independent"
                             + bcolors.ENDC
                         )
-                        if rank == rank:
+                        if rank == rank:  # noqa: PLR0124
                             self.dataset[var][rstart:rend:]
 
                 except KeyError:
@@ -656,7 +656,7 @@ class Datastruct:
 
     def __bench_complete_parallel_netcdf4(self, variables: list[str], iterations: int):
         if not isinstance(self.dataset, netCDF4.Dataset):
-            raise ValueError("Not from kind of dataset for netcdf4")
+            raise TypeError("Not from kind of dataset for netcdf4")
 
         bench = []
         var_tmp = []

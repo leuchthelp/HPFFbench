@@ -383,7 +383,6 @@ class BenchmarkManager:
 
         finally:
             shutil.rmtree(path=self.dir_path)
-            pass
 
         return self.id, self
 
