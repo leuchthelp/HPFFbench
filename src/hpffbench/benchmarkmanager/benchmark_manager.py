@@ -160,7 +160,8 @@ class BenchmarkManager:
     datatype: list[str]
     var_to_bm: str | list[str]
     total_filesize: float
-    unit: str
+    unit_var: str
+    unit_chunk: str
     filesize_var: list[str]
     chunksize_var: list[str]
     iterations: int
@@ -268,7 +269,8 @@ class BenchmarkManager:
             + str(self.spack_manager.target)
             + str(self.spack_manager.additional)
             + str(self.spack_manager.compiler)
-            + str(self.spack_manager.packages)
+            + str(self.spack_manager.spack_packages)
+            + str(self.spack_manager.pip_packages)
             + str(self.spack_manager.language)
             + str(self.spack_manager.env_name)
             # Reasoning: profilers also influence the results since they have runtime overhead, so they need to be taken into account
@@ -289,7 +291,7 @@ class BenchmarkManager:
 
         self.use_path = Path(paths["path_to_tmp"]["path"])
         self.root_path = Path(paths["path_to_root"]["path"])
-        self.results_path = Path(paths["path_to_results"]["path"])
+        self.results_path = Path(paths["path_to_bm_results"]["path"])
         self.dir_path = Path(f"{self.use_path}/{self.id}")
 
         # Benchmark info
@@ -306,13 +308,14 @@ class BenchmarkManager:
             total_filesize += filesize[1][0]
 
         self.total_filesize: float = total_filesize
-        self.unit: str = filesize_per_var[0][1][1]
+        self.unit_var: str = filesize_per_var[0][1][1]
         self.filesize_var: list[tuple[str, tuple[float, str]]] = filesize_per_var
         self.chunksize_var: list[tuple[str, tuple[float, str]]] = [
             (key, calc_size_unit(item["chunks"]))
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
+        self.unit_chunk: str = self.chunksize_var[0][1][1]
         self.show_metadata = True
 
         # Environment config
@@ -1416,7 +1419,7 @@ int main(int argc, char *argv[])
 
             self.slurm_options = (
                 self.slurm_options
-                + f"#SBATCH --job-name={self.format.replace(' ', '')}-{self.total_filesize}{self.unit}-{str(self.run_config).replace(' ', '')}\n"
+                + f"#SBATCH --job-name={self.format.replace(' ', '')}-{self.total_filesize}{self.unit_var}-{str(self.run_config).replace(' ', '')}\n"
             )
 
             if "#SBATCH --nodes=" not in self.slurm_options:

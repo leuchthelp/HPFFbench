@@ -13,7 +13,8 @@ def main():
         "path_to_profilers": "configs/profilers",
         "path_to_tmp": "tmp",
         "path_to_root": os.path.dirname(os.path.realpath(__file__)),
-        "path_to_results": "results/general",
+        "path_to_bm_results": "results/general",
+        "path_to_results": "results",
         "path_res_profiling": "results/profiling",
     }
 
@@ -24,11 +25,11 @@ def main():
         # "run03": {"X": [[5 * 134217728], []],},
         # "run04": {"X": [[100 * 134217728], []]},
         "run17": {"X": [[10 * 134217728], [1 * 134217728 // 16]]},  # 64mb
-        "run18": {"X": [[10 * 134217728], [1 * 134217728 // 32]]},  # 32mb
-        "run19": {"X": [[10 * 134217728], [1 * 134217728 // 64]]},  # 16mb
-        "run20": {"X": [[10 * 134217728], [1 * 134217728 // 128]]},  # 8mb
-        "run21": {"X": [[10 * 134217728], [1 * 134217728 // 256]]},  # 4mb
-        "run22": {"X": [[10 * 134217728], [1 * 134217728 // 512]]},  # 2mb
+        # "run18": {"X": [[10 * 134217728], [1 * 134217728 // 32]]},  # 32mb
+        # "run19": {"X": [[10 * 134217728], [1 * 134217728 // 64]]},  # 16mb
+        # "run20": {"X": [[10 * 134217728], [1 * 134217728 // 128]]},  # 8mb
+        # "run21": {"X": [[10 * 134217728], [1 * 134217728 // 256]]},  # 4mb
+        # "run22": {"X": [[10 * 134217728], [1 * 134217728 // 512]]},  # 2mb
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -58,70 +59,42 @@ def main():
             "target": ["hdf5", {"hdf5": "subfiling"}, "netcdf4", "zarr"],
             "language": ["py", "c"],
             "packages": {
-                "scorep": {"versions": ["9.3"]},
-                "python": {"versions": ["3.14.5"], "fresh": True},
-                "openmpi": {"versions": ["5.0.10"], "fresh": True},
-                "hdf5": {
-                    "versions": ["1.14.6"],
-                    "variants": "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
+                "spack": {
+                    "scorep": {"version": "9.3"},
+                    "python": {"version": "3.14.5", "fresh": True},
+                    "openmpi": {"version": "5.0.10", "fresh": True},
+                    "hdf5": {
+                        "version": "1.14.6",
+                        "variant": "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
+                    },
+                    "argobots": {"version": "main", "fresh": True},
+                    "netcdf-c": {
+                        "version": "4.10.0",
+                        "variant": "build_system=cmake",
+                    },
+                    "py-mpi4py": {
+                        "version": "4.1.1",
+                    },
+                    "py-h5py": {
+                        "version": "3.16.0",
+                    },
+                    "py-netcdf4": {
+                        "version": "1.7.2",
+                    },
                 },
-                "argobots": {"versions": ["main"], "fresh": True},
-                "netcdf-c": {
-                    "versions": ["4.10.0"],
-                    "variants": "build_system=cmake",
-                },
-                "py-mpi4py": {
-                    "versions": ["4.1.1"],
-                },
-                "py-h5py": {
-                    "versions": ["3.16.0"],
-                },
-                "py-netcdf4": {
-                    "versions": ["1.7.2"],
+                "pip": {
+                    "zarr": {"version": "3.2.1"},
+                    "scorep": {"version": "4.5.1"},
                 },
             },
             "compiler": "gcc@15.3.0",
-            "additional": "pip install zarr==3.2.1 scorep",
             "install": True,
-        },
-        "test-env-async": {
-            "target": [{"hdf5": "async"}],
-            "language": ["c"],
-            "packages": {
-                "python": {"versions": ["3.14.0"], "fresh": True},
-                "openmpi": {
-                    "versions": ["5.0.10"],
-                },
-                "hdf5": {
-                    "versions": ["1.14.6"],
-                    "variants": "~cxx~fortran+hl~ipo~java~map+mpi+shared+subfiling~szip+threadsafe+tools",
-                },
-                "hdf5-vol-async": {
-                    "versions": ["develop"],
-                },
-                "argobots": {"versions": ["main"], "fresh": True},
-                "netcdf-c": {
-                    "versions": ["4.10.0"],
-                    "variants": "build_system=cmake",
-                },
-                "py-mpi4py": {
-                    "versions": ["4.1.1"],
-                },
-                "py-h5py": {
-                    "versions": ["3.16.0"],
-                },
-                "py-netcdf4": {
-                    "versions": ["1.7.2"],
-                },
-            },
-            "compiler": "gcc@15.3.0",
-            # "install": True
         },
     }
 
     new_setup = {
         "tasks": ["read"],
-        "formats": ["hdf5", "zarr", "netcdf4"],
+        "formats": ["hdf5"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 5,
@@ -129,13 +102,13 @@ def main():
         "parallel": "Both",
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [8, 16, 32, 64],
+        "ranks": [2, 4, 8],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
         "only_data": True,
         "no_caching": True,
         "use_spack_env": True,
-        "max_processes": 20,
+        "max_processes": 1,
         "slurm_options": [slurm_options],
         "spack_env": spack_envs,
         "delete_envs": False,

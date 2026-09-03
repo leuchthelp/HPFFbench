@@ -4,6 +4,13 @@ task: "read"
 language: py
 extension: nc
 format: netcdf4
+required_packages:
+    - python
+    - openmpi
+    - mpi4py
+    - hdf5
+    - h5py
+    - netcdf4
 create_command:
   serial: python {runnable}
 create: |

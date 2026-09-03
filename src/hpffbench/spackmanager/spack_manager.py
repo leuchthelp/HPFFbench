@@ -1,4 +1,3 @@
-import itertools
 import logging
 import shutil
 import subprocess
@@ -7,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from hpffbench.configloader import ProcessedPath, SpackEnv, SpackPackageConfig
+from hpffbench.configloader.config_loaders import PipPackageConfig
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class SpackManager:
     language: list
         Similar to `target` for programming languages.
 
-    packages: dict
+    spack_packages: dict
         Dictionary describing the spack packages to be added or installed to the environment.
 
     additional: str
@@ -72,7 +72,8 @@ class SpackManager:
     spack_env: SpackEnv
     target: list[dict[str, str]]
     language: list[str]
-    packages: dict[str, SpackPackageConfig]
+    spack_packages: dict[str, SpackPackageConfig]
+    pip_packages: dict[str, PipPackageConfig]
     additional: str
     env_location: Path
     package_locations: dict
@@ -100,7 +101,8 @@ class SpackManager:
         self.compiler = self.spack_env.config["compiler"]
         self.target = self.spack_env.config["target"]
         self.language = self.spack_env.config["language"]
-        self.packages = self.spack_env.config["packages"]
+        self.spack_packages = self.spack_env.config["spack_packages"]
+        self.pip_packages = self.spack_env.config["pip_packages"]
 
         self.env_name_present = False
         self.install = self.spack_env.config["install"]
@@ -119,15 +121,7 @@ class SpackManager:
             f"{self.env_location.absolute()}/env-{self.env_name}.sh"
         )
 
-        for name, info in self.packages.items():
-            versions = info["versions"]
-            variants = [info["variants"]]
-
-            combinations = list(
-                itertools.product(*[versions, variants, [self.compiler]])
-            )
-            self.loadables[name] = combinations
-
+        for name, info in self.spack_packages.items():
             # Check if environment exits, reuse if it does. Will usually exist, even if downstream processes fail. Hence further checks
             with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
                 file.write("#!/bin/bash\n")
@@ -146,68 +140,63 @@ class SpackManager:
             except subprocess.CalledProcessError:
                 pass
 
-            for combination in combinations:
-                package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
+            version = info["version"]
+            variant = info["variant"]
 
-                if name == "python":
-                    self.python_version = package
+            package = f"{name}@{version} {variant} %{self.compiler}"
+            if name == "python":
+                self.python_version = package
 
-                if not self.__only_data and self.env_name_present:
-                    # Check if package can be found in environment, usually fails if version or compiler is mismatched with what is available in spack at the time.
+            if not self.__only_data and self.env_name_present:
+                # Check if package can be found in environment, usually fails if version or compiler is mismatched with what is available in spack at the time.
 
-                    with open(
-                        f"{self.env_location.absolute()}/check-location.sh", "w"
-                    ) as file:
-                        file.write("#!/bin/bash\n")
-                        file.write("set -e\n")
-                        file.write(
-                            f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
-                        )
-                        file.write(f"spack -e {self.env_name} find {package}\n")
+                with open(
+                    f"{self.env_location.absolute()}/check-location.sh", "w"
+                ) as file:
+                    file.write("#!/bin/bash\n")
+                    file.write("set -e\n")
+                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                    file.write(f"spack -e {self.env_name} find {package}\n")
 
-                    try:
-                        p = subprocess.run(
-                            [
-                                "bash",
-                                f"{self.env_location.absolute()}/check-location.sh",
-                            ],
-                            check=True,
-                            text=True,
-                            capture_output=True,
-                        )
-                    except subprocess.CalledProcessError:
-                        raise RuntimeError(
-                            f'At least one package "{package}" failed installing. Usually due to spack package / compiler version mismatch.'
-                        )
-
-                    if not Path(f"{self.env_location}/.venv").is_dir():
-                        raise OSError(
-                            "additional pip packages have not installed properly"
-                        )
-
-                    with open(
-                        f"{self.env_location.absolute()}/check-location.sh", "w"
-                    ) as file:
-                        file.write("#!/bin/bash\n")
-                        file.write(
-                            f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
-                        )
-                        file.write(f"spack -e {self.env_name} location -i {package}\n")
-
+                try:
                     p = subprocess.run(
                         [
                             "bash",
                             f"{self.env_location.absolute()}/check-location.sh",
                         ],
+                        check=True,
                         text=True,
                         capture_output=True,
-                        check=True,
                     )
-                    if p.returncode != 0:
-                        raise RuntimeError(f"{package}, unknown cause {p.stderr}")
-                    self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+                except subprocess.CalledProcessError:
+                    raise RuntimeError(
+                        f'At least one package "{package}" failed installing. Usually due to spack package / compiler version mismatch.'
+                    )
 
-                    self.initialized = True
+                if not Path(f"{self.env_location}/.venv").is_dir():
+                    raise OSError("additional pip packages have not installed properly")
+
+                with open(
+                    f"{self.env_location.absolute()}/check-location.sh", "w"
+                ) as file:
+                    file.write("#!/bin/bash\n")
+                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                    file.write(f"spack -e {self.env_name} location -i {package}\n")
+
+                p = subprocess.run(
+                    [
+                        "bash",
+                        f"{self.env_location.absolute()}/check-location.sh",
+                    ],
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                if p.returncode != 0:
+                    raise RuntimeError(f"{package}, unknown cause {p.stderr}")
+                self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+
+                self.initialized = True
 
     def initialize_env(self):
         """
@@ -245,7 +234,7 @@ class SpackManager:
 
                 first = True
                 check_installed = Path(f"{self.file_location}/.venv")
-                for index, (name, _) in enumerate(self.packages.items()):
+                for index, (name, _) in enumerate(self.spack_packages.items()):
                     combinations = self.loadables[name]
 
                     if first:
@@ -258,7 +247,7 @@ class SpackManager:
                     )
 
                     if (
-                        index == len(self.packages.items()) - 1
+                        index == len(self.spack_packages.items()) - 1
                         and self.install
                         and not check_installed.exists()
                     ):
@@ -273,6 +262,11 @@ class SpackManager:
                     f"source {self.env_location.absolute()}/.venv/bin/activate\n"
                 )
                 file.write("pip install --upgrade pip \n")
+                if self.pip_packages:
+                    file.write(
+                        f"pip install {[f'{name}=={config["version"]}' if config['version'] else f'{name}' for name, config in self.pip_packages.items()]}\n"
+                    )
+
                 file.write(f"{self.additional}\n")
                 file.write(f"pip install -e {self.__root_path}\n")
                 file.write("pip list\n")

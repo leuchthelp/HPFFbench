@@ -4,6 +4,11 @@ task: "read"
 language: py
 extension: h5
 format: hdf5
+required_packages:
+    - python
+    - mpi4py
+    - hdf5
+    - h5py
 create_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
