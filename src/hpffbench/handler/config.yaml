@@ -12,12 +12,16 @@ paths:
   path_to_bm_results: results/general
   path_to_results: results
   path_res_profiling: results/profiling
-iterations: 5
+iterations: 10
 runs:
   run17:
     X:
     - - 1342177280
     - - 8388608
+  run20:
+    X:
+    - - 1342177280
+    - - 1048576
 parallel: Both
 collective: false
 par_backend:

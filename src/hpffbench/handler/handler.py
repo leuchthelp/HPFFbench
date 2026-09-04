@@ -150,7 +150,7 @@ class Handler:
                 f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
             )
 
-        self.__prepare_dataframe()
+        # self.__prepare_dataframe()
         self.__build_datatree()
 
     def __load_config(self, path_to_config: str | dict):
@@ -782,7 +782,7 @@ class Handler:
             # "filesize_per_var": benchmark.filesize_var,
             "unit_var": benchmark.unit_var,
             # "filesize_per_chunk": benchmark.chunksize_var,
-            "unit_chunk": benchmark.unit_chunk,
+            "unit_chunk": ("iterations", [benchmark.unit_chunk] * len(iterations)),
         }
 
         return xr.DataArray(
@@ -872,32 +872,67 @@ class Handler:
             },
         )
 
-    def __build_dataset(
+    def __build_overview_dataset(
         self, res_path: Path, benchmark: BenchmarkManager, date_run: str
     ) -> xr.Dataset:
-
         overview_array = self.__build_overview_array(
             res_path=res_path, date_run=date_run, benchmark=benchmark
         )
 
-        spack_manager = benchmark.spack_manager
+        data_vars: dict[str, xr.DataArray] = {
+            "overview": overview_array,
+        }
+
+        return xr.Dataset(data_vars=data_vars)
+
+    def __build_used_package_dataset(
+        self, spack_manager: SpackManager, benchmark: BenchmarkManager, date_run: str
+    ) -> xr.Dataset:
         used_package_array = self.__build_used_package_array(
             date_run=date_run, spack_manager=spack_manager, benchmark=benchmark
         )
+
+        data_vars: dict[str, xr.DataArray] = {
+            "used_packages": used_package_array,
+        }
+
+        return xr.Dataset(data_vars=data_vars)
+
+    def __build_avail_packages_dataset(
+        self, spack_manager: SpackManager, date_run: str
+    ) -> xr.Dataset:
         avail_packages_array = self.__build_avail_packages_array(
             date_run=date_run, spack_manager=spack_manager
         )
 
         data_vars: dict[str, xr.DataArray] = {
-            "overview_array": overview_array,
-            "used_package_array": used_package_array,
-            "avail_packages_array": avail_packages_array,
+            "all_avail_packages": avail_packages_array,
         }
 
         return xr.Dataset(data_vars=data_vars)
 
-    def __build_datasets(self) -> dict[str, xr.Dataset]:
-        final: dict[str, xr.Dataset] = {}
+    def __build_sub_tree(
+        self, res_path: Path, benchmark: BenchmarkManager, date_run: str
+    ) -> dict[str, dict[str, xr.Dataset]]:
+
+        spack_manager = benchmark.spack_manager
+
+        final = {
+            "overview": self.__build_overview_dataset(
+                res_path=res_path, benchmark=benchmark, date_run=date_run
+            ),
+            "used_packages": self.__build_used_package_dataset(
+                spack_manager=spack_manager, benchmark=benchmark, date_run=date_run
+            ),
+            "all_avail_packages": self.__build_avail_packages_dataset(
+                spack_manager=spack_manager, date_run=date_run
+            ),
+        }
+
+        return {date_run: final}
+
+    def __build_datasets(self) -> dict[str, dict[str, dict[str, xr.Dataset]]]:
+        final: dict[str, dict[str, dict[str, xr.Dataset]]] = {}
 
         root = Path(self.config.paths["path_to_bm_results"]["path"])
 
@@ -916,20 +951,17 @@ class Handler:
                     )
 
                     if path_name in final:
-                        ds = self.__build_dataset(path, benchmark, date_run)
-                        old = final[path_name]
-                        final[path_name] = xr.merge(
-                            [old, ds], join="outer", compat="minimal"
-                        )
+                        ds = self.__build_sub_tree(path, benchmark, date_run)
+                        final[path_name].update(ds)
                     else:
-                        final[path_name] = self.__build_dataset(
+                        final[path_name] = self.__build_sub_tree(
                             path, benchmark, date_run
                         )
 
         return final
 
     def __build_datatree(self):
-        dt = xr.DataTree.from_dict(self.__build_datasets(), name="root")
+        dt = xr.DataTree.from_dict(self.__build_datasets(), name="root", nested=True)
 
         res_path: str = self.config.paths["path_to_results"]["path"]
         res_file_path: Path = Path(f"{res_path}/results.zarr")
