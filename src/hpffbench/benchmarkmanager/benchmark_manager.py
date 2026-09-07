@@ -162,8 +162,8 @@ class BenchmarkManager:
     total_filesize: float
     unit_var: str
     unit_chunk: str
-    filesize_var: list[str]
-    chunksize_var: list[str]
+    filesize_var: list[tuple[str, float, str]]
+    chunksize_var: list[tuple[str, float, str]]
     iterations: int
     internal_i: int
     current_time: str
@@ -297,25 +297,25 @@ class BenchmarkManager:
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
 
-        filesize_per_var: list[tuple[str, tuple[float, str]]] = [
-            (key, calc_size_unit(item["shape"]))
+        filesize_per_var: list[tuple[str, float, str]] = [
+            (key, *calc_size_unit(item["shape"]))
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
 
         total_filesize = 0
         for filesize in filesize_per_var:
-            total_filesize += filesize[1][0]
+            total_filesize += filesize[1]
 
         self.total_filesize: float = total_filesize
-        self.unit_var: str = filesize_per_var[0][1][1]
-        self.filesize_var: list[tuple[str, tuple[float, str]]] = filesize_per_var
-        self.chunksize_var: list[tuple[str, tuple[float, str]]] = [
-            (key, calc_size_unit(item["chunks"]))
+        self.unit_var: str = filesize_per_var[0][2]
+        self.filesize_var: list[tuple[str, float, str]] = filesize_per_var
+        self.chunksize_var: list[tuple[str, float, str]] = [
+            (key, *calc_size_unit(item["chunks"]))
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
-        self.unit_chunk: str = self.chunksize_var[0][1][1]
+        self.unit_chunk: str = self.chunksize_var[0][2]
         self.show_metadata = True
 
         # Environment config

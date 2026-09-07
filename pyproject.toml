@@ -10,7 +10,6 @@ requires-python = ">=3.14"
 dependencies = [
     "mpi4py>=4.1.2",
     "numpy>=2.5.1",
-    "pandas>=3.0.3",
     "pathos>=0.3.5",
     "pip>=26.1.2",
     "plotly>=6.8.0",
