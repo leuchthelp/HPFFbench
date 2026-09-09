@@ -25,11 +25,11 @@ def main():
         # "run03": {"X": [[5 * 134217728], []],},
         # "run04": {"X": [[100 * 134217728], []]},
         "run17": {"X": [[10 * 134217728], [1 * 134217728 // 16]]},  # 64mb
-        # "run18": {"X": [[10 * 134217728], [1 * 134217728 // 32]]},  # 32mb
-        # "run19": {"X": [[10 * 134217728], [1 * 134217728 // 64]]},  # 16mb
+        "run18": {"X": [[10 * 134217728], [1 * 134217728 // 32]]},  # 32mb
+        "run19": {"X": [[10 * 134217728], [1 * 134217728 // 64]]},  # 16mb
         "run20": {"X": [[10 * 134217728], [1 * 134217728 // 128]]},  # 8mb
-        # "run21": {"X": [[10 * 134217728], [1 * 134217728 // 256]]},  # 4mb
-        # "run22": {"X": [[10 * 134217728], [1 * 134217728 // 512]]},  # 2mb
+        "run21": {"X": [[10 * 134217728], [1 * 134217728 // 256]]},  # 4mb
+        "run22": {"X": [[10 * 134217728], [1 * 134217728 // 512]]},  # 2mb
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -44,7 +44,6 @@ def main():
     slurm_options = """
 #SBATCH --partition=compute
 #SBATCH --account=ku0598
-#SBATCH --constraint="[cell02]"
 #SBATCH --mem=0
 #SBATCH --cpu-freq=High
 #SBATCH --distribution=block:cyclic
@@ -102,13 +101,13 @@ def main():
         "parallel": "Both",
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [2, 4, 8],
+        "ranks": [8, 16, 32],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
-        "only_data": True,
+        "only_data": False,
         "no_caching": True,
         "use_spack_env": True,
-        "max_processes": 1,
+        "max_processes": 20,
         "slurm_options": [slurm_options],
         "spack_env": spack_envs,
         "delete_envs": False,

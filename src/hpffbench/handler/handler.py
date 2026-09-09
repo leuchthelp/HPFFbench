@@ -527,9 +527,12 @@ class Handler:
         # Very naive approach, need something better
         for value in measures:
             if value not in clusters[0]:
-                prob = next(
-                    idx for idx, elem in enumerate(clusters[1:]) if value in elem
-                ) / len(clusters)
+                idx = 0
+                for i, elem in enumerate(clusters[1:]):
+                    if value in elem:
+                        idx = i
+
+                prob = idx / len(clusters)
 
                 anomaly_prob.append(prob)
                 anomaly_class.append(True)

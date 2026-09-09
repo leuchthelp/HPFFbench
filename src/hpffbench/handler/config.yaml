@@ -8,7 +8,7 @@ paths:
   path_to_benchmarks: configs/benchmarks
   path_to_profilers: configs/profilers
   path_to_tmp: tmp
-  path_to_root: /home/leuchtpc/Documents/HPFFbench
+  path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_bm_results: results/general
   path_to_results: results
   path_res_profiling: results/profiling
@@ -18,34 +18,48 @@ runs:
     X:
     - - 1342177280
     - - 8388608
+  run18:
+    X:
+    - - 1342177280
+    - - 4194304
+  run19:
+    X:
+    - - 1342177280
+    - - 2097152
   run20:
     X:
     - - 1342177280
     - - 1048576
+  run21:
+    X:
+    - - 1342177280
+    - - 524288
+  run22:
+    X:
+    - - 1342177280
+    - - 262144
 parallel: Both
 collective: false
 par_backend:
 - MPI
 ranks:
-- 2
-- 4
 - 8
+- 16
+- 32
 nodes:
 - 1
 variable_to_benchmark:
 - X
-only_data: true
+only_data: false
 no_caching: true
 use_spack_env: true
-max_processes: 1
+max_processes: 20
 slurm_options:
 - '
 
   #SBATCH --partition=compute
 
   #SBATCH --account=ku0598
-
-  #SBATCH --constraint="[cell02]"
 
   #SBATCH --mem=0
 
