@@ -630,14 +630,14 @@ class Handler:
 
         required_packages = benchmark.bm_config.required_packages
         for name, config in spack_manager.spack_packages.items():
-            if any(bool(name.lower() in package) for package in required_packages):
+            if any(bool(package in name.lower()) for package in required_packages):
                 package_names.append(name)
                 package_versions.append(config["version"])
                 package_flags.append(config["variant"])
                 install_methods.append("spack")
 
         for name, config in spack_manager.pip_packages.items():
-            if any(bool(name.lower() in package) for package in required_packages):
+            if any(bool(package in name.lower()) for package in required_packages):
                 package_names.append(name)
                 package_versions.append(config["version"])
                 package_flags.append(config["variant"])

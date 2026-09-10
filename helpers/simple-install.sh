@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=shared
+#SBATCH --partition=compute
 #SBATCH --account=ku0598
 #SBATCH --output=log-/log-%j/log.%j.txt
 #SBATCH --error=log-/log-%j/log.%j.err

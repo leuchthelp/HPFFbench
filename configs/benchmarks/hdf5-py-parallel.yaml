@@ -5,6 +5,7 @@ language: py
 extension: h5
 format: hdf5
 required_packages:
+    - openmpi
     - python
     - mpi4py
     - hdf5
