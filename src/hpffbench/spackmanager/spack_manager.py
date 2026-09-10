@@ -107,12 +107,12 @@ class SpackManager:
         self.env_name_present = False
         self.install = self.spack_env.config["install"]
 
-        self.package_locations = {}
+        self.package_locations: dict[str, tuple[str, str]] = {}
         self.python_version = "python"
 
         self.additional = self.spack_env.config["additional"]
 
-        self.loadables = {}
+        self.loadables: dict[str, tuple[str, ...]] = {}
 
         self.env_location = Path(f"environments/{self.env_name}")
         self.env_location.mkdir(parents=True, exist_ok=True)
@@ -144,6 +144,8 @@ class SpackManager:
             variant = info["variant"]
 
             package = f"{name}@{version} {variant} %{self.compiler}"
+
+            self.loadables[name] = (version, variant, self.compiler)
             if name == "python":
                 self.python_version = package
 
@@ -159,7 +161,7 @@ class SpackManager:
                     file.write(f"spack -e {self.env_name} find {package}\n")
 
                 try:
-                    p = subprocess.run(
+                    subprocess.run(
                         [
                             "bash",
                             f"{self.env_location.absolute()}/check-location.sh",
@@ -243,7 +245,7 @@ class SpackManager:
                         first = False
 
                     self.__add_packages(
-                        file=file, combinations=list(combinations), package_name=name
+                        file=file, combinations=combinations, package_name=name
                     )
 
                     if (
@@ -337,7 +339,7 @@ class SpackManager:
         return loadable
 
     def __add_packages(
-        self, file, combinations: list[tuple[str, ...]], package_name: str
+        self, file, combinations: tuple[str, ...], package_name: str
     ):
         """
         Assembles the individual add commands for each package to add to the environment.
@@ -356,16 +358,15 @@ class SpackManager:
         package_name: str
             Name of the packages to be loaded.
         """
-        for combination in combinations:
-            logger.debug(
-                f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}"
-            )
-            file.write(
-                f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}\n"
-            )
+        logger.debug(
+            f"spack -e {self.env_name} add {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]}"
+        )
+        file.write(
+            f"spack -e {self.env_name} add {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]}\n"
+        )
 
     def __load_packages(
-        self, loadable: str, combinations: list, package_name: str
+        self, loadable: str, combinations: tuple[str, ...], package_name: str
     ) -> str:
         """
         Assembles the individual load commands for each package.
@@ -389,14 +390,13 @@ class SpackManager:
         str
             String containing packages to load by combinations requested.
         """
-        for combination in combinations:
-            logger.debug(
-                f"spack -e {self.env_name} load {package_name}@{combination[0]} {combination[1]} %{combination[2]}"
-            )
-            loadable = (
-                loadable
-                + f"eval $(spack -e {self.env_name} load --sh {package_name}@{combination[0]} {combination[1]} %{combination[2]})\n"
-            )
+        logger.debug(
+            f"spack -e {self.env_name} load {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]}"
+        )
+        loadable = (
+            loadable
+            + f"eval $(spack -e {self.env_name} load --sh {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]})\n"
+        )
 
         return loadable
 
