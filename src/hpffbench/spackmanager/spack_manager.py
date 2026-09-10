@@ -265,9 +265,13 @@ class SpackManager:
                 )
                 file.write("pip install --upgrade pip \n")
                 if self.pip_packages:
-                    file.write(
-                        f"pip install {[f'{name}=={config["version"]}' if config['version'] else f'{name}' for name, config in self.pip_packages.items()]}\n"
-                    )
+                    pip_packages = [
+                        f"{name}=={config['version']}"
+                        if config["version"]
+                        else f"{name}"
+                        for name, config in self.pip_packages.items()
+                    ]
+                    file.write(f"pip install {' '.join(pip_packages)}\n")
 
                 file.write(f"{self.additional}\n")
                 file.write(f"pip install -e {self.__root_path}\n")
@@ -297,27 +301,24 @@ class SpackManager:
 
         # Check if location to package can be found, usually fails if the package has not been installed
         for name, combinations in self.loadables.items():
-            for combination in combinations:
-                package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
+            package = f"{name}@{combinations[0]} {combinations[1]} %{combinations[2]}"
 
-                with open(
-                    f"{self.env_location.absolute()}/check-location.sh", "w"
-                ) as file:
-                    file.write("#!/bin/bash\n")
-                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-                    file.write(f"spack -e {self.env_name} location -i {package}\n")
+            with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
+                file.write("#!/bin/bash\n")
+                file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                file.write(f"spack -e {self.env_name} location -i {package}\n")
 
-                p = subprocess.run(
-                    ["bash", f"{self.env_location.absolute()}/check-location.sh"],
-                    text=True,
-                    capture_output=True,
-                    check=True,
+            p = subprocess.run(
+                ["bash", f"{self.env_location.absolute()}/check-location.sh"],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            if p.returncode != 0:
+                raise RuntimeError(
+                    f'{package}, has not been installed yet. Either pass "install" flag or install it manually.'
                 )
-                if p.returncode != 0:
-                    raise RuntimeError(
-                        f'{package}, has not been installed yet. Either pass "install" flag or install it manually.'
-                    )
-                self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+            self.package_locations[name] = (f"{package}", p.stdout.rstrip())
 
     def load_env(self) -> str:
         """
@@ -338,9 +339,7 @@ class SpackManager:
 
         return loadable
 
-    def __add_packages(
-        self, file, combinations: tuple[str, ...], package_name: str
-    ):
+    def __add_packages(self, file, combinations: tuple[str, ...], package_name: str):
         """
         Assembles the individual add commands for each package to add to the environment.
 
