@@ -606,24 +606,6 @@ class Handler:
                 ("iterations", "on_rank"),
                 np.array(anomaly_class).reshape(iter_amount, benchmark.ranks),
             ),
-            "format": benchmark.format,
-            "task_type": benchmark.task,
-            "language": benchmark.language,
-            "engine": benchmark.engine,
-            "no_caching": benchmark.no_caching,
-            "num_nodes": benchmark.nodes,
-            "num_ranks": benchmark.ranks,
-            "parallel": benchmark.parallel,
-            "parallel_backend": benchmark.par_backend,
-            "access_kind": "collective"
-            if benchmark.collective is not None and benchmark.collective is True
-            else "independent",
-            "total_filesize": benchmark.total_filesize,
-            # "var_to_bm": benchmark.var_to_bm,
-            "filesize_per_var": benchmark.filesize_var[0][1],
-            "unit_var": benchmark.unit_var,
-            "filesize_per_chunk": benchmark.chunksize_var[0][1],
-            "unit_chunk": benchmark.unit_chunk,
         }
 
         return xr.DataArray(
@@ -709,17 +691,43 @@ class Handler:
         )
 
     def __build_overview_dataset(
-        self, res_path: Path, benchmark: BenchmarkManager
-    ) -> xr.Dataset:
+        self, res_path: Path, benchmark: BenchmarkManager, date_run: str
+    ) -> xr.DataTree:
         overview_array = self.__build_overview_array(
             res_path=res_path, benchmark=benchmark
         )
+
+        coords: dict[str, Any] = {
+            "format": benchmark.format,
+            "task_type": benchmark.task,
+            "language": benchmark.language,
+            "engine": benchmark.engine,
+            "no_caching": benchmark.no_caching,
+            "num_nodes": benchmark.nodes,
+            "num_ranks": benchmark.ranks,
+            "parallel": benchmark.parallel,
+            "parallel_backend": benchmark.par_backend,
+            "access_kind": "collective"
+            if benchmark.collective is not None and benchmark.collective is True
+            else "independent",
+            "total_filesize": benchmark.total_filesize,
+            # "var_to_bm": benchmark.var_to_bm,
+            "filesize_per_var": benchmark.filesize_var[0][1],
+            "unit_var": benchmark.unit_var,
+            "filesize_per_chunk": benchmark.chunksize_var[0][1],
+            "unit_chunk": benchmark.unit_chunk,
+        }
 
         data_vars: dict[str, xr.DataArray] = {
             "overview": overview_array,
         }
 
-        return xr.Dataset(data_vars=data_vars)
+        return xr.DataTree.from_dict(
+            {
+                "/": xr.Dataset(coords=coords),
+                date_run: xr.Dataset(data_vars=data_vars),
+            }
+        )
 
     def __build_used_package_dataset(
         self, spack_manager: SpackManager, benchmark: BenchmarkManager
@@ -747,13 +755,13 @@ class Handler:
 
     def __build_sub_tree(
         self, res_path: Path, benchmark: BenchmarkManager, date_run: str
-    ) -> dict[str, dict[str, xr.Dataset]]:
+    ) -> xr.DataTree:
 
         spack_manager = benchmark.spack_manager
 
         final = {
-            "overview": self.__build_overview_dataset(
-                res_path=res_path, benchmark=benchmark
+            "date_run": self.__build_overview_dataset(
+                res_path=res_path, benchmark=benchmark, date_run=date_run
             ),
             "used_packages": self.__build_used_package_dataset(
                 spack_manager=spack_manager, benchmark=benchmark
@@ -763,10 +771,10 @@ class Handler:
             ),
         }
 
-        return {date_run: final}
+        return xr.DataTree.from_dict(final)
 
-    def __build_datasets(self) -> dict[str, dict[str, dict[str, xr.Dataset]]]:
-        final: dict[str, dict[str, dict[str, xr.Dataset]]] = {}
+    def __build_datasets(self) -> dict[str, xr.DataTree]:
+        final: dict[str, xr.DataTree] = {}
 
         root = Path(self.config.paths["path_to_bm_results"]["path"])
 
@@ -785,8 +793,10 @@ class Handler:
                     )
 
                     if path_name in final:
-                        ds = self.__build_sub_tree(path, benchmark, date_run)
-                        final[path_name].update(ds)
+                        new = self.__build_sub_tree(path, benchmark, date_run)
+                        old = final[path_name]
+                        final[path_name] = xr.merge([old, new], compat="no_conflicts")
+
                     else:
                         final[path_name] = self.__build_sub_tree(
                             path, benchmark, date_run

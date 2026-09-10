@@ -93,7 +93,7 @@ def main():
 
     new_setup = {
         "tasks": ["read"],
-        "formats": ["hdf5"],
+        "formats": ["netcdf4", "zarr"],
         "languages": ["py"],
         "paths": paths,
         "iterations": 10,

@@ -1,7 +1,8 @@
 tasks:
 - read
 formats:
-- hdf5
+- netcdf4
+- zarr
 languages:
 - py
 paths:
