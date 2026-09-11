@@ -691,7 +691,7 @@ class Handler:
         )
 
     def __build_overview_dataset(
-        self, res_path: Path, benchmark: BenchmarkManager, date_run: str
+        self, res_path: Path, hash: str, benchmark: BenchmarkManager, date_run: str
     ) -> xr.DataTree:
         overview_array = self.__build_overview_array(
             res_path=res_path, benchmark=benchmark
@@ -711,7 +711,7 @@ class Handler:
             if benchmark.collective is not None and benchmark.collective is True
             else "independent",
             "total_filesize": benchmark.total_filesize,
-            # "var_to_bm": benchmark.var_to_bm,
+            "var_to_bm": str(benchmark.var_to_bm),
             "filesize_per_var": benchmark.filesize_var[0][1],
             "unit_var": benchmark.unit_var,
             "filesize_per_chunk": benchmark.chunksize_var[0][1],
@@ -722,16 +722,18 @@ class Handler:
             "overview": overview_array,
         }
 
-        return xr.DataTree.from_dict(
+        nested_by_date = xr.DataTree.from_dict(
             {
                 "/": xr.Dataset(coords=coords),
                 date_run: xr.Dataset(data_vars=data_vars),
             }
         )
 
+        return xr.DataTree.from_dict({hash: nested_by_date})
+
     def __build_used_package_dataset(
-        self, spack_manager: SpackManager, benchmark: BenchmarkManager
-    ) -> xr.Dataset:
+        self, hash: str, spack_manager: SpackManager, benchmark: BenchmarkManager
+    ) -> xr.DataTree:
         used_package_array = self.__build_used_package_array(
             spack_manager=spack_manager, benchmark=benchmark
         )
@@ -740,9 +742,11 @@ class Handler:
             "used_packages": used_package_array,
         }
 
-        return xr.Dataset(data_vars=data_vars)
+        return xr.DataTree.from_dict({hash: xr.Dataset(data_vars=data_vars)})
 
-    def __build_avail_packages_dataset(self, spack_manager: SpackManager) -> xr.Dataset:
+    def __build_avail_packages_dataset(
+        self, hash: str, spack_manager: SpackManager
+    ) -> xr.DataTree:
         avail_packages_array = self.__build_avail_packages_array(
             spack_manager=spack_manager
         )
@@ -751,35 +755,13 @@ class Handler:
             "all_avail_packages": avail_packages_array,
         }
 
-        return xr.Dataset(data_vars=data_vars)
+        return xr.DataTree.from_dict({hash: xr.Dataset(data_vars=data_vars)})
 
-    def __build_sub_tree(
-        self, res_path: Path, benchmark: BenchmarkManager, date_run: str
-    ) -> xr.DataTree:
-
-        spack_manager = benchmark.spack_manager
-
-        final = {
-            "date_run": self.__build_overview_dataset(
-                res_path=res_path, benchmark=benchmark, date_run=date_run
-            ),
-            "used_packages": self.__build_used_package_dataset(
-                spack_manager=spack_manager, benchmark=benchmark
-            ),
-            "all_avail_packages": self.__build_avail_packages_dataset(
-                spack_manager=spack_manager
-            ),
-        }
-
-        return xr.DataTree.from_dict(final)
-
-    def __build_datasets(self) -> dict[str, xr.DataTree]:
-        final: dict[str, xr.DataTree] = {}
-
+    def __build_datasets(self) -> xr.DataTree:
         root = Path(self.config.paths["path_to_bm_results"]["path"])
-
         benchmarks = dict(self.__benchmarks)
 
+        final: xr.DataTree | None = None
         for path in root.rglob("*.json"):
             if path.is_file() and "results" not in path.name:
                 tmp = path.name.replace(".json", "").split("-")
@@ -792,15 +774,34 @@ class Handler:
                         datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S").astimezone()
                     )
 
-                    if path_name in final:
-                        new = self.__build_sub_tree(path, benchmark, date_run)
-                        old = final[path_name]
-                        final[path_name] = xr.merge([old, new], compat="no_conflicts")
+                    spack_manager = benchmark.spack_manager
 
+                    new = {
+                        "overview": self.__build_overview_dataset(
+                            res_path=path,
+                            hash=path_name,
+                            benchmark=benchmark,
+                            date_run=date_run,
+                        ),
+                        "used_packages": self.__build_used_package_dataset(
+                            hash=path_name,
+                            spack_manager=spack_manager,
+                            benchmark=benchmark,
+                        ),
+                        "all_avail_packages": self.__build_avail_packages_dataset(
+                            hash=path_name, spack_manager=spack_manager
+                        ),
+                    }
+
+                    if final is None:
+                        final = xr.DataTree.from_dict(new)
                     else:
-                        final[path_name] = self.__build_sub_tree(
-                            path, benchmark, date_run
+                        final = xr.merge(
+                            [final, xr.DataTree.from_dict(new)], compat="no_conflicts"
                         )
+
+        if final is None:
+            raise ValueError("No results found, please run some benchmarks first.")
 
         return final
 

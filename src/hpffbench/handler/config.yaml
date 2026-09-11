@@ -2,7 +2,7 @@ tasks:
 - read
 formats:
 - netcdf4
-- zarr
+- hdf5
 languages:
 - py
 paths:
@@ -51,7 +51,7 @@ nodes:
 - 1
 variable_to_benchmark:
 - X
-only_data: false
+only_data: true
 no_caching: true
 use_spack_env: true
 max_processes: 20
