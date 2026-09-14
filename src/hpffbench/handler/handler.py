@@ -606,6 +606,24 @@ class Handler:
                 ("iterations", "on_rank"),
                 np.array(anomaly_class).reshape(iter_amount, benchmark.ranks),
             ),
+            "format": benchmark.format,
+            "task_type": benchmark.task,
+            "language": benchmark.language,
+            "engine": benchmark.engine,
+            "no_caching": benchmark.no_caching,
+            "num_nodes": benchmark.nodes,
+            "num_ranks": benchmark.ranks,
+            "parallel": benchmark.parallel,
+            "parallel_backend": benchmark.par_backend,
+            "access_kind": "collective"
+            if benchmark.collective is not None and benchmark.collective is True
+            else "independent",
+            "total_filesize": benchmark.total_filesize,
+            "var_to_bm": str(benchmark.var_to_bm),
+            "filesize_per_var": benchmark.filesize_var[0][1],
+            "unit_var": benchmark.unit_var,
+            "filesize_per_chunk": benchmark.chunksize_var[0][1],
+            "unit_chunk": benchmark.unit_chunk,
         }
 
         return xr.DataArray(
@@ -691,77 +709,69 @@ class Handler:
         )
 
     def __build_overview_dataset(
-        self, res_path: Path, hash: str, benchmark: BenchmarkManager, date_run: str
+        self, todos: list[tuple[Path, BenchmarkManager, str, str]]
     ) -> xr.DataTree:
-        overview_array = self.__build_overview_array(
-            res_path=res_path, benchmark=benchmark
-        )
 
-        coords: dict[str, Any] = {
-            "format": benchmark.format,
-            "task_type": benchmark.task,
-            "language": benchmark.language,
-            "engine": benchmark.engine,
-            "no_caching": benchmark.no_caching,
-            "num_nodes": benchmark.nodes,
-            "num_ranks": benchmark.ranks,
-            "parallel": benchmark.parallel,
-            "parallel_backend": benchmark.par_backend,
-            "access_kind": "collective"
-            if benchmark.collective is not None and benchmark.collective is True
-            else "independent",
-            "total_filesize": benchmark.total_filesize,
-            "var_to_bm": str(benchmark.var_to_bm),
-            "filesize_per_var": benchmark.filesize_var[0][1],
-            "unit_var": benchmark.unit_var,
-            "filesize_per_chunk": benchmark.chunksize_var[0][1],
-            "unit_chunk": benchmark.unit_chunk,
-        }
+        final: dict[str, dict[str, xr.Dataset]] = {}
+        for res_path, benchmark, hash, date_run in todos:
+            overview_array = self.__build_overview_array(
+                res_path=res_path, benchmark=benchmark
+            )
 
-        data_vars: dict[str, xr.DataArray] = {
-            "overview": overview_array,
-        }
-
-        nested_by_date = xr.DataTree.from_dict(
-            {
-                "/": xr.Dataset(coords=coords),
-                date_run: xr.Dataset(data_vars=data_vars),
+            data_vars: dict[str, xr.DataArray] = {
+                "run_time": overview_array,
             }
-        )
 
-        return xr.DataTree.from_dict({hash: nested_by_date})
+            nested_by_date = {date_run: xr.Dataset(data_vars=data_vars)}
+
+            if hash in final:
+                final[hash].update(nested_by_date)
+            else:
+                final.update({hash: nested_by_date})
+
+        return xr.DataTree.from_dict(final, nested=True)
 
     def __build_used_package_dataset(
-        self, hash: str, spack_manager: SpackManager, benchmark: BenchmarkManager
+        self, todos: list[tuple[Path, BenchmarkManager, str, str]]
     ) -> xr.DataTree:
-        used_package_array = self.__build_used_package_array(
-            spack_manager=spack_manager, benchmark=benchmark
-        )
 
-        data_vars: dict[str, xr.DataArray] = {
-            "used_packages": used_package_array,
-        }
+        final: dict[str, xr.Dataset] = {}
+        for _, benchmark, hash, _ in todos:
+            spack_manager = benchmark.spack_manager
+            used_package_array = self.__build_used_package_array(
+                spack_manager=spack_manager, benchmark=benchmark
+            )
 
-        return xr.DataTree.from_dict({hash: xr.Dataset(data_vars=data_vars)})
+            data_vars: dict[str, xr.DataArray] = {
+                "used_packages": used_package_array,
+            }
+            final.update({hash: xr.Dataset(data_vars=data_vars)})
+
+        return xr.DataTree.from_dict(final)
 
     def __build_avail_packages_dataset(
-        self, hash: str, spack_manager: SpackManager
+        self, todos: list[tuple[Path, BenchmarkManager, str, str]]
     ) -> xr.DataTree:
-        avail_packages_array = self.__build_avail_packages_array(
-            spack_manager=spack_manager
-        )
 
-        data_vars: dict[str, xr.DataArray] = {
-            "all_avail_packages": avail_packages_array,
-        }
+        final: dict[str, xr.Dataset] = {}
+        for _, benchmark, hash, _ in todos:
+            spack_manager = benchmark.spack_manager
+            avail_packages_array = self.__build_avail_packages_array(
+                spack_manager=spack_manager
+            )
 
-        return xr.DataTree.from_dict({hash: xr.Dataset(data_vars=data_vars)})
+            data_vars: dict[str, xr.DataArray] = {
+                "all_avail_packages": avail_packages_array,
+            }
+            final.update({hash: xr.Dataset(data_vars=data_vars)})
+
+        return xr.DataTree.from_dict(final)
 
     def __build_datasets(self) -> xr.DataTree:
         root = Path(self.config.paths["path_to_bm_results"]["path"])
         benchmarks = dict(self.__benchmarks)
 
-        final: xr.DataTree | None = None
+        todos: list[tuple[Path, BenchmarkManager, str, str]] = []
         for path in root.rglob("*.json"):
             if path.is_file() and "results" not in path.name:
                 tmp = path.name.replace(".json", "").split("-")
@@ -773,37 +783,14 @@ class Handler:
                     date_run = str(
                         datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S").astimezone()
                     )
+                    todos.append((path, benchmark, path_name, date_run))
 
-                    spack_manager = benchmark.spack_manager
-
-                    new = {
-                        "overview": self.__build_overview_dataset(
-                            res_path=path,
-                            hash=path_name,
-                            benchmark=benchmark,
-                            date_run=date_run,
-                        ),
-                        "used_packages": self.__build_used_package_dataset(
-                            hash=path_name,
-                            spack_manager=spack_manager,
-                            benchmark=benchmark,
-                        ),
-                        "all_avail_packages": self.__build_avail_packages_dataset(
-                            hash=path_name, spack_manager=spack_manager
-                        ),
-                    }
-
-                    if final is None:
-                        final = xr.DataTree.from_dict(new)
-                    else:
-                        final = xr.merge(
-                            [final, xr.DataTree.from_dict(new)], compat="no_conflicts"
-                        )
-
-        if final is None:
-            raise ValueError("No results found, please run some benchmarks first.")
-
-        return final
+        new = {
+            "overview": self.__build_overview_dataset(todos),
+            "used_packages": self.__build_used_package_dataset(todos),
+            "all_avail_packages": self.__build_avail_packages_dataset(todos),
+        }
+        return xr.DataTree.from_dict(new)
 
     def __build_datatree(self):
         dt = xr.DataTree.from_dict(self.__build_datasets(), name="root", nested=True)

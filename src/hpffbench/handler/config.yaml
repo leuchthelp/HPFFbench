@@ -2,6 +2,7 @@ tasks:
 - read
 formats:
 - netcdf4
+- zarr
 - hdf5
 languages:
 - py
