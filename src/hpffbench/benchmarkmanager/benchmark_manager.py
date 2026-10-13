@@ -157,7 +157,7 @@ class BenchmarkManager:
     format: str
     engine: str
     extension: str
-    datatype: list[str]
+    datatype: list[tuple[str, list[str]]]
     var_to_bm: str | list[str]
     total_filesize: float
     unit_var: str
@@ -229,10 +229,10 @@ class BenchmarkManager:
         self.language = requested["language"]
         self.format = requested["format"]
 
-        datatype: list[str] = []
+        datatypes: list[tuple[str, list[str]]] = []
         for item in run_config.variables.values():
-            datatype.append(item["datatype"])
-        self.datatype: list[str] = datatype
+            datatypes.append(item["datatype"])
+        self.datatype = datatypes
 
         self.var_to_bm = self.global_config.variable_to_benchmark
         self.iterations = self.global_config.iterations
@@ -463,10 +463,11 @@ class BenchmarkManager:
         values: list[RunConfig] = list(self.run_config.variables.values())
         shapes: list[list[int]] = []
         chunks: list[list[int]] = []
-        datatypes = self.datatype
+        datatypes: list[tuple[str, list[str]]] = []
         for value in values:
             shapes.append(value["shape"])
             chunks.append(value["chunks"])
+            datatypes.append(value["datatype"])
 
         create_command = self.__append_flag(
             flag="-S", command=create_command, data=shapes
@@ -528,7 +529,7 @@ class BenchmarkManager:
         if flag not in command:
             command = command + f" {flag}"
 
-        data_str = ",".join(str(x) for x in data)
+        data_str = str(data).replace(" ", "")
         command = command.replace(f"{flag}", f"{flag} {data_str}")
 
         return command
@@ -843,7 +844,7 @@ def main():
     )
     parser.add_argument("-c", "--create", type=int, default=-1, help="creates Zarr, NetCDF4 and HDF5 Files using a previously saved run format")
     parser.add_argument("-b", "--benchmark", type=int, default=-1, help="benchmark to run")
-    parser.add_argument("-v", "--var_to_bm", type=str, default=None, help="var_to_bm to read, if none is provided all are read")
+    parser.add_argument("-v", "--vars_to_bm", type=str, default=None, help="vars_to_bm to read, if none is provided all are read")
     parser.add_argument("-V", "--variables", type=str, default=None, help="variables to create")
     parser.add_argument("-S", "--shape", type=str, default=None, help="shapes per variable to create")
     parser.add_argument("-C", "--chunk", type=str, default=None, help="chunks per variable to create")
@@ -856,9 +857,10 @@ def main():
     
     match args.benchmark:
         case 1:
+            vars = args.vars_to_bm.split(",")
             
             result: list[tuple[str, str, str]] | None = bench(iterations=args.iterations, 
-                            variables=args.var_to_bm, 
+                            variables=vars, 
                             parallel=args.parallel, 
                             path=args.location, 
                             collective=args.input_output,
@@ -884,10 +886,10 @@ def main():
                     json.dump(converted, f)
                 
         case -1:
-            variables   = args.variables.split(",")
-            shapes      = [ast.literal_eval(e) for e in args.shape.split(",")]
-            chunks      = [ast.literal_eval(e) for e in args.chunk.split(",")]
-            datatypes   = args.datatype.split(",")
+            variables: list[str] = args.variables.split(",")
+            shapes: list[list[int]] = list(ast.literal_eval(args.shape))
+            chunks: list[list[int]] = list(ast.literal_eval(args.chunk))
+            datatypes: list[tuple[str, list[str]]] = list(ast.literal_eval(args.datatype))
             
             if args.create != -1:
                 create(variables=variables, 

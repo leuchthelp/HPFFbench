@@ -24,12 +24,20 @@ def main():
         # "run03": {"X": [[10 * 134217728], []],},
         # "run03": {"X": [[5 * 134217728], []],},
         # "run04": {"X": [[100 * 134217728], []]},
-        "run17": {"X": [[50 * 134217728], [1 * 134217728 // 16]]},  # 64mb
-        "run18": {"X": [[50 * 134217728], [1 * 134217728 // 32]]},  # 32mb
-        "run19": {"X": [[50 * 134217728], [1 * 134217728 // 64]]},  # 16mb
-        "run20": {"X": [[50 * 134217728], [1 * 134217728 // 128]]},  # 8mb
-        "run21": {"X": [[50 * 134217728], [1 * 134217728 // 256]]},  # 4mb
-        "run22": {"X": [[50 * 134217728], [1 * 134217728 // 512]]},  # 2mb
+        # "run16": {"X": [[1 * 134217728], []]},
+        # "run17": {"X": [[1 * 134217728], [1 * 134217728 // 16]]},  # 64mb
+        # "run18": {"X": [[1 * 134217728], [1 * 134217728 // 32]]},  # 32mb
+        # "run19": {"X": [[1 * 134217728], [1 * 134217728 // 64]]},  # 16mb
+        # "run20": {"X": [[1 * 134217728], [1 * 134217728 // 128]]},  # 8mb
+        # "run21": {"X": [[1 * 134217728], [1 * 134217728 // 256]]},  # 4mb
+        # "run22": {"X": [[1 * 134217728], [1 * 134217728 // 512]]},  # 2mb
+        # "run11-3D": {"X": [[1 * 512, 512, 512], []]},
+        # "run12-3D": {"X": [[1 * 512, 512, 512], [1 * 512 // 16, 1 * 512 // 16, 1 * 512 // 16]]},  # 64mb
+        # "run13-3D": {"X": [[1 * 512, 512, 512], [1 * 512 // 32]]},  # 32mb
+        # "run14-3D": {"X": [[1 * 512, 512, 512], [1 * 512 // 64]]},  # 16mb
+        # "run15-3D": {"X": [[1 * 512, 512, 512], [1 * 512 // 128]]},  # 8mb
+        # "run16-3D": {"X": [[1 * 512, 512, 512], [1 * 512 // 256]]},  # 4mb
+        # "run17-3D": {"X": [[1 * 512, 512, 512], [1 * 512 // 512]]},  # 2mb
         # "run05": {"X": [[20 * 134217728], []]},
         # "run06": {"X": [[30 * 134217728], []]},
         # "run07": {"X": [[40 * 134217728], []]},
@@ -92,22 +100,27 @@ def main():
     }
 
     new_setup = {
-        "tasks": ["read"],
-        "formats": ["hdf5", "zarr"],
+        "tasks": [
+            "read",
+            "read-random-ND",
+            "read-random-ND-ranged",
+            "read-random-ND-full-range",
+        ],
+        "formats": ["netcdf4"],
         "languages": ["py"],
         "paths": paths,
-        "iterations": 5,
+        "iterations": 2,
         "runs": tmp,
         "parallel": "Both",
         "collective": False,
         "par_backend": ["MPI"],
-        "ranks": [8, 16, 32],
+        "ranks": [4, 8],
         "nodes": [1],
         "variable_to_benchmark": ["X"],
-        "only_data": True,
+        "only_data": False,
         "no_caching": True,
         "use_spack_env": True,
-        "max_processes": 20,
+        "max_processes": 1,
         "slurm_options": [slurm_options],
         "spack_env": spack_envs,
         "delete_envs": False,
@@ -122,7 +135,7 @@ def main():
     with open(path_to_config, "w") as file:
         yaml.dump(new_setup, file, sort_keys=False)
 
-    Handler(path_to_config=path_to_config, log_lvl=logging.INFO)
+    Handler(path_to_config=path_to_config, log_lvl=logging.DEBUG)
 
 
 if __name__ == "__main__":

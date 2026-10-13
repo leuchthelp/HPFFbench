@@ -50,7 +50,7 @@ create: |
               "dtype": datatypes[index],
           }
 
-      root = root = h5py.File(path, "w-")
+      root = h5py.File(path, "w-")
       for variable, element in form.items():
           shape = element["shape"]
           chunk = element["chunks"]

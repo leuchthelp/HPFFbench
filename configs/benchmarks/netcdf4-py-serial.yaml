@@ -12,16 +12,17 @@ create_command:
   serial: python {runnable}
 create: |
   from typing import TypedDict
-  import numpy as np
+  
   import netCDF4
-
-
+  import numpy as np
+  
+  
   class Form(TypedDict):
       shape: list[int]
-      chunks: list[int]
-      dtype: str
-
-
+      chunk: list[int]
+      dtype: tuple[str, list[str]]
+  
+  
   class bcolors:
       HEADER = "\033[95m"
       OKBLUE = "\033[94m"
@@ -32,14 +33,14 @@ create: |
       ENDC = "\033[0m"
       BOLD = "\033[1m"
       UNDERLINE = "\033[4m"
-
-
+  
+  
   def create(
       path: str,
-      variables: list[str] = [],
-      shapes: list[list[int]] = [],
-      chunks: list[list[int]] = [],
-      datatypes: list[str] = [],
+      variables: list[str],
+      shapes: list[list[int]],
+      chunks: list[list[int]],
+      datatypes: list[tuple[str, list[str]]],
       parallel: bool = False,
       collective: bool = False,
   ):
@@ -47,33 +48,49 @@ create: |
       for index, var in enumerate(variables):
           form[var] = {
               "shape": shapes[index],
-              "chunks": chunks[index],
+              "chunk": chunks[index],
               "dtype": datatypes[index],
           }
-
+  
       root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=False)
       root.createGroup("/")
       used = 0
-
+  
       for variable, element in form.items():
           shape = element["shape"]
-          chunk = element["chunks"]
+          chunk = element["chunk"]
           dtype = element["dtype"]
-
+  
+          # setup individual dimensions & variables per main data variable
           dimensions = []
-
-          for size in shape:
-              root.createDimension(f"{used}", size)
-              dimensions.append(f"{used}")
+          for idx, dim_shape in enumerate(shape):
+              varname = f"{used}"
+  
+              root.createDimension(varname, dim_shape)
+              dimensions.append(varname)
               used += 1
-
-          if len(chunk) != 0:
-              x = root.createVariable(variable, dtype, dimensions, chunksizes=chunk)
+  
+              dim_dtype = dtype[1][idx]
+              if chunk:
+                  dim_chunks = chunk[idx]
+                  x = root.createVariable(
+                      varname, dim_dtype, (varname,), chunksizes=[dim_chunks]
+                  )
+              else:
+                  x = root.createVariable(varname, dtype[0], (varname,))
+              x[:] = np.random.randn(dim_shape).astype(dim_dtype)
+  
+          # setup main data variable
+          data_dtype = dtype[0]
+          if chunk:
+              data_chunks = chunk
+              x = root.createVariable(
+                  variable, data_dtype, dimensions, chunksizes=data_chunks
+              )
           else:
-              x = root.createVariable(variable, dtype, dimensions)
-
-          x[:] = np.random.random_sample(shape)
-
+              x = root.createVariable(variable, data_dtype, dimensions)
+          x[:] = np.random.randn(*shape).astype(data_dtype)
+  
       root.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 

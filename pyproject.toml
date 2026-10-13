@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "leucht", email = "lucas.philipp@st.ovgu.de" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.14, <3.15"
 dependencies = [
     "mpi4py>=4.1.2",
     "numpy>=2.5.1",

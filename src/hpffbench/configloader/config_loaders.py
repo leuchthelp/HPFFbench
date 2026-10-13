@@ -17,7 +17,7 @@ class ProcessedPath(TypedDict):
 class RunConfig(TypedDict):
     shape: ReadOnly[list[int]]
     chunks: ReadOnly[list[int]]
-    datatype: ReadOnly[str]
+    datatype: ReadOnly[tuple[str, list[str]]]
 
 
 @dataclass
@@ -31,13 +31,15 @@ class Run:
             chunks: list[int] = setup[1] if len(setup) > 1 else []
             if len(chunks) > len(shape):
                 raise ValueError(
-                    "Cannot provide more chunks dimensions than there are dims"
+                    "Cannot provide more chunked dimensions than there are dims"
                 )
 
             self.variables[var] = {
                 "shape": shape,
                 "chunks": chunks,
-                "datatype": setup[2] if len(setup) > 2 else "f8",
+                "datatype": setup[2]
+                if len(setup) > 2
+                else ("f8", ["f8" for _ in shape]),
             }
 
 
