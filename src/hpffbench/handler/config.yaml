@@ -11,27 +11,50 @@ paths:
   path_to_benchmarks: configs/benchmarks
   path_to_profilers: configs/profilers
   path_to_tmp: tmp
-  path_to_root: /home/leuchtpc/Documents/HPFFbench
+  path_to_root: /work/ku0598/k203191/HPFFbench
   path_to_bm_results: results/general
   path_to_results: results
   path_res_profiling: results/profiling
-iterations: 2
+iterations: 5
 runs:
-  run12-3D:
+  run01-3D:
     X:
-    - - 512
+    - - 5120
       - 512
       - 512
-    - - 32
-      - 32
-      - 32
+    - []
+  run02-3D:
+    X:
+    - - 5120
+      - 512
+      - 512
+    - - 256
+      - 256
+      - 256
+  run03-3D:
+    X:
+    - - 5120
+      - 512
+      - 512
+    - - 128
+      - 128
+      - 128
+  run04-3D:
+    X:
+    - - 5120
+      - 512
+      - 512
+    - - 64
+      - 64
+      - 64
 parallel: Both
 collective: false
 par_backend:
 - MPI
 ranks:
-- 4
 - 8
+- 16
+- 32
 nodes:
 - 1
 variable_to_benchmark:
@@ -39,7 +62,7 @@ variable_to_benchmark:
 only_data: false
 no_caching: true
 use_spack_env: true
-max_processes: 1
+max_processes: 20
 slurm_options:
 - '
 

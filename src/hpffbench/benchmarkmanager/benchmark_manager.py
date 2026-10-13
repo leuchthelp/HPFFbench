@@ -1417,7 +1417,8 @@ int main(int argc, char *argv[])
             if "#SBATCH --wait" not in self.slurm_options:
                 self.slurm_options = self.slurm_options + "#SBATCH --wait\n"
 
-            self.slurm_options = self.slurm_options + f"#SBATCH --cpus-per-task={self.ranks}\n"
+            self.slurm_options = self.slurm_options + f"#SBATCH --ntasks={self.ranks}\n"
+            #self.slurm_options = self.slurm_options + f"#SBATCH --cpus-per-task={self.ranks}\n"
 
             self.slurm_options = (
                 self.slurm_options
