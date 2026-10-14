@@ -833,8 +833,6 @@ class BenchmarkManager:
 import argparse
 import ast
 import os
-
-from mpi4py import MPI
             
 def main():
 
