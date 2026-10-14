@@ -586,6 +586,7 @@ class Handler:
                 ("iterations", "on_rank"),
                 np.array(used_nodes).reshape(iter_amount, benchmark.ranks),
             ),
+            "run_config": str(benchmark.run_config.variables),
             "mean_time": time_mean,
             "time_std": time_std,
             "time_relative_std": time_rsd,
