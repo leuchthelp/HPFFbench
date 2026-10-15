@@ -797,7 +797,7 @@ class Handler:
         dt = xr.DataTree.from_dict(self.__build_datasets(), name="root", nested=True)
 
         res_path: str = self.config.paths["path_to_results"]["path"]
-        res_file_path: Path = Path(f"{res_path}/results.zarr")
+        res_file_path: Path = Path(f"{res_path}/results.nc")
 
         # merge does not support mixed type arguments when one argument is a DataTree: [<xarray.Dataset> Size: 0B
         # Dimensions:  ()
@@ -808,4 +808,4 @@ class Handler:
         #     existing: xr.DataTree = xr.open_zarr(res_file_path)
         #     dt = xr.merge([existing, dt], join="exact")
 
-        dt.to_zarr(res_file_path, mode="a")
+        dt.to_netcdf(res_file_path, mode="a")
