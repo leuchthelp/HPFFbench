@@ -6,6 +6,7 @@ tasks:
 formats:
 - hdf5
 - netcdf4
+- zarr
 languages:
 - py
 paths:
@@ -21,6 +22,12 @@ runs:
   run01:
     X:
     - - 134217728
+    - []
+  run01-3D:
+    X:
+    - - 512
+      - 512
+      - 512
     - []
 parallel: Both
 collective: false

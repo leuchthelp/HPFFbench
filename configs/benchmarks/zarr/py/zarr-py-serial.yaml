@@ -56,7 +56,7 @@ create: |
           chunk = element["chunks"]
           dtype = element["dtype"][0]
   
-          if len(chunk) != 0:
+          if chunk:
               x = root.create_array(name=variable, shape=shape, chunks=chunk, dtype=dtype)
           else:
               x = root.create_array(name=variable, shape=shape, dtype=dtype)
