@@ -235,6 +235,7 @@ class BenchmarkConfigLoader:
     parallel: list[bool]
     create_commands: RunCommands
     run_commands: RunCommands
+    required_additional_params: list[str] | None
 
     par_backend: list[str] | None
 
@@ -285,6 +286,10 @@ class BenchmarkConfigLoader:
         if self.compile:
             self.compile_command: str = self.config["compile_command"]
 
+        self.required_additional_params = None
+        if "required_additional_params" in self.config:
+            self.required_additional_params = self.config["required_additional_params"]
+
 
 class GlobalConfigLoader:
     iterations: int
@@ -308,6 +313,7 @@ class GlobalConfigLoader:
     paths: dict[str, ProcessedPath]
     runs: dict[str, Run]
     spack_envs: dict[str, SpackEnv]
+    xrun_params: dict[str, Any]
 
     max_processes: int | None
     profiler: list[bool]
@@ -500,3 +506,7 @@ class GlobalConfigLoader:
         self.profiler_mode: Literal["manual", "auto"] = "auto"
         if "profiler_mode" in self.config:
             self.profiler_mode: Literal["manual", "auto"] = self.config["profiler_mode"]
+
+        self.xrun_params = {}
+        if "xrun_params" in self.config:
+            self.xrun_params = self.config["xrun_params"]

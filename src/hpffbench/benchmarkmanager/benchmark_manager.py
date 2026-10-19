@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import os
 import re
@@ -317,6 +318,8 @@ class BenchmarkManager:
         ]
         self.unit_chunk: str = self.chunksize_var[0][2]
         self.show_metadata = True
+
+        self.xrun_params = self.global_config.xrun_params
 
         # Environment config
 
@@ -711,6 +714,15 @@ class BenchmarkManager:
 
             run_command = run_command + f"-s {sum([sum(x) for x in size])}"
 
+        if self.xrun_params:
+            out = json.dumps(self.xrun_params)
+
+            xrun_params_path = f"{self.dir_path.absolute()}/xrun_params.json"
+            with open(xrun_params_path, "w") as file:
+                file.write(out)
+
+            run_command = run_command + f"-x {xrun_params_path}"
+
         shell_type = "bash"
         if self.slurm_avail and not self.local:
             shell_type = "sbatch"
@@ -833,6 +845,8 @@ class BenchmarkManager:
 import argparse
 import ast
 import os
+
+from typing import Any
             
 def main():
 
@@ -851,20 +865,27 @@ def main():
     parser.add_argument("-i", "--iterations", type=int, default=1, help="number of internal iterations to run the benchmark for. Will cause caching effects")
     parser.add_argument("-l", "--location", type=str, default="", help="Location where file will be create / saved")
     parser.add_argument("-I", "--input_output", type=bool, default=False, help="Set I/O to either use independent (default or False) or collective I/O (True)")
+    parser.add_argument("-x", "--xrun_params", type=str, default="", help="Path to json file containing dictionary of additional parameters to use freely")
     args = parser.parse_args()
     
     match args.benchmark:
         case 1:
-            vars = args.vars_to_bm.split(",")
+            import json
+
+            xrun_params: dict[str, Any] = {{}}
+            if args.xrun_params:
+                with open(args.xrun_params, "r") as file:
+                    xrun_params = json.load(file)
             
+            vars = args.vars_to_bm.split(",")
             result: list[tuple[str, str, str]] | None = bench(iterations=args.iterations, 
                             variables=vars, 
                             parallel=args.parallel, 
                             path=args.location, 
                             collective=args.input_output,
+                            xrun_params=xrun_params,
                             )
 
-            import json
             if result:
                 from pathlib import Path
                 
@@ -1416,7 +1437,7 @@ int main(int argc, char *argv[])
                 self.slurm_options = self.slurm_options + "#SBATCH --wait\n"
 
             self.slurm_options = self.slurm_options + f"#SBATCH --ntasks={self.ranks}\n"
-            #self.slurm_options = self.slurm_options + f"#SBATCH --cpus-per-task={self.ranks}\n"
+            # self.slurm_options = self.slurm_options + f"#SBATCH --cpus-per-task={self.ranks}\n"
 
             self.slurm_options = (
                 self.slurm_options

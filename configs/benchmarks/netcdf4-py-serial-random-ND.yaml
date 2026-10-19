@@ -98,9 +98,12 @@ create: |
   #MAIN
 run_command:
   serial: python {runnable}
+required_additional_params:
+    - max_number_access
 source: |
   import os
   import time
+  from typing import Any
   
   import netCDF4
   import numpy as np
@@ -122,6 +125,7 @@ source: |
   def bench_helper(
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       node: str,
       dataset: netCDF4.Dataset,
   ) -> list[tuple[str, str, str]]:
@@ -136,7 +140,7 @@ source: |
                       slice(None, None, np.random.randint(low=1, high=size))
                       for size in current.shape
                   ]
-                  for _ in range(1000)
+                  for _ in range(xrun_params["max_number_access"])
               ]
   
               start = time.monotonic()
@@ -155,6 +159,7 @@ source: |
       path: str,
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:
@@ -176,22 +181,9 @@ source: |
       if "SLURMD_NODENAME" in os.environ:
           node = os.environ["SLURMD_NODENAME"]
   
-      result = bench_helper(iterations, var_tmp, node, dataset)
+      result = bench_helper(iterations, var_tmp, xrun_params, node, dataset)
   
       return result
-  
-  
-  def main():
-      variables = ["Example"]
-      shapes = [[156, 254, 73, 144]]
-      chunks: list[list[int]] = [[]]
-      datatypes = [("f8", ["i4", "f4", "f4", "f4"])]
-  
-      create("test.nc", variables, shapes, chunks, datatypes)
-  
-      res = bench("test.nc", variables=["Example"], iterations=10)
-  
-      print(res)
 
 
   #MAIN

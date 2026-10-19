@@ -8,7 +8,6 @@ authors = [
 ]
 requires-python = ">=3.14, <3.15"
 dependencies = [
-    "mpi4py>=4.1.2",
     "netcdf4>=1.7.4",
     "numpy>=2.5.1",
     "pathos>=0.3.5",
@@ -16,7 +15,6 @@ dependencies = [
     "plotly>=6.8.0",
     "pyyaml>=6.0.3",
     "rich>=15.0.0",
-    "ty>=0.0.55",
     "xarray>=2026.7.0",
 ]
 
@@ -26,6 +24,7 @@ dev = [
     "nbstripout>=0.9.1",
     "pytest>=9.1.1",
     "ruff>=0.15.19",
+    "ty>=0.0.89",
     "zensical>=0.0.46",
 ]
 
@@ -35,6 +34,6 @@ members = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.11.24,<0.12.0"]
+requires = ["uv_build>=0.13.0"]
 build-backend = "uv_build"
 

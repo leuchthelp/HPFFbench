@@ -4,6 +4,7 @@ tasks:
 - read-random-ND-ranged
 - read-random-ND-full-range
 formats:
+- hdf5
 - netcdf4
 languages:
 - py
@@ -11,50 +12,22 @@ paths:
   path_to_benchmarks: configs/benchmarks
   path_to_profilers: configs/profilers
   path_to_tmp: tmp
-  path_to_root: /work/ku0598/k203191/HPFFbench
+  path_to_root: /home/leuchtpc/Documents/HPFFbench
   path_to_bm_results: results/general
   path_to_results: results
   path_res_profiling: results/profiling
-iterations: 5
+iterations: 2
 runs:
-  run01-3D:
+  run01:
     X:
-    - - 5120
-      - 512
-      - 512
+    - - 134217728
     - []
-  run02-3D:
-    X:
-    - - 5120
-      - 512
-      - 512
-    - - 256
-      - 256
-      - 256
-  run03-3D:
-    X:
-    - - 5120
-      - 512
-      - 512
-    - - 128
-      - 128
-      - 128
-  run04-3D:
-    X:
-    - - 5120
-      - 512
-      - 512
-    - - 64
-      - 64
-      - 64
 parallel: Both
 collective: false
 par_backend:
 - MPI
 ranks:
-- 8
-- 16
-- 32
+- 4
 nodes:
 - 1
 variable_to_benchmark:
@@ -62,7 +35,7 @@ variable_to_benchmark:
 only_data: false
 no_caching: true
 use_spack_env: true
-max_processes: 20
+max_processes: 1
 slurm_options:
 - '
 
@@ -133,3 +106,5 @@ profiler: false
 profilers:
 - scorep
 profiler_mode: manual
+xrun_params:
+  max_number_access: 100

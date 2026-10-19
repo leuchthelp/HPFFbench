@@ -140,7 +140,9 @@ class Handler:
 
         logger.debug(self.__tasks)
         if not self.__tasks:
-            raise RuntimeError("no matching benchmark configs found")
+            raise ValueError(
+                "No benchmarks have been created, something is wrong. Please check your config."
+            )
 
         if not self.__only_data:
             self.start()
@@ -331,14 +333,15 @@ class Handler:
             if str(requested) in determined_cap:
                 logger.info("Success")
 
-                tasks.append(
-                    self.__create_benchmark_manager(
-                        parallel=parallel,
-                        profiler=profiler,
-                        requested=requested,
-                        bm_config=determined_cap[str(requested)],
-                    )
+                benchmarks = self.__create_benchmark_manager(
+                    parallel=parallel,
+                    profiler=profiler,
+                    requested=requested,
+                    bm_config=determined_cap[str(requested)],
                 )
+
+                if benchmarks:
+                    tasks.append(benchmarks)
 
         return tasks
 
@@ -432,6 +435,18 @@ class Handler:
                 else:
                     logger.info(f"Environment: {manager.env_name} already initialized")
 
+                logger.debug(bm_config.required_additional_params)
+                logger.debug(self.config.xrun_params)
+                if bm_config.required_additional_params is not None and not any(
+                    key in self.config.xrun_params
+                    for key in bm_config.required_additional_params
+                ):
+                    logger.warning(
+                        f"Global config does not supply one or more required additional runtime parameter: {bm_config.required_additional_params}. "
+                        + 'Will therefore be skipped until parameter is supplied as part of "xrun_params" dictionary.'
+                    )
+                    continue
+
                 bm = BenchmarkManager(
                     handler_id=self.__id,
                     run_config=run_config,
@@ -452,9 +467,6 @@ class Handler:
 
                 self.__benchmarks.append((bm.id, bm))
                 benchmarks.append(bm)
-
-        if not benchmarks:
-            raise ValueError("Not benchmarks have been created, something is wrong.")
 
         return benchmarks
 
@@ -499,7 +511,9 @@ class Handler:
                 manager.delete()
             logger.info("finish removing environments")
 
-    def __run_benchmark(self, benchmark: BenchmarkManager):
+    def __run_benchmark(
+        self, benchmark: BenchmarkManager
+    ) -> tuple[str, BenchmarkManager]:
         return benchmark.run()
 
     def __calc_anomaly_prob(
@@ -798,14 +812,5 @@ class Handler:
 
         res_path: str = self.config.paths["path_to_results"]["path"]
         res_file_path: Path = Path(f"{res_path}/results.nc")
-
-        # merge does not support mixed type arguments when one argument is a DataTree: [<xarray.Dataset> Size: 0B
-        # Dimensions:  ()
-        # Data variables:
-        #    *empty*, <xarray.DataTree 'root'>
-
-        # if res_file_path.exists():
-        #     existing: xr.DataTree = xr.open_zarr(res_file_path)
-        #     dt = xr.merge([existing, dt], join="exact")
 
         dt.to_netcdf(res_file_path, mode="a")

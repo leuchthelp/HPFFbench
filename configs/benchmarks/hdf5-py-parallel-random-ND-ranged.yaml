@@ -103,10 +103,13 @@ create: |
 run_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
+required_additional_params:
+    - max_number_access
 source: |
   import os
   import time
   from itertools import chain
+  from typing import Any
   
   import h5py
   import numpy as np
@@ -128,6 +131,7 @@ source: |
   def bench_helper(
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       dataset: h5py.File,
       node: str,
       rank: int,
@@ -139,46 +143,45 @@ source: |
           times: list[float] = []
   
           for var in variables:
-              try:
-                  start = time.monotonic()
+              number_access = xrun_params["max_number_access"] // rsize
+              print(f"Got to do: {number_access} dataset accesses on rank: {rank}")
+              
+              start = time.monotonic()
   
-                  current: h5py.Dataset = dataset[var]
+              current: h5py.Dataset = dataset[var]
+              combinations = []
+              for _ in range(number_access):
+                  slices: list[slice] = []
   
-                  combinations = []
-                  for _ in range(100):
-                      slices: list[slice] = []
-  
-                      shape: tuple[int, ...] = current.shape
-                      for total_size in shape:
-                          size = total_size // rsize
-                          rstart = rank * size
-                          rend = rstart + size
-                          slices.append(
-                              slice(rstart, rend, np.random.randint(low=1, high=size))
-                          )
-                      combinations.append(slices)
-  
-                  if collective:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+                  shape: tuple[int, ...] = current.shape
+                  for total_size in shape:
+                      size = total_size // rsize
+                      rstart = rank * size
+                      rend = rstart + size
+                      slices.append(
+                          slice(rstart, rend, np.random.randint(low=1, high=size))
                       )
+                  combinations.append(slices)
+  
+              if collective:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+                  )
+                  #INSTRUMENTER_START
+                  for comb in combinations:
+                      np.mean(current[*comb])
+                  #INSTRUMENTER_STOP
+              else:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
+                  )
+                  if rank == rank:
                       #INSTRUMENTER_START
                       for comb in combinations:
                           np.mean(current[*comb])
                       #INSTRUMENTER_STOP
-                  else:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
-                      )
-                      if rank == rank:
-                          #INSTRUMENTER_START
-                          for comb in combinations:
-                              np.mean(current[*comb])
-                          #INSTRUMENTER_STOP
   
-                  times.append(time.monotonic() - start)
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
+              times.append(time.monotonic() - start)
   
           bench.append((str(rank), node, str(round(np.mean(times), 32))))
           MPI.COMM_WORLD.Barrier()
@@ -194,6 +197,7 @@ source: |
       path: str,
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:
@@ -223,7 +227,7 @@ source: |
           node = os.environ["SLURMD_NODENAME"]
   
       result: list[tuple[str, str, str]] = bench_helper(
-          iterations, var_tmp, dataset, node, rank, rsize, collective
+          iterations, var_tmp, xrun_params, dataset, node, rank, rsize, collective
       )
   
       gathered = comm.gather(result, root=0)

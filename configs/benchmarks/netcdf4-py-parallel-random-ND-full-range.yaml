@@ -102,10 +102,13 @@ create: |
 run_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
+required_additional_params:
+    - max_number_access
 source: |
   import os
   import time
   from itertools import chain
+  from typing import Any
   
   import netCDF4
   import numpy as np
@@ -127,6 +130,7 @@ source: |
   def bench_helper(
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       dataset: netCDF4.Dataset,
       node: str,
       rank: int,
@@ -138,38 +142,36 @@ source: |
           times: list[float] = []
   
           for var in variables:
-              try:
-                  start = time.monotonic()
-  
-                  current: netCDF4.Variable = dataset[var]
-  
-                  combinations = []
-                  for _ in range(100):
-                      slices: list[slice] = []
-                      for total_size in current.shape:
-                          slices.append(
-                              slice(None, None, np.random.randint(low=1, high=total_size))
-                          )
-                      combinations.append(slices)
-  
-                  if collective:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+              number_access = xrun_params["max_number_access"] // rsize
+              print(f"Got to do: {number_access} dataset accesses on rank: {rank}")
+
+              start = time.monotonic()
+
+              current: netCDF4.Variable = dataset[var]
+              combinations = []
+              for _ in range(number_access):
+                  slices: list[slice] = []
+                  for total_size in current.shape:
+                      slices.append(
+                          slice(None, None, np.random.randint(low=1, high=total_size))
                       )
-                      current.set_collective(True)
-                  else:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
-                      )
+                  combinations.append(slices)
   
-                  #INSTRUMENTER_START
-                  for comb in combinations:
-                      np.mean(current[*comb])
-                  #INSTRUMENTER_STOP
-                  times.append(time.monotonic() - start)
+              if collective:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+                  )
+                  current.set_collective(True)
+              else:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
+                  )
   
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
+              #INSTRUMENTER_START
+              for comb in combinations:
+                  np.mean(current[*comb])
+              #INSTRUMENTER_STOP
+              times.append(time.monotonic() - start)
   
           bench.append((str(rank), node, str(round(np.mean(times), 32))))
           MPI.COMM_WORLD.Barrier()
@@ -184,6 +186,7 @@ source: |
       path: str,
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:
@@ -212,7 +215,7 @@ source: |
           node = os.environ["SLURMD_NODENAME"]
   
       result: list[tuple[str, str, str]] = bench_helper(
-          iterations, var_tmp, dataset, node, rank, rsize, collective
+          iterations, var_tmp, xrun_params, dataset, node, rank, rsize, collective
       )
   
       gathered = comm.gather(result, root=0)

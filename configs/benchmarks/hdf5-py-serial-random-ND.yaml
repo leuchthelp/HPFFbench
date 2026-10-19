@@ -73,9 +73,12 @@ create: |
   #MAIN
 run_command:
   serial: python {runnable}
+required_additional_params:
+    - max_number_access
 source: |
   import os
   import time
+  from typing import Any
   
   import numpy as np
   import h5py
@@ -97,6 +100,7 @@ source: |
   def bench_helper(
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       node: str,
       dataset: h5py.File,
   ) -> list[tuple[str, str, str]]:
@@ -111,17 +115,14 @@ source: |
                       slice(None, None, np.random.randint(low=1, high=size))
                       for size in current.shape
                   ]
-                  for _ in range(1000)
+                  for _ in range(xrun_params["max_number_access"])
               ]
   
-              try:
-                  # self.dataset[variable].read_direct(arr)
-                  start = time.monotonic()
-                  for comb in combinations:
-                      np.mean(current[*comb])
-                  times.append(time.monotonic() - start)
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
+              # self.dataset[variable].read_direct(arr)
+              start = time.monotonic()
+              for comb in combinations:
+                  np.mean(current[*comb])
+              times.append(time.monotonic() - start)
   
           bench.append(("0", node, str(round(np.mean(times), 32))))
   
@@ -134,6 +135,7 @@ source: |
       path: str,
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:
@@ -155,7 +157,7 @@ source: |
       if "SLURMD_NODENAME" in os.environ:
           node = os.environ["SLURMD_NODENAME"]
   
-      result = bench_helper(iterations, var_tmp, node, dataset)
+      result = bench_helper(iterations, var_tmp, xrun_params, node, dataset)
       return result
 
 

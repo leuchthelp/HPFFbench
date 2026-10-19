@@ -75,6 +75,7 @@ run_command:
   serial: python {runnable}
 source: |
   import time
+  from typing import Any
 
   import h5py
 
@@ -103,11 +104,8 @@ source: |
           start = time.monotonic()
 
           for var in variables:
-              try:
-                  # self.dataset[variable].read_direct(arr)
-                  dataset[var][:]
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
+              # self.dataset[variable].read_direct(arr)
+              dataset[var][:]
 
           bench.append(("0", node, str(round(time.monotonic() - start, 32))))
 
@@ -120,6 +118,7 @@ source: |
       path: str,
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:

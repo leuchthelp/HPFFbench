@@ -106,6 +106,7 @@ source: |
   import os
   import time
   from itertools import chain
+  from typing import Any
   
   import netCDF4
   import numpy as np
@@ -138,41 +139,37 @@ source: |
           times: list[float] = []
   
           for var in variables:
-              try:
-                  start = time.monotonic()
+              start = time.monotonic()
   
-                  current: netCDF4.Variable = dataset[var]
-                  slices: list[slice] = []
+              current: netCDF4.Variable = dataset[var]
+              slices: list[slice] = []
   
-                  for total_size in current.shape:
-                      size = total_size // rsize
-                      rstart = rank * size
-                      rend = rstart + size
-                      slices.append(
-                          slice(
-                              rstart,
-                              rend,
-                          )
+              for total_size in current.shape:
+                  size = total_size // rsize
+                  rstart = rank * size
+                  rend = rstart + size
+                  slices.append(
+                      slice(
+                          rstart,
+                          rend,
                       )
+                  )
   
-                  if collective:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
-                      )
-                      current.set_collective(True)
-                  else:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
-                      )
+              if collective:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+                  )
+                  current.set_collective(True)
+              else:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
+                  )
   
-                  #INSTRUMENTER_START
-                  current[*slices]
-                  #INSTRUMENTER_STOP
-                  
-                  times.append(time.monotonic() - start)
-  
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
+              #INSTRUMENTER_START
+              current[*slices]
+              #INSTRUMENTER_STOP
+              
+              times.append(time.monotonic() - start)
   
           bench.append((str(rank), node, str(round(np.mean(times), 32))))
           MPI.COMM_WORLD.Barrier()
@@ -187,6 +184,7 @@ source: |
       path: str,
       iterations: int,
       variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:

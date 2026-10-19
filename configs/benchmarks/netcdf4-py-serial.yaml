@@ -100,6 +100,7 @@ run_command:
   serial: python {runnable}
 source: |
   import time
+  from typing import Any
 
   import netCDF4
 
@@ -128,10 +129,7 @@ source: |
           start = time.monotonic()
 
           for var in variables:
-              try:
-                  dataset[var][:]
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
+              dataset[var][:]
 
           bench.append(("0", node, str(round(time.monotonic() - start, 32))))
 
@@ -143,7 +141,8 @@ source: |
   def bench(
       path: str,
       iterations: int,
-      variables: str,
+      variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:
@@ -159,7 +158,7 @@ source: |
               var_tmp.append(var)
           except KeyError:
               print(f"Variable: {var} does not exist.")
-      print(f'for variable: {var_tmp} for engine: "hdf5", size: {var_sizes}')
+      print(f'for variable: {var_tmp} for engine: "netcdf4", size: {var_sizes}')
 
       node = "None"
       if "SLURMD_NODENAME" in os.environ:
