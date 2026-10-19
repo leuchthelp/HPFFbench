@@ -1,9 +1,13 @@
 parallel: True
 par_backend: MPI
-task: "read"
+task: read
 language: py
 extension: zarr
 format: zarr
+required_packages:
+    - python
+    - mpi4py
+    - zarr
 create_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}

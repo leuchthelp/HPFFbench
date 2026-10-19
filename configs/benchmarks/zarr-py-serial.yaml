@@ -1,8 +1,11 @@
 parallel: False
-task: "read"
+task: read
 language: py
 extension: zarr
 format: zarr
+required_packages:
+    - python
+    - zarr
 create_command:
   serial: python {runnable}
 create: |

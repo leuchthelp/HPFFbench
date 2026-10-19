@@ -1,22 +1,27 @@
 parallel: False
-task: "read"
+task: read
 language: py
 extension: h5
 format: hdf5
+required_packages:
+    - python
+    - hdf5
+    - h5py
 create_command:
   serial: python {runnable}
 create: |
   from typing import TypedDict
-  import numpy as np
+  
   import h5py
-
-
+  import numpy as np
+  
+  
   class Form(TypedDict):
       shape: list[int]
       chunks: list[int]
-      dtype: str
-
-
+      dtype: tuple[str, list[str]]
+  
+  
   class bcolors:
       HEADER = "\033[95m"
       OKBLUE = "\033[94m"
@@ -27,14 +32,14 @@ create: |
       ENDC = "\033[0m"
       BOLD = "\033[1m"
       UNDERLINE = "\033[4m"
-
-
+  
+  
   def create(
       path: str,
-      variables: list[str] = [],
-      shapes: list[list[int]] = [],
-      chunks: list[list[int]] = [],
-      datatypes: list[str] = [],
+      variables: list[str],
+      shapes: list[list[int]],
+      chunks: list[list[int]],
+      datatypes: list[tuple[str, list[str]]],
       parallel: bool = False,
       collective: bool = False,
   ):
@@ -45,22 +50,22 @@ create: |
               "chunks": chunks[index],
               "dtype": datatypes[index],
           }
-
-      root = root = h5py.File(path, "w-")
+  
+      root = h5py.File(path, "w-")
       for variable, element in form.items():
           shape = element["shape"]
           chunk = element["chunks"]
           dtype = element["dtype"]
-
-          if len(chunk) != 0:
-              x = root.create_dataset(
-                  variable, shape=shape, chunks=tuple(chunk), dtype=dtype
+  
+          if chunk:
+              x: h5py.Dataset = root.create_dataset(
+                  variable, shape=shape, chunks=tuple(chunk), dtype=dtype[0]
               )
           else:
-              x = root.create_dataset(variable, shape=shape, dtype=dtype)
-
-          x[:] = np.random.random_sample(shape)
-
+              x: h5py.Dataset = root.create_dataset(variable, shape=shape, dtype=dtype[0])
+  
+          x[:] = np.random.randn(*shape).astype(dtype[0])
+  
       root.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
@@ -70,6 +75,7 @@ run_command:
   serial: python {runnable}
 source: |
   import time
+  from typing import Any
 
   import h5py
 
@@ -98,11 +104,8 @@ source: |
           start = time.monotonic()
 
           for var in variables:
-              try:
-                  # self.dataset[variable].read_direct(arr)
-                  dataset[var][:]
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
+              # self.dataset[variable].read_direct(arr)
+              dataset[var][:]
 
           bench.append(("0", node, str(round(time.monotonic() - start, 32))))
 
@@ -114,7 +117,8 @@ source: |
   def bench(
       path: str,
       iterations: int,
-      variables: str,
+      variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
   ) -> list[tuple[str, str, str]] | None:

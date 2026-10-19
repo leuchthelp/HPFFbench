@@ -17,7 +17,7 @@ class ProcessedPath(TypedDict):
 class RunConfig(TypedDict):
     shape: ReadOnly[list[int]]
     chunks: ReadOnly[list[int]]
-    datatype: ReadOnly[str]
+    datatype: ReadOnly[tuple[str, list[str]]]
 
 
 @dataclass
@@ -31,26 +31,34 @@ class Run:
             chunks: list[int] = setup[1] if len(setup) > 1 else []
             if len(chunks) > len(shape):
                 raise ValueError(
-                    "Cannot provide more chunks dimensions than there are dims"
+                    "Cannot provide more chunked dimensions than there are dims"
                 )
 
             self.variables[var] = {
                 "shape": shape,
                 "chunks": chunks,
-                "datatype": setup[2] if len(setup) > 2 else "f8",
+                "datatype": setup[2]
+                if len(setup) > 2
+                else ("f8", ["f8" for _ in shape]),
             }
 
 
+class PipPackageConfig(TypedDict):
+    version: ReadOnly[str]
+    variant: ReadOnly[str]
+
+
 class SpackPackageConfig(TypedDict):
-    versions: ReadOnly[list[str]]
-    variants: ReadOnly[str]
+    version: ReadOnly[str]
+    variant: ReadOnly[str]
     fresh: ReadOnly[NotRequired[bool]]
 
 
 class SpackEnvConfig(TypedDict):
     target: ReadOnly[list[dict[str, str]]]
     language: ReadOnly[list[str]]
-    packages: ReadOnly[dict[str, SpackPackageConfig]]
+    spack_packages: ReadOnly[dict[str, SpackPackageConfig]]
+    pip_packages: ReadOnly[dict[str, PipPackageConfig]]
     compiler: ReadOnly[str]
     additional: ReadOnly[str]
     install: ReadOnly[bool]
@@ -58,28 +66,55 @@ class SpackEnvConfig(TypedDict):
 
 class SpackEnv:
     def __init__(self, env: dict):
-        packages: dict[str, SpackPackageConfig] = {}
+        spack_packages: dict[str, SpackPackageConfig] = {}
+        pip_packages: dict[str, PipPackageConfig] = {}
         if "packages" in env:
-            found: dict[str, dict] = env["packages"]
+            packages: dict[str, dict] = env["packages"]
 
-            for key, package in found.items():
-                fresh = False
-                if "fresh" in package:
-                    fresh = package["fresh"]
-                    if not isinstance(fresh, bool):
-                        raise ValueError
+            if "spack" in packages:
+                found: dict[str, dict] = packages["spack"]
 
-                variants = ""
-                if "variants" in package:
-                    variants = package["variants"]
-                    if not isinstance(variants, str):
-                        raise ValueError
+                for key, package in found.items():
+                    fresh = False
+                    if "fresh" in package:
+                        fresh = package["fresh"]
+                        if not isinstance(fresh, bool):
+                            raise ValueError
 
-                packages[key] = {
-                    "versions": package["versions"],
-                    "variants": variants,
-                    "fresh": fresh,
-                }
+                    variant = ""
+                    if "variant" in package:
+                        variant = package["variant"]
+                        if not isinstance(variant, str):
+                            raise ValueError
+
+                    version = package["version"]
+                    if not isinstance(version, str):
+                        raise TypeError
+
+                    spack_packages[key] = {
+                        "version": version,
+                        "variant": variant,
+                        "fresh": fresh,
+                    }
+
+            if "pip" in packages:
+                found: dict[str, dict] = packages["pip"]
+
+                for key, package in found.items():
+                    variant = ""
+                    if "variant" in package:
+                        variant = package["variant"]
+                        if not isinstance(variant, str):
+                            raise ValueError
+
+                    version = package["version"]
+                    if not isinstance(version, str):
+                        raise TypeError
+
+                    pip_packages[key] = {
+                        "version": version,
+                        "variant": variant,
+                    }
         else:
             raise KeyError
 
@@ -87,7 +122,8 @@ class SpackEnv:
             "target": env["target"],
             "language": env["language"],
             "compiler": env["compiler"],
-            "packages": packages,
+            "spack_packages": spack_packages,
+            "pip_packages": pip_packages,
             "additional": env.get("additional", ""),
             "install": env.get("install", False),
         }
@@ -195,9 +231,11 @@ class BenchmarkConfigLoader:
 
     compile: bool
 
+    required_packages: list[str]
     parallel: list[bool]
     create_commands: RunCommands
     run_commands: RunCommands
+    required_additional_params: list[str] | None
 
     par_backend: list[str] | None
 
@@ -226,6 +264,10 @@ class BenchmarkConfigLoader:
         if "create" in self.config:
             self.create: str = self.config["create"]
 
+        self.required_packages: list[str] = []
+        if "required_packages" in self.config:
+            self.required_packages: list[str] = self.config["required_packages"]
+
         if "par_backend" in self.config:
             par_backend: list[str] | str = self.config["par_backend"]
 
@@ -243,6 +285,10 @@ class BenchmarkConfigLoader:
         self.compile_command = None
         if self.compile:
             self.compile_command: str = self.config["compile_command"]
+
+        self.required_additional_params = None
+        if "required_additional_params" in self.config:
+            self.required_additional_params = self.config["required_additional_params"]
 
 
 class GlobalConfigLoader:
@@ -267,6 +313,7 @@ class GlobalConfigLoader:
     paths: dict[str, ProcessedPath]
     runs: dict[str, Run]
     spack_envs: dict[str, SpackEnv]
+    xrun_params: dict[str, Any]
 
     max_processes: int | None
     profiler: list[bool]
@@ -459,3 +506,7 @@ class GlobalConfigLoader:
         self.profiler_mode: Literal["manual", "auto"] = "auto"
         if "profiler_mode" in self.config:
             self.profiler_mode: Literal["manual", "auto"] = self.config["profiler_mode"]
+
+        self.xrun_params = {}
+        if "xrun_params" in self.config:
+            self.xrun_params = self.config["xrun_params"]

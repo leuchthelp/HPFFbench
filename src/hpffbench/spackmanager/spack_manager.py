@@ -1,4 +1,3 @@
-import itertools
 import logging
 import shutil
 import subprocess
@@ -7,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from hpffbench.configloader import ProcessedPath, SpackEnv, SpackPackageConfig
+from hpffbench.configloader.config_loaders import PipPackageConfig
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class SpackManager:
     language: list
         Similar to `target` for programming languages.
 
-    packages: dict
+    spack_packages: dict
         Dictionary describing the spack packages to be added or installed to the environment.
 
     additional: str
@@ -72,7 +72,8 @@ class SpackManager:
     spack_env: SpackEnv
     target: list[dict[str, str]]
     language: list[str]
-    packages: dict[str, SpackPackageConfig]
+    spack_packages: dict[str, SpackPackageConfig]
+    pip_packages: dict[str, PipPackageConfig]
     additional: str
     env_location: Path
     package_locations: dict
@@ -100,17 +101,18 @@ class SpackManager:
         self.compiler = self.spack_env.config["compiler"]
         self.target = self.spack_env.config["target"]
         self.language = self.spack_env.config["language"]
-        self.packages = self.spack_env.config["packages"]
+        self.spack_packages = self.spack_env.config["spack_packages"]
+        self.pip_packages = self.spack_env.config["pip_packages"]
 
         self.env_name_present = False
         self.install = self.spack_env.config["install"]
 
-        self.package_locations = {}
+        self.package_locations: dict[str, tuple[str, str]] = {}
         self.python_version = "python"
 
         self.additional = self.spack_env.config["additional"]
 
-        self.loadables = {}
+        self.loadables: dict[str, tuple[str, ...]] = {}
 
         self.env_location = Path(f"environments/{self.env_name}")
         self.env_location.mkdir(parents=True, exist_ok=True)
@@ -119,15 +121,7 @@ class SpackManager:
             f"{self.env_location.absolute()}/env-{self.env_name}.sh"
         )
 
-        for name, info in self.packages.items():
-            versions = info["versions"]
-            variants = [info["variants"]]
-
-            combinations = list(
-                itertools.product(*[versions, variants, [self.compiler]])
-            )
-            self.loadables[name] = combinations
-
+        for name, info in self.spack_packages.items():
             # Check if environment exits, reuse if it does. Will usually exist, even if downstream processes fail. Hence further checks
             with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
                 file.write("#!/bin/bash\n")
@@ -146,68 +140,65 @@ class SpackManager:
             except subprocess.CalledProcessError:
                 pass
 
-            for combination in combinations:
-                package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
+            version = info["version"]
+            variant = info["variant"]
 
-                if name == "python":
-                    self.python_version = package
+            package = f"{name}@{version} {variant} %{self.compiler}"
 
-                if not self.__only_data and self.env_name_present:
-                    # Check if package can be found in environment, usually fails if version or compiler is mismatched with what is available in spack at the time.
+            self.loadables[name] = (version, variant, self.compiler)
+            if name == "python":
+                self.python_version = package
 
-                    with open(
-                        f"{self.env_location.absolute()}/check-location.sh", "w"
-                    ) as file:
-                        file.write("#!/bin/bash\n")
-                        file.write("set -e\n")
-                        file.write(
-                            f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
-                        )
-                        file.write(f"spack -e {self.env_name} find {package}\n")
+            if not self.__only_data and self.env_name_present:
+                # Check if package can be found in environment, usually fails if version or compiler is mismatched with what is available in spack at the time.
 
-                    try:
-                        p = subprocess.run(
-                            [
-                                "bash",
-                                f"{self.env_location.absolute()}/check-location.sh",
-                            ],
-                            check=True,
-                            text=True,
-                            capture_output=True,
-                        )
-                    except subprocess.CalledProcessError:
-                        raise RuntimeError(
-                            f'At least one package "{package}" failed installing. Usually due to spack package / compiler version mismatch.'
-                        )
+                with open(
+                    f"{self.env_location.absolute()}/check-location.sh", "w"
+                ) as file:
+                    file.write("#!/bin/bash\n")
+                    file.write("set -e\n")
+                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                    file.write(f"spack -e {self.env_name} find {package}\n")
 
-                    if not Path(f"{self.env_location}/.venv").is_dir():
-                        raise OSError(
-                            "additional pip packages have not installed properly"
-                        )
-
-                    with open(
-                        f"{self.env_location.absolute()}/check-location.sh", "w"
-                    ) as file:
-                        file.write("#!/bin/bash\n")
-                        file.write(
-                            f". {self.__root_path}/spack/share/spack/setup-env.sh\n"
-                        )
-                        file.write(f"spack -e {self.env_name} location -i {package}\n")
-
-                    p = subprocess.run(
+                try:
+                    subprocess.run(
                         [
                             "bash",
                             f"{self.env_location.absolute()}/check-location.sh",
                         ],
+                        check=True,
                         text=True,
                         capture_output=True,
-                        check=True,
                     )
-                    if p.returncode != 0:
-                        raise RuntimeError(f"{package}, unknown cause {p.stderr}")
-                    self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+                except subprocess.CalledProcessError:
+                    raise RuntimeError(
+                        f'At least one package "{package}" failed installing. Usually due to spack package / compiler version mismatch.'
+                    )
 
-                    self.initialized = True
+                if not Path(f"{self.env_location}/.venv").is_dir():
+                    raise OSError("additional pip packages have not installed properly")
+
+                with open(
+                    f"{self.env_location.absolute()}/check-location.sh", "w"
+                ) as file:
+                    file.write("#!/bin/bash\n")
+                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                    file.write(f"spack -e {self.env_name} location -i {package}\n")
+
+                p = subprocess.run(
+                    [
+                        "bash",
+                        f"{self.env_location.absolute()}/check-location.sh",
+                    ],
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                if p.returncode != 0:
+                    raise RuntimeError(f"{package}, unknown cause {p.stderr}")
+                self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+
+                self.initialized = True
 
     def initialize_env(self):
         """
@@ -245,7 +236,7 @@ class SpackManager:
 
                 first = True
                 check_installed = Path(f"{self.file_location}/.venv")
-                for index, (name, _) in enumerate(self.packages.items()):
+                for index, (name, _) in enumerate(self.spack_packages.items()):
                     combinations = self.loadables[name]
 
                     if first:
@@ -254,11 +245,11 @@ class SpackManager:
                         first = False
 
                     self.__add_packages(
-                        file=file, combinations=list(combinations), package_name=name
+                        file=file, combinations=combinations, package_name=name
                     )
 
                     if (
-                        index == len(self.packages.items()) - 1
+                        index == len(self.spack_packages.items()) - 1
                         and self.install
                         and not check_installed.exists()
                     ):
@@ -273,6 +264,15 @@ class SpackManager:
                     f"source {self.env_location.absolute()}/.venv/bin/activate\n"
                 )
                 file.write("pip install --upgrade pip \n")
+                if self.pip_packages:
+                    pip_packages = [
+                        f"{name}=={config['version']}"
+                        if config["version"]
+                        else f"{name}"
+                        for name, config in self.pip_packages.items()
+                    ]
+                    file.write(f"pip install {' '.join(pip_packages)}\n")
+
                 file.write(f"{self.additional}\n")
                 file.write(f"pip install -e {self.__root_path}\n")
                 file.write("pip list\n")
@@ -301,27 +301,24 @@ class SpackManager:
 
         # Check if location to package can be found, usually fails if the package has not been installed
         for name, combinations in self.loadables.items():
-            for combination in combinations:
-                package = f"{name}@{combination[0]} {combination[1]} %{combination[2]}"
+            package = f"{name}@{combinations[0]} {combinations[1]} %{combinations[2]}"
 
-                with open(
-                    f"{self.env_location.absolute()}/check-location.sh", "w"
-                ) as file:
-                    file.write("#!/bin/bash\n")
-                    file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
-                    file.write(f"spack -e {self.env_name} location -i {package}\n")
+            with open(f"{self.env_location.absolute()}/check-location.sh", "w") as file:
+                file.write("#!/bin/bash\n")
+                file.write(f". {self.__root_path}/spack/share/spack/setup-env.sh\n")
+                file.write(f"spack -e {self.env_name} location -i {package}\n")
 
-                p = subprocess.run(
-                    ["bash", f"{self.env_location.absolute()}/check-location.sh"],
-                    text=True,
-                    capture_output=True,
-                    check=True,
+            p = subprocess.run(
+                ["bash", f"{self.env_location.absolute()}/check-location.sh"],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            if p.returncode != 0:
+                raise RuntimeError(
+                    f'{package}, has not been installed yet. Either pass "install" flag or install it manually.'
                 )
-                if p.returncode != 0:
-                    raise RuntimeError(
-                        f'{package}, has not been installed yet. Either pass "install" flag or install it manually.'
-                    )
-                self.package_locations[name] = (f"{package}", p.stdout.rstrip())
+            self.package_locations[name] = (f"{package}", p.stdout.rstrip())
 
     def load_env(self) -> str:
         """
@@ -342,9 +339,7 @@ class SpackManager:
 
         return loadable
 
-    def __add_packages(
-        self, file, combinations: list[tuple[str, ...]], package_name: str
-    ):
+    def __add_packages(self, file, combinations: tuple[str, ...], package_name: str):
         """
         Assembles the individual add commands for each package to add to the environment.
 
@@ -362,16 +357,15 @@ class SpackManager:
         package_name: str
             Name of the packages to be loaded.
         """
-        for combination in combinations:
-            logger.debug(
-                f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}"
-            )
-            file.write(
-                f"spack -e {self.env_name} add {package_name}@{combination[0]} {combination[1]} %{combination[2]}\n"
-            )
+        logger.debug(
+            f"spack -e {self.env_name} add {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]}"
+        )
+        file.write(
+            f"spack -e {self.env_name} add {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]}\n"
+        )
 
     def __load_packages(
-        self, loadable: str, combinations: list, package_name: str
+        self, loadable: str, combinations: tuple[str, ...], package_name: str
     ) -> str:
         """
         Assembles the individual load commands for each package.
@@ -395,14 +389,13 @@ class SpackManager:
         str
             String containing packages to load by combinations requested.
         """
-        for combination in combinations:
-            logger.debug(
-                f"spack -e {self.env_name} load {package_name}@{combination[0]} {combination[1]} %{combination[2]}"
-            )
-            loadable = (
-                loadable
-                + f"eval $(spack -e {self.env_name} load --sh {package_name}@{combination[0]} {combination[1]} %{combination[2]})\n"
-            )
+        logger.debug(
+            f"spack -e {self.env_name} load {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]}"
+        )
+        loadable = (
+            loadable
+            + f"eval $(spack -e {self.env_name} load --sh {package_name}@{combinations[0]} {combinations[1]} %{combinations[2]})\n"
+        )
 
         return loadable
 

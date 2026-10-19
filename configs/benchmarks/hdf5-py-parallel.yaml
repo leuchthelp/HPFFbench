@@ -1,25 +1,32 @@
 parallel: True
 par_backend: MPI
-task: "read"
+task: read
 language: py
 extension: h5
 format: hdf5
+required_packages:
+    - openmpi
+    - python
+    - mpi4py
+    - hdf5
+    - h5py
 create_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
 create: |
   from typing import TypedDict
-  from mpi4py import MPI
-  import numpy as np
+  
   import h5py
-
-
+  import numpy as np
+  from mpi4py import MPI
+  
+  
   class Form(TypedDict):
       shape: list[int]
       chunks: list[int]
-      dtype: str
-
-
+      dtype: tuple[str, list[str]]
+  
+  
   class bcolors:
       HEADER = "\033[95m"
       OKBLUE = "\033[94m"
@@ -30,14 +37,14 @@ create: |
       ENDC = "\033[0m"
       BOLD = "\033[1m"
       UNDERLINE = "\033[4m"
-
-
+  
+  
   def create(
       path: str,
-      variables: list[str] = [],
-      shapes: list[list[int]] = [],
-      chunks: list[list[int]] = [],
-      datatypes: list[str] = [],
+      variables: list[str],
+      shapes: list[list[int]],
+      chunks: list[list[int]],
+      datatypes: list[tuple[str, list[str]]],
       parallel: bool = False,
       collective: bool = False,
   ):
@@ -48,37 +55,46 @@ create: |
               "chunks": chunks[index],
               "dtype": datatypes[index],
           }
-
+  
       root = h5py.File(path, "w-", driver="mpio", comm=MPI.COMM_WORLD)
       for variable, element in form.items():
           shape = element["shape"]
           chunk = element["chunks"]
           dtype = element["dtype"]
-
-          if len(chunk) != 0:
-              x = root.create_dataset(
-                  variable, shape=shape, chunks=tuple(chunk), dtype=dtype
+  
+          if chunk:
+              x: h5py.Dataset = root.create_dataset(
+                  variable, shape=shape, chunks=tuple(chunk), dtype=dtype[0]
               )
           else:
-              x = root.create_dataset(variable, shape=shape, dtype=dtype)
-
+              x: h5py.Dataset = root.create_dataset(variable, shape=shape, dtype=dtype[0])
+  
           rank = MPI.COMM_WORLD.rank
           rsize = MPI.COMM_WORLD.size
-          total_size = shape[0]
-          size = int(total_size / rsize)
-
-          rstart = rank * size
-          rend = rstart + size
-
+  
+          slices: list[slice] = []
+          needed_shape: list[int] = []
+          for total_size in shape:
+              size = total_size // rsize
+              rstart = rank * size
+              rend = rstart + size
+              slices.append(
+                  slice(
+                      rstart,
+                      rend,
+                  )
+              )
+              needed_shape.append(size)
+  
           if collective:
               print(bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC)
-              x[rstart:rend:] = np.random.random_sample(size)
+              x[*slices] = np.random.randn(*needed_shape).astype(dtype[0])
           else:
               print(bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC)
               if rank == rank:
-                  x[rstart:rend:] = np.random.random_sample(size)
+                  x[*slices] = np.random.randn(*needed_shape).astype(dtype[0])
           MPI.COMM_WORLD.Barrier()
-
+  
       root.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
 
@@ -88,14 +104,16 @@ run_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
 source: |
-  from itertools import chain
+  import os
   import time
-  import math
-
-  from mpi4py import MPI
+  from itertools import chain
+  from typing import Any
+  
   import h5py
-
-
+  import numpy as np
+  from mpi4py import MPI
+  
+  
   class bcolors:
       HEADER = "\033[95m"
       OKBLUE = "\033[94m"
@@ -106,8 +124,8 @@ source: |
       ENDC = "\033[0m"
       BOLD = "\033[1m"
       UNDERLINE = "\033[4m"
-
-
+  
+  
   def bench_helper(
       iterations: int,
       variables: list[str],
@@ -116,67 +134,78 @@ source: |
       rank: int,
       rsize: int,
       collective: bool,
-  ) ->  list[tuple[str, str, str]]:
-      bench:  list[tuple[str, str, str]] = []
+  ) -> list[tuple[str, str, str]]:
+      bench: list[tuple[str, str, str]] = []
       for _ in range(iterations):
-          
-          start = time.monotonic()
+          times: list[float] = []
+  
           for var in variables:
-              try:
-                  total_size: int = math.prod(dataset[var].shape)
-                  size = int(total_size / rsize)
+              start = time.monotonic()
+  
+              current: h5py.Dataset = dataset[var]
+  
+              slices: list[slice] = []
+              shape: tuple[int, ...] = current.shape
+              for total_size in shape:
+                  size = total_size // rsize
                   rstart = rank * size
                   rend = rstart + size
-
-                  if collective:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+                  slices.append(
+                      slice(
+                          rstart,
+                          rend,
                       )
+                  )
+  
+              if collective:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
+                  )
+                  #INSTRUMENTER_START
+                  current[*slices]
+                  #INSTRUMENTER_STOP
+              else:
+                  print(
+                      bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
+                  )
+                  if rank == rank:
                       #INSTRUMENTER_START
-                      dataset[var][rstart:rend:]
+                      current[*slices]
                       #INSTRUMENTER_STOP
-                  else:
-                      print(
-                          bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC
-                      )
-                      if rank == rank:
-                          #INSTRUMENTER_START
-                          dataset[var][rstart:rend:]
-                          #INSTRUMENTER_STOP
-
-              except KeyError:
-                  print(f"Variable: {var} does not exist.")
-
-          
-          bench.append((str(rank), node, str(round(time.monotonic() - start, 32))))
+  
+              times.append(time.monotonic() - start)
+  
+          bench.append((str(rank), node, str(round(np.mean(times), 32))))
           MPI.COMM_WORLD.Barrier()
-
+  
       dataset.close()
       MPI.COMM_WORLD.Barrier()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
-
+  
       return bench
-
-
+  
+  
   def bench(
       path: str,
       iterations: int,
-      variables: str,
+      variables: list[str],
+      xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
-  ) ->  list[tuple[str, str, str]] | None:
-
+  ) -> list[tuple[str, str, str]] | None:
+  
       dataset = h5py.File(path, mode="r", driver="mpio", comm=MPI.COMM_WORLD)
-
+  
       var_tmp = []
       comm = MPI.COMM_WORLD
       rank = MPI.COMM_WORLD.rank
       rsize = MPI.COMM_WORLD.size
-
+  
       var_sizes: list[tuple[int, ...]] = []
       for var in variables:
           try:
-              var_size: tuple[int, ...] = dataset[var].shape
+              var_ds: h5py.Dataset = dataset[var]
+              var_size: tuple[int, ...] = var_ds.shape
               var_sizes.append(var_size)
               var_tmp.append(var)
           except KeyError:
@@ -184,16 +213,18 @@ source: |
       print(
           f'for variable: {var_tmp} for engine: "hdf5", rank: {rank}, size: {var_sizes}'
       )
-
+  
       node = "None"
       if "SLURMD_NODENAME" in os.environ:
           node = os.environ["SLURMD_NODENAME"]
-
-      result: list[tuple[str, str, str]] = bench_helper(iterations, var_tmp, dataset, node, rank, rsize, collective)
-
+  
+      result: list[tuple[str, str, str]] = bench_helper(
+          iterations, var_tmp, dataset, node, rank, rsize, collective
+      )
+  
       gathered = comm.gather(result, root=0)
       if rank == 0 and gathered:
           return list(chain.from_iterable(gathered))
-
+  
 
   #MAIN

@@ -7,10 +7,10 @@ import subprocess
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
-import pandas as pd
+import xarray as xr
 from pathos.pools import ProcessPool
 from rich.console import Console
 from rich.logging import RichHandler
@@ -140,7 +140,9 @@ class Handler:
 
         logger.debug(self.__tasks)
         if not self.__tasks:
-            raise RuntimeError("no matching benchmark configs found")
+            raise ValueError(
+                "No benchmarks have been created, something is wrong. Please check your config."
+            )
 
         if not self.__only_data:
             self.start()
@@ -149,7 +151,7 @@ class Handler:
                 f'Just collecting results of matching benchmarks if they exist since "only_data" is set to {self.__only_data}.'
             )
 
-        self.__prepare_dataframe()
+        self.__build_datatree()
 
     def __load_config(self, path_to_config: str | dict):
         """
@@ -331,14 +333,15 @@ class Handler:
             if str(requested) in determined_cap:
                 logger.info("Success")
 
-                tasks.append(
-                    self.__create_benchmark_manager(
-                        parallel=parallel,
-                        profiler=profiler,
-                        requested=requested,
-                        bm_config=determined_cap[str(requested)],
-                    )
+                benchmarks = self.__create_benchmark_manager(
+                    parallel=parallel,
+                    profiler=profiler,
+                    requested=requested,
+                    bm_config=determined_cap[str(requested)],
                 )
+
+                if benchmarks:
+                    tasks.append(benchmarks)
 
         return tasks
 
@@ -432,6 +435,18 @@ class Handler:
                 else:
                     logger.info(f"Environment: {manager.env_name} already initialized")
 
+                logger.debug(bm_config.required_additional_params)
+                logger.debug(self.config.xrun_params)
+                if bm_config.required_additional_params is not None and not any(
+                    key in self.config.xrun_params
+                    for key in bm_config.required_additional_params
+                ):
+                    logger.warning(
+                        f"Global config does not supply one or more required additional runtime parameter: {bm_config.required_additional_params}. "
+                        + 'Will therefore be skipped until parameter is supplied as part of "xrun_params" dictionary.'
+                    )
+                    continue
+
                 bm = BenchmarkManager(
                     handler_id=self.__id,
                     run_config=run_config,
@@ -452,9 +467,6 @@ class Handler:
 
                 self.__benchmarks.append((bm.id, bm))
                 benchmarks.append(bm)
-
-        if not benchmarks:
-            raise ValueError("Not benchmarks have been created, something is wrong.")
 
         return benchmarks
 
@@ -499,27 +511,60 @@ class Handler:
                 manager.delete()
             logger.info("finish removing environments")
 
-    def __run_benchmark(self, benchmark: BenchmarkManager):
+    def __run_benchmark(
+        self, benchmark: BenchmarkManager
+    ) -> tuple[str, BenchmarkManager]:
         return benchmark.run()
 
-    def __process_file(
-        self,
-        benchmark: BenchmarkManager,
-        path: Path,
-        path_name: str,
-        path_date: str,
-        df: pd.DataFrame,
-    ) -> pd.DataFrame:
-        logger.debug(f"full path {path}")
-        logger.debug(f"date of file @ {path_date}")
-        logger.info(f"currently on {path_name}")
+    def __calc_anomaly_prob(
+        self, measures: list[float]
+    ) -> tuple[list[float], list[bool]]:
+        clusters = []
+        eps = 0.12
+        points_sorted = sorted(measures)
+        curr_point = points_sorted[0]
+        curr_cluster = [curr_point]
 
-        with open(path, "r") as file:
+        for point in points_sorted[1:]:
+            if point <= curr_point + curr_point * eps:
+                curr_cluster.append(point)
+            else:
+                clusters.append(curr_cluster)
+                curr_cluster = [point]
+                curr_point = point
+
+        clusters.append(curr_cluster)
+
+        anomaly_prob: list[float] = []
+        anomaly_class: list[bool] = []
+
+        # Very naive approach, need something better
+        for value in measures:
+            if value not in clusters[0]:
+                idx = 0
+                for i, elem in enumerate(clusters[1:]):
+                    if value in elem:
+                        idx = i
+
+                prob = idx / len(clusters)
+
+                anomaly_prob.append(prob)
+                anomaly_class.append(True)
+            else:
+                anomaly_prob.append(0.0)
+                anomaly_class.append(False)
+
+        return anomaly_prob, anomaly_class
+
+    def __build_overview_array(
+        self, res_path: Path, benchmark: BenchmarkManager
+    ) -> xr.DataArray:
+        with open(res_path, "r") as file:
             initial: list[str] = json.load(file)
 
-        ranks: list[int] = []
         used_nodes: list[str] = []
-        current: list[float] = []
+        ranks: list[int] = []
+        measures: list[float] = []
         for entry in initial:
             split = entry.split("-")
             rank = int(split[0])
@@ -528,148 +573,244 @@ class Handler:
 
             ranks.append(rank)
             used_nodes.append(node)
-            current.append(value)
+            measures.append(value)
 
-        mean = np.mean(current)
-        std = np.std(current)
-        rsd = std / mean
+        count_per_rank = Counter(ranks)
 
-        error = std / float(np.sqrt(len(current)))
+        ranks = list(count_per_rank.keys())
+        _, iter_amount = count_per_rank.popitem()
+        iterations: list[int] = list(range(iter_amount))
 
-        for index, value in enumerate(current):
-            count: Counter[str] = Counter()
-            node_string = used_nodes[index]
-            symbol = node_string[0]
-            node_string = node_string.replace(symbol, "")
-            str_nodes = node_string.split(",")
-            final_nodes: list[list[str]] = []
+        time_mean = np.mean(measures)
+        time_std = np.std(measures)
+        time_rsd = time_std / time_mean
+        time_error = time_std / float(np.sqrt(len(measures)))
 
-            for node in str_nodes:
-                if "-" in node:
-                    hold = node.split("-")
+        throughputs = [benchmark.total_filesize / time for time in measures]
+        throughput_mean = np.mean(throughputs)
+        throughput_std = np.std(throughputs)
+        throughput_rsd = throughput_std / throughput_mean
+        throughput_err = throughput_std / float(np.sqrt(len(throughputs)))
 
-                    node = [
-                        symbol + str(additional)
-                        for additional in range(int(hold[0]), int(hold[1]) + 1)
-                    ]
-                    final_nodes.append(node)
+        anomaly_prob, anomaly_class = self.__calc_anomaly_prob(measures=measures)
+        coords: dict[str, Any] = {
+            "iterations": iterations,
+            "on_rank": ranks,
+            "on_node": (
+                ("iterations", "on_rank"),
+                np.array(used_nodes).reshape(iter_amount, benchmark.ranks),
+            ),
+            "run_config": str(benchmark.run_config.variables),
+            "mean_time": time_mean,
+            "time_std": time_std,
+            "time_relative_std": time_rsd,
+            "time_error_bar": time_error,
+            "throughput_per_measure": (
+                ("iterations", "on_rank"),
+                np.array(throughputs).reshape(iter_amount, benchmark.ranks),
+            ),
+            "mean_throughput": throughput_mean,
+            "throughput_std": throughput_std,
+            "throughput_relative_std": throughput_rsd,
+            "throughput_error_bar": throughput_err,
+            "anomaly_hint_prob": (
+                ("iterations", "on_rank"),
+                np.array(anomaly_prob).reshape(iter_amount, benchmark.ranks),
+            ),
+            "anomaly_hint_classification": (
+                ("iterations", "on_rank"),
+                np.array(anomaly_class).reshape(iter_amount, benchmark.ranks),
+            ),
+            "format": benchmark.format,
+            "task_type": benchmark.task,
+            "language": benchmark.language,
+            "engine": benchmark.engine,
+            "no_caching": benchmark.no_caching,
+            "num_nodes": benchmark.nodes,
+            "num_ranks": benchmark.ranks,
+            "parallel": benchmark.parallel,
+            "parallel_backend": benchmark.par_backend,
+            "access_kind": "collective"
+            if benchmark.collective is not None and benchmark.collective is True
+            else "independent",
+            "total_filesize": benchmark.total_filesize,
+            "var_to_bm": str(benchmark.var_to_bm),
+            "filesize_per_var": benchmark.filesize_var[0][1],
+            "unit_var": benchmark.unit_var,
+            "filesize_per_chunk": benchmark.chunksize_var[0][1],
+            "unit_chunk": benchmark.unit_chunk,
+        }
 
-                elif not isinstance(node, list):
-                    final_nodes.append([symbol + node])
+        return xr.DataArray(
+            data=np.array(measures).reshape(iter_amount, benchmark.ranks),
+            coords=coords,
+            dims=["iterations", "on_rank"],
+            attrs={
+                "description": "Time taken per benchmark run (lower is better)",
+                "units": "ms (microseconds)",
+            },
+        )
 
-                count.update(list(itertools.chain.from_iterable(final_nodes)))
+    def __build_used_package_array(
+        self,
+        spack_manager: SpackManager,
+        benchmark: BenchmarkManager,
+    ) -> xr.DataArray:
+        package_versions: list[str] = []
+        package_names: list[str] = []
+        package_flags: list[str] = []
+        install_methods: list[str] = []
 
-                profile_path = Path(self.config.paths["path_res_profiling"]["path"])
-                location_profiling = Path(f"{profile_path.absolute()}/{path_name}")
+        required_packages = benchmark.bm_config.required_packages
+        for name, config in spack_manager.spack_packages.items():
+            if any(bool(package in name.lower()) for package in required_packages):
+                package_names.append(name)
+                package_versions.append(config["version"])
+                package_flags.append(config["variant"])
+                install_methods.append("spack")
 
-                anomaly = False
-                clusters = []
-                eps = 0.12
-                points_sorted = sorted(current)
-                curr_point = points_sorted[0]
-                curr_cluster = [curr_point]
+        for name, config in spack_manager.pip_packages.items():
+            if any(bool(package in name.lower()) for package in required_packages):
+                package_names.append(name)
+                package_versions.append(config["version"])
+                package_flags.append(config["variant"])
+                install_methods.append("pip")
 
-                for point in points_sorted[1:]:
-                    if point <= curr_point + curr_point * eps:
-                        curr_cluster.append(point)
-                    else:
-                        clusters.append(curr_cluster)
-                        curr_cluster = [point]
-                    curr_point = point
+        coords: dict[str, Any] = {
+            "package_name": package_names,
+            "install_method": ("package_name", install_methods),
+            "package_flag": ("package_name", package_flags),
+        }
 
-                clusters.append(curr_cluster)
+        return xr.DataArray(
+            data=package_versions,
+            coords=coords,
+            dims=["package_name"],
+            attrs={
+                "description": "Versions of all packages specifically required by this benchmark",
+            },
+        )
 
-                if value not in clusters[0]:
-                    anomaly = True
+    def __build_avail_packages_array(self, spack_manager: SpackManager) -> xr.DataArray:
+        package_names = list(spack_manager.spack_packages.keys())
+        package_names.extend(list(spack_manager.pip_packages.keys()))
 
-                logger.debug(
-                    f"clusters: {clusters}, value: {value}, anomaly: {anomaly}"
-                )
+        package_versions: list[str] = []
+        package_flags: list[str] = []
+        install_methods: list[str] = []
+        for config in spack_manager.spack_packages.values():
+            package_versions.append(config["version"])
+            package_flags.append(config["variant"])
+            install_methods.append("spack")
 
-                tmp = pd.DataFrame(
-                    data={
-                        "benchmark": benchmark.id,
-                        "date run": datetime.strptime(
-                            path_date, "%Y_%m_%d_%H_%M_%S"
-                        ).astimezone(),
-                        "run config": [benchmark.run_config],
-                        "task": benchmark.task,
-                        "time taken": value,
-                        "on rank": ranks[index],
-                        "throughput": benchmark.total_filesize / mean,
-                        "engine": benchmark.engine,
-                        "var to bm": [benchmark.var_to_bm],
-                        "total filesize": benchmark.total_filesize,
-                        "unit": benchmark.unit,
-                        "filesize per var": [benchmark.filesize_var],
-                        "filesize per chunk": [benchmark.chunksize_var],
-                        "no caching": benchmark.no_caching,
-                        "parallel": benchmark.parallel,
-                        "parallel backend": benchmark.par_backend,
-                        "collective": benchmark.collective,
-                        "ranks": benchmark.ranks,
-                        "language": benchmark.language,
-                        "format": str(benchmark.format),
-                        "mean time": mean,
-                        "standard deviation": std,
-                        "relative std": rsd,
-                        "error bar": error,
-                        "anomaly": anomaly,
-                        "nodes": benchmark.nodes,
-                        "used nodes": used_nodes[index],
-                        "node count": [count],
-                        "total node count": [Counter()],
-                        "total nc match": [Counter()],
-                        "profiling": [str(location_profiling)],
-                    }
-                )
+        for config in spack_manager.pip_packages.values():
+            package_versions.append(config["version"])
+            package_flags.append(config["variant"])
+            install_methods.append("pip")
 
-                df: pd.DataFrame = pd.concat([df, tmp], ignore_index=True)
+        coords: dict[str, Any] = {
+            "all_package_versions": package_versions,
+            "all_package_flag": ("all_package_versions", package_flags),
+            "all_install_method": ("all_package_versions", install_methods),
+        }
 
-        return df
+        return xr.DataArray(
+            data=package_names,
+            coords=coords,
+            dims=["all_package_versions"],
+            attrs={
+                "description": "All available packages within the tested environment.",
+            },
+        )
 
-    def __prepare_dataframe(self):
-        """
-        Gathers up all generated results, data and metadata and assembles a pandas Dataframe object. Finally exports the results as JSON.
-        Also performs some basic pre-analysis on the data to generate some additional, helpful metrics.
-        """
-        root = Path(self.config.paths["path_to_results"]["path"])
-        df = pd.DataFrame()
+    def __build_overview_dataset(
+        self, todos: list[tuple[Path, BenchmarkManager, str, str]]
+    ) -> xr.DataTree:
 
+        final: dict[str, dict[str, xr.Dataset]] = {}
+        for res_path, benchmark, hash, date_run in todos:
+            overview_array = self.__build_overview_array(
+                res_path=res_path, benchmark=benchmark
+            )
+
+            data_vars: dict[str, xr.DataArray] = {
+                "run_time": overview_array,
+            }
+
+            nested_by_date = {date_run: xr.Dataset(data_vars=data_vars)}
+
+            if hash in final:
+                final[hash].update(nested_by_date)
+            else:
+                final.update({hash: nested_by_date})
+
+        return xr.DataTree.from_dict(final, nested=True)
+
+    def __build_used_package_dataset(
+        self, todos: list[tuple[Path, BenchmarkManager, str, str]]
+    ) -> xr.DataTree:
+
+        final: dict[str, xr.Dataset] = {}
+        for _, benchmark, hash, _ in todos:
+            spack_manager = benchmark.spack_manager
+            used_package_array = self.__build_used_package_array(
+                spack_manager=spack_manager, benchmark=benchmark
+            )
+
+            data_vars: dict[str, xr.DataArray] = {
+                "used_packages": used_package_array,
+            }
+            final.update({hash: xr.Dataset(data_vars=data_vars)})
+
+        return xr.DataTree.from_dict(final)
+
+    def __build_avail_packages_dataset(
+        self, todos: list[tuple[Path, BenchmarkManager, str, str]]
+    ) -> xr.DataTree:
+
+        final: dict[str, xr.Dataset] = {}
+        for _, benchmark, hash, _ in todos:
+            spack_manager = benchmark.spack_manager
+            avail_packages_array = self.__build_avail_packages_array(
+                spack_manager=spack_manager
+            )
+
+            data_vars: dict[str, xr.DataArray] = {
+                "all_avail_packages": avail_packages_array,
+            }
+            final.update({hash: xr.Dataset(data_vars=data_vars)})
+
+        return xr.DataTree.from_dict(final)
+
+    def __build_datasets(self) -> xr.DataTree:
+        root = Path(self.config.paths["path_to_bm_results"]["path"])
         benchmarks = dict(self.__benchmarks)
+
+        todos: list[tuple[Path, BenchmarkManager, str, str]] = []
         for path in root.rglob("*.json"):
-            if not path.is_dir() and "results" not in path.name:
+            if path.is_file() and "results" not in path.name:
                 tmp = path.name.replace(".json", "").split("-")
                 path_name = tmp[0]
                 path_date = tmp[1]
 
-                logger.debug(path_name)
-                logger.debug(benchmarks.keys())
                 if path_name in benchmarks:
                     benchmark = benchmarks[path_name]
-                    df = self.__process_file(benchmark, path, path_name, path_date, df)
+                    date_run = str(
+                        datetime.strptime(path_date, "%Y_%m_%d_%H_%M_%S").astimezone()
+                    )
+                    todos.append((path, benchmark, path_name, date_run))
+
+        new = {
+            "overview": self.__build_overview_dataset(todos),
+            "used_packages": self.__build_used_package_dataset(todos),
+            "all_avail_packages": self.__build_avail_packages_dataset(todos),
+        }
+        return xr.DataTree.from_dict(new)
+
+    def __build_datatree(self):
+        dt = xr.DataTree.from_dict(self.__build_datasets(), name="root", nested=True)
 
         res_path: str = self.config.paths["path_to_results"]["path"]
+        res_file_path: Path = Path(f"{res_path}/results.nc")
 
-        # there is probably a better method for doing this, will look into it later
-
-        total_node_counter: Counter[str] = Counter()
-        for count in df["node count"]:
-            total_node_counter.update(count)
-
-        for index, _ in df.iterrows():
-            df.at[index, "total node count"] = total_node_counter
-
-            for nodes, count in total_node_counter.items():
-                if nodes in df.at[index, "node count"]:
-                    df.at[index, "total nc match"][nodes] = count
-
-        df.sort_values(
-            by=["total filesize", "ranks", "engine", "format"],
-            ascending=[True, True, True, False],
-            inplace=True,
-            ignore_index=True,
-        )
-
-        logger.debug(df)
-        df.to_json(Path(f"{res_path}/results.json"))
+        dt.to_netcdf(res_file_path, mode="a")

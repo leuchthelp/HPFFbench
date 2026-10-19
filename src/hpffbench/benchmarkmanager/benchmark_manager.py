@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import os
 import re
@@ -157,12 +158,13 @@ class BenchmarkManager:
     format: str
     engine: str
     extension: str
-    datatype: list[str]
+    datatype: list[tuple[str, list[str]]]
     var_to_bm: str | list[str]
     total_filesize: float
-    unit: str
-    filesize_var: list[str]
-    chunksize_var: list[str]
+    unit_var: str
+    unit_chunk: str
+    filesize_var: list[tuple[str, float, str]]
+    chunksize_var: list[tuple[str, float, str]]
     iterations: int
     internal_i: int
     current_time: str
@@ -228,10 +230,10 @@ class BenchmarkManager:
         self.language = requested["language"]
         self.format = requested["format"]
 
-        datatype: list[str] = []
+        datatypes: list[tuple[str, list[str]]] = []
         for item in run_config.variables.values():
-            datatype.append(item["datatype"])
-        self.datatype: list[str] = datatype
+            datatypes.append(item["datatype"])
+        self.datatype = datatypes
 
         self.var_to_bm = self.global_config.variable_to_benchmark
         self.iterations = self.global_config.iterations
@@ -268,7 +270,8 @@ class BenchmarkManager:
             + str(self.spack_manager.target)
             + str(self.spack_manager.additional)
             + str(self.spack_manager.compiler)
-            + str(self.spack_manager.packages)
+            + str(self.spack_manager.spack_packages)
+            + str(self.spack_manager.pip_packages)
             + str(self.spack_manager.language)
             + str(self.spack_manager.env_name)
             # Reasoning: profilers also influence the results since they have runtime overhead, so they need to be taken into account
@@ -289,31 +292,34 @@ class BenchmarkManager:
 
         self.use_path = Path(paths["path_to_tmp"]["path"])
         self.root_path = Path(paths["path_to_root"]["path"])
-        self.results_path = Path(paths["path_to_results"]["path"])
+        self.results_path = Path(paths["path_to_bm_results"]["path"])
         self.dir_path = Path(f"{self.use_path}/{self.id}")
 
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
 
-        filesize_per_var: list[tuple[str, tuple[float, str]]] = [
-            (key, calc_size_unit(item["shape"]))
+        filesize_per_var: list[tuple[str, float, str]] = [
+            (key, *calc_size_unit(item["shape"]))
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
 
         total_filesize = 0
         for filesize in filesize_per_var:
-            total_filesize += filesize[1][0]
+            total_filesize += filesize[1]
 
         self.total_filesize: float = total_filesize
-        self.unit: str = filesize_per_var[0][1][1]
-        self.filesize_var: list[tuple[str, tuple[float, str]]] = filesize_per_var
-        self.chunksize_var: list[tuple[str, tuple[float, str]]] = [
-            (key, calc_size_unit(item["chunks"]))
+        self.unit_var: str = filesize_per_var[0][2]
+        self.filesize_var: list[tuple[str, float, str]] = filesize_per_var
+        self.chunksize_var: list[tuple[str, float, str]] = [
+            (key, *calc_size_unit(item["chunks"]))
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
+        self.unit_chunk: str = self.chunksize_var[0][2]
         self.show_metadata = True
+
+        self.xrun_params = self.global_config.xrun_params
 
         # Environment config
 
@@ -383,7 +389,6 @@ class BenchmarkManager:
 
         finally:
             shutil.rmtree(path=self.dir_path)
-            pass
 
         return self.id, self
 
@@ -461,10 +466,11 @@ class BenchmarkManager:
         values: list[RunConfig] = list(self.run_config.variables.values())
         shapes: list[list[int]] = []
         chunks: list[list[int]] = []
-        datatypes = self.datatype
+        datatypes: list[tuple[str, list[str]]] = []
         for value in values:
             shapes.append(value["shape"])
             chunks.append(value["chunks"])
+            datatypes.append(value["datatype"])
 
         create_command = self.__append_flag(
             flag="-S", command=create_command, data=shapes
@@ -526,7 +532,7 @@ class BenchmarkManager:
         if flag not in command:
             command = command + f" {flag}"
 
-        data_str = ",".join(str(x) for x in data)
+        data_str = str(data).replace(" ", "")
         command = command.replace(f"{flag}", f"{flag} {data_str}")
 
         return command
@@ -708,6 +714,15 @@ class BenchmarkManager:
 
             run_command = run_command + f"-s {sum([sum(x) for x in size])}"
 
+        if self.xrun_params:
+            out = json.dumps(self.xrun_params)
+
+            xrun_params_path = f"{self.dir_path.absolute()}/xrun_params.json"
+            with open(xrun_params_path, "w") as file:
+                file.write(out)
+
+            run_command = run_command + f"-x {xrun_params_path}"
+
         shell_type = "bash"
         if self.slurm_avail and not self.local:
             shell_type = "sbatch"
@@ -831,7 +846,7 @@ import argparse
 import ast
 import os
 
-from mpi4py import MPI
+from typing import Any
             
 def main():
 
@@ -841,7 +856,7 @@ def main():
     )
     parser.add_argument("-c", "--create", type=int, default=-1, help="creates Zarr, NetCDF4 and HDF5 Files using a previously saved run format")
     parser.add_argument("-b", "--benchmark", type=int, default=-1, help="benchmark to run")
-    parser.add_argument("-v", "--var_to_bm", type=str, default=None, help="var_to_bm to read, if none is provided all are read")
+    parser.add_argument("-v", "--vars_to_bm", type=str, default=None, help="vars_to_bm to read, if none is provided all are read")
     parser.add_argument("-V", "--variables", type=str, default=None, help="variables to create")
     parser.add_argument("-S", "--shape", type=str, default=None, help="shapes per variable to create")
     parser.add_argument("-C", "--chunk", type=str, default=None, help="chunks per variable to create")
@@ -850,19 +865,27 @@ def main():
     parser.add_argument("-i", "--iterations", type=int, default=1, help="number of internal iterations to run the benchmark for. Will cause caching effects")
     parser.add_argument("-l", "--location", type=str, default="", help="Location where file will be create / saved")
     parser.add_argument("-I", "--input_output", type=bool, default=False, help="Set I/O to either use independent (default or False) or collective I/O (True)")
+    parser.add_argument("-x", "--xrun_params", type=str, default="", help="Path to json file containing dictionary of additional parameters to use freely")
     args = parser.parse_args()
     
     match args.benchmark:
         case 1:
+            import json
+
+            xrun_params: dict[str, Any] = {{}}
+            if args.xrun_params:
+                with open(args.xrun_params, "r") as file:
+                    xrun_params = json.load(file)
             
+            vars = args.vars_to_bm.split(",")
             result: list[tuple[str, str, str]] | None = bench(iterations=args.iterations, 
-                            variables=args.var_to_bm, 
+                            variables=vars, 
                             parallel=args.parallel, 
                             path=args.location, 
                             collective=args.input_output,
+                            xrun_params=xrun_params,
                             )
 
-            import json
             if result:
                 from pathlib import Path
                 
@@ -882,10 +905,10 @@ def main():
                     json.dump(converted, f)
                 
         case -1:
-            variables   = args.variables.split(",")
-            shapes      = [ast.literal_eval(e) for e in args.shape.split(",")]
-            chunks      = [ast.literal_eval(e) for e in args.chunk.split(",")]
-            datatypes   = args.datatype.split(",")
+            variables: list[str] = args.variables.split(",")
+            shapes: list[list[int]] = list(ast.literal_eval(args.shape))
+            chunks: list[list[int]] = list(ast.literal_eval(args.chunk))
+            datatypes: list[tuple[str, list[str]]] = list(ast.literal_eval(args.datatype))
             
             if args.create != -1:
                 create(variables=variables, 
@@ -1414,10 +1437,11 @@ int main(int argc, char *argv[])
                 self.slurm_options = self.slurm_options + "#SBATCH --wait\n"
 
             self.slurm_options = self.slurm_options + f"#SBATCH --ntasks={self.ranks}\n"
+            # self.slurm_options = self.slurm_options + f"#SBATCH --cpus-per-task={self.ranks}\n"
 
             self.slurm_options = (
                 self.slurm_options
-                + f"#SBATCH --job-name={self.format.replace(' ', '')}-{self.total_filesize}{self.unit}-{str(self.run_config).replace(' ', '')}\n"
+                + f"#SBATCH --job-name={self.format.replace(' ', '')}-{self.total_filesize}{self.unit_var}-{str(self.run_config).replace(' ', '')}\n"
             )
 
             if "#SBATCH --nodes=" not in self.slurm_options:

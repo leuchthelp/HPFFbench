@@ -1,0 +1,189 @@
+parallel: False
+task: read-random-ND
+language: py
+extension: nc
+format: netcdf4
+required_packages:
+    - python
+    - hdf5
+    - h5py
+    - netcdf4
+create_command:
+  serial: python {runnable}
+create: |
+  from typing import TypedDict
+  
+  import netCDF4
+  import numpy as np
+  
+  
+  class Form(TypedDict):
+      shape: list[int]
+      chunk: list[int]
+      dtype: tuple[str, list[str]]
+  
+  
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+  
+  
+  def create(
+      path: str,
+      variables: list[str],
+      shapes: list[list[int]],
+      chunks: list[list[int]],
+      datatypes: list[tuple[str, list[str]]],
+      parallel: bool = False,
+      collective: bool = False,
+  ):
+      form: dict[str, Form] = {}
+      for index, var in enumerate(variables):
+          form[var] = {
+              "shape": shapes[index],
+              "chunk": chunks[index],
+              "dtype": datatypes[index],
+          }
+  
+      root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=False)
+      root.createGroup("/")
+      used = 0
+  
+      for variable, element in form.items():
+          shape = element["shape"]
+          chunk = element["chunk"]
+          dtype = element["dtype"]
+  
+          # setup individual dimensions & variables per main data variable
+          dimensions = []
+          for idx, dim_shape in enumerate(shape):
+              varname = f"{used}"
+  
+              root.createDimension(varname, dim_shape)
+              dimensions.append(varname)
+              used += 1
+  
+              dim_dtype = dtype[1][idx]
+              if chunk:
+                  dim_chunks = chunk[idx]
+                  x = root.createVariable(
+                      varname, dim_dtype, (varname,), chunksizes=[dim_chunks]
+                  )
+              else:
+                  x = root.createVariable(varname, dtype[0], (varname,))
+              x[:] = np.random.randn(dim_shape).astype(dim_dtype)
+  
+          # setup main data variable
+          data_dtype = dtype[0]
+          if chunk:
+              data_chunks = chunk
+              x = root.createVariable(
+                  variable, data_dtype, dimensions, chunksizes=data_chunks
+              )
+          else:
+              x = root.createVariable(variable, data_dtype, dimensions)
+          x[:] = np.random.randn(*shape).astype(data_dtype)
+  
+      root.close()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+
+  #MAIN
+run_command:
+  serial: python {runnable}
+required_additional_params:
+    - max_number_access
+source: |
+  import os
+  import time
+  from typing import Any
+  
+  import netCDF4
+  import numpy as np
+  
+  
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+  
+  
+  #INSTRUMENTER_START
+  def bench_helper(
+      iterations: int,
+      variables: list[str],
+      xrun_params: dict[str, Any],
+      node: str,
+      dataset: netCDF4.Dataset,
+  ) -> list[tuple[str, str, str]]:
+      bench: list[tuple[str, str, str]] = []
+      for _ in range(iterations):
+          times: list[float] = []
+  
+          for var in variables:
+              current: netCDF4.Variable = dataset[var]
+              combinations = [
+                  [
+                      slice(None, None, np.random.randint(low=1, high=size))
+                      for size in current.shape
+                  ]
+                  for _ in range(xrun_params["max_number_access"])
+              ]
+  
+              start = time.monotonic()
+              for comb in combinations:
+                  np.mean(current[*comb])
+              times.append(time.monotonic() - start)
+  
+          bench.append(("0", node, str(round(np.mean(times), 32))))
+  
+      dataset.close()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+      return bench
+  
+  
+  def bench(
+      path: str,
+      iterations: int,
+      variables: list[str],
+      xrun_params: dict[str, Any],
+      parallel: bool = False,
+      collective: bool = False,
+  ) -> list[tuple[str, str, str]] | None:
+  
+      dataset = netCDF4.Dataset(path, mode="r", format="NETCDF4", parallel=parallel)
+      var_tmp = []
+  
+      var_sizes: list[tuple[int, ...]] = []
+      for var in variables:
+          try:
+              var_size: tuple[int, ...] = dataset[var].shape
+              var_sizes.append(var_size)
+              var_tmp.append(var)
+          except KeyError:
+              print(f"Variable: {var} does not exist.")
+      print(f'for variable: {var_tmp} for engine: "netcdf4", size: {var_sizes}')
+  
+      node = "None"
+      if "SLURMD_NODENAME" in os.environ:
+          node = os.environ["SLURMD_NODENAME"]
+  
+      result = bench_helper(iterations, var_tmp, xrun_params, node, dataset)
+  
+      return result
+
+
+  #MAIN
