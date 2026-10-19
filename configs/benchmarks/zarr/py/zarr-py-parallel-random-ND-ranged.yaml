@@ -1,0 +1,208 @@
+parallel: True
+par_backend: MPI
+task: read
+language: py
+extension: zarr
+format: zarr
+required_packages:
+    - python
+    - mpi4py
+    - zarr
+create_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+create: |
+  from typing import TypedDict
+  
+  import numpy as np
+  import zarr
+  from mpi4py import MPI
+  
+  
+  class Form(TypedDict):
+      shape: list[int]
+      chunks: list[int]
+      dtype: tuple[str, list[str]]
+  
+  
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+  
+  
+  def create(
+      path: str,
+      variables: list[str],
+      shapes: list[list[int]],
+      chunks: list[list[int]],
+      datatypes: list[tuple[str, list[str]]],
+      parallel: bool = False,
+      collective: bool = False,
+  ):
+      if MPI.COMM_WORLD.rank == 0:
+          form: dict[str, Form] = {}
+          for index, var in enumerate(variables):
+              form[var] = {
+                  "shape": shapes[index],
+                  "chunks": chunks[index],
+                  "dtype": datatypes[index],
+              }
+  
+          root = zarr.create_group(store=path, overwrite=True)
+          for variable, element in form.items():
+              shape = element["shape"]
+              chunk = element["chunks"]
+              dtype = element["dtype"][0]
+  
+              if chunk:
+                  x = root.create_array(
+                      name=variable, shape=shape, chunks=chunk, dtype=dtype
+                  )
+              else:
+                  x = root.create_array(name=variable, shape=shape, dtype=dtype)
+  
+              x[:] = np.random.randn(*shape).astype(dtype)
+  
+          print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+
+
+  #MAIN
+run_command:
+  serial: python {runnable}
+  MPI: mpiexec -n python {runnable}
+required_additional_params:
+    - max_number_access
+source: |
+  import os
+  import time
+  from itertools import chain
+  from typing import Any
+  
+  import numpy as np
+  import zarr
+  from mpi4py import MPI
+  from zarr.types import AnyArray
+  
+  
+  class bcolors:
+      HEADER = "\033[95m"
+      OKBLUE = "\033[94m"
+      OKCYAN = "\033[96m"
+      OKGREEN = "\033[92m"
+      WARNING = "\033[93m"
+      FAIL = "\033[91m"
+      ENDC = "\033[0m"
+      BOLD = "\033[1m"
+      UNDERLINE = "\033[4m"
+  
+  
+  def bench_helper(
+      iterations: int,
+      variables: list[str],
+      xrun_params: dict[str, Any],
+      arrays: dict[str, AnyArray],
+      node: str,
+      rank: int,
+      rsize: int,
+      collective: bool,
+  ) -> list[tuple[str, str, str]]:
+      bench: list[tuple[str, str, str]] = []
+      for _ in range(iterations):
+          times: list[float] = []
+  
+          for var in variables:
+              number_access = xrun_params["max_number_access"] // rsize
+              print(f"Got to do: {number_access} dataset accesses on rank: {rank}")
+
+              start = time.monotonic()
+  
+              current = arrays[var]
+              combinations = []
+              for _ in range(number_access):
+                  slices: list[slice] = []
+                  for total_size in current.shape:
+                      size = total_size // rsize
+                      rstart = rank * size
+                      rend = rstart + size
+                      slices.append(
+                          slice(rstart, rend, np.random.randint(low=1, high=size))
+                      )
+                  combinations.append(slices)
+  
+              if collective:
+                  print(
+                      bcolors.WARNING
+                      + "Setting I/O to be collective not supported"
+                      + bcolors.ENDC
+                  )
+              else:
+                  print(bcolors.OKBLUE + "Setting I/O to be independent" + bcolors.ENDC)
+  
+              #INSTRUMENTER_START
+              for comb in combinations:
+                  np.mean(current[*comb])
+              #INSTRUMENTER_STOP
+  
+              times.append(time.monotonic() - start)
+  
+          bench.append((str(rank), node, str(round(np.mean(times), 32))))
+          MPI.COMM_WORLD.Barrier()
+  
+      MPI.COMM_WORLD.Barrier()
+      print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
+  
+      return bench
+  
+  
+  def bench(
+      path: str,
+      iterations: int,
+      variables: str,
+      xrun_params: dict[str, Any],
+      parallel: bool = False,
+      collective: bool = False,
+  ) -> list[tuple[str, str, str]] | None:
+  
+      dataset = zarr.open(path, mode="r")
+  
+      if not isinstance(dataset, zarr.Group):
+          raise TypeError("Not from kind of AnyArray for zarr")
+  
+      arrays = dict(dataset.arrays())
+      var_tmp = []
+      comm = MPI.COMM_WORLD
+      rank = MPI.COMM_WORLD.rank
+      rsize = MPI.COMM_WORLD.size
+  
+      var_sizes: list[tuple[int, ...]] = []
+      for var in variables:
+          try:
+              var_size: tuple[int, ...] = arrays[var].shape
+              var_sizes.append(var_size)
+              var_tmp.append(var)
+          except KeyError:
+              print(f"Variable: {var} does not exist.")
+      print(
+          f'for variable: {var_tmp} for engine: "zarr", rank: {rank}, size: {var_sizes}'
+      )
+  
+      node = "None"
+      if "SLURMD_NODENAME" in os.environ:
+          node = os.environ["SLURMD_NODENAME"]
+  
+      result: list[tuple[str, str, str]] = bench_helper(
+          iterations, var_tmp, xrun_params, arrays, node, rank, rsize, collective
+      )
+  
+      gathered = comm.gather(result, root=0)
+      if rank == 0 and gathered:
+          return list(chain.from_iterable(gathered))
+
+  #MAIN
