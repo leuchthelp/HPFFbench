@@ -1,1 +1,1 @@
-::: src.HPFFbench.benchmarkmanager.benchmark_manager
+::: src.hpffbench.benchmarkmanager.benchmark_manager
