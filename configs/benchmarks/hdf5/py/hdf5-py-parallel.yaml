@@ -143,7 +143,6 @@ source: |
               start = time.monotonic()
   
               current: h5py.Dataset = dataset[var]
-  
               slices: list[slice] = []
               shape: tuple[int, ...] = current.shape
               for total_size in shape:
@@ -162,7 +161,7 @@ source: |
                       bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC
                   )
                   #INSTRUMENTER_START
-                  current[*slices]
+                  var = current[*slices]
                   #INSTRUMENTER_STOP
               else:
                   print(
@@ -170,7 +169,7 @@ source: |
                   )
                   if rank == rank:
                       #INSTRUMENTER_START
-                      current[*slices]
+                      var = current[*slices]
                       #INSTRUMENTER_STOP
   
               times.append(time.monotonic() - start)

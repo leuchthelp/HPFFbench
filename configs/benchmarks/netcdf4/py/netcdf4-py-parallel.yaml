@@ -143,7 +143,6 @@ source: |
   
               current: netCDF4.Variable = dataset[var]
               slices: list[slice] = []
-  
               for total_size in current.shape:
                   size = total_size // rsize
                   rstart = rank * size
@@ -166,7 +165,7 @@ source: |
                   )
   
               #INSTRUMENTER_START
-              current[*slices]
+              var = current[*slices]
               #INSTRUMENTER_STOP
               
               times.append(time.monotonic() - start)
