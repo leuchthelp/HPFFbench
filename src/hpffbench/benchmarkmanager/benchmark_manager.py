@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import yaml
 
@@ -319,7 +319,9 @@ class BenchmarkManager:
         self.unit_chunk: str = self.chunksize_var[0][2]
         self.show_metadata = True
 
-        self.xrun_params = self.global_config.xrun_params
+        self.xrun_params: dict[str, Any] = {}
+        if self.bm_config.required_additional_params:
+            self.xrun_params = self.global_config.xrun_params
 
         # Environment config
 

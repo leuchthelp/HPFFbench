@@ -1,5 +1,5 @@
 parallel: False
-task: read
+task: read-random-ND
 language: py
 extension: zarr
 format: zarr
