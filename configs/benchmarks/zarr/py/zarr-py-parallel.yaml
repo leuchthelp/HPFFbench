@@ -119,14 +119,22 @@ source: |
   
               current = arrays[var]
               slices: list[slice] = []
-              for total_size in current.shape:
-                  size = total_size // rsize
-                  rstart = rank * size
-                  rend = rstart + size
-                  slices.append(
+
+              size = current.shape[0] // rsize
+              rstart = rank * size
+              rend = rstart + size
+              slices.append(
                       slice(
                           rstart,
                           rend,
+                      )
+                  )
+
+              for total_size in current.shape[1:]:
+                  slices.append(
+                      slice(
+                          None,
+                          None,
                       )
                   )
   

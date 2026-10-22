@@ -74,17 +74,26 @@ create: |
   
           slices: list[slice] = []
           needed_shape: list[int] = []
-          for total_size in shape:
-              size = total_size // rsize
-              rstart = rank * size
-              rend = rstart + size
-              slices.append(
+
+          size = current.shape[0] // rsize
+          rstart = rank * size
+          rend = rstart + size
+          slices.append(
                   slice(
                       rstart,
                       rend,
                   )
               )
-              needed_shape.append(size)
+          needed_shape.append(size)
+
+          for total_size in current.shape[1:]:
+              slices.append(
+                  slice(
+                      None,
+                      None,
+                  )
+              )
+              needed_shape.append(total_size)
   
           if collective:
               print(bcolors.OKBLUE + "Setting I/O to be collective" + bcolors.ENDC)
@@ -143,16 +152,24 @@ source: |
               start = time.monotonic()
   
               current: h5py.Dataset = dataset[var]
+
               slices: list[slice] = []
               shape: tuple[int, ...] = current.shape
-              for total_size in shape:
-                  size = total_size // rsize
-                  rstart = rank * size
-                  rend = rstart + size
-                  slices.append(
+              size = shape[0] // rsize
+              rstart = rank * size
+              rend = rstart + size
+              slices.append(
                       slice(
                           rstart,
                           rend,
+                      )
+                  )
+
+              for total_size in shape[1:]:
+                  slices.append(
+                      slice(
+                          None,
+                          None,
                       )
                   )
   
