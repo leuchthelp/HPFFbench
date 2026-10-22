@@ -141,7 +141,7 @@ def main():
         "paths": paths,
         "iterations": 5,
         "runs": tmp,
-        "parallel": "Both",
+        "parallel": True,
         "collective": False,
         "par_backend": ["MPI"],
         "ranks": [8],

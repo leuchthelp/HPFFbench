@@ -50,7 +50,7 @@ runs:
     - - 64
       - 64
       - 64
-parallel: Both
+parallel: true
 collective: false
 par_backend:
 - MPI

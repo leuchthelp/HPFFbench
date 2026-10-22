@@ -154,7 +154,7 @@ source: |
                       )
                   )
 
-              for total_size in current.shape[1:]:
+              for _ in current.shape[1:]:
                   slices.append(
                       slice(
                           None,
@@ -173,7 +173,7 @@ source: |
                   )
   
               #INSTRUMENTER_START
-              var = current[*slices]
+              current[*slices]
               #INSTRUMENTER_STOP
               
               times.append(time.monotonic() - start)
