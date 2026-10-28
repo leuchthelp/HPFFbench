@@ -299,7 +299,7 @@ class BenchmarkManager:
         self.location = f"{self.id}.{self.extension}"
 
         filesize_per_var: list[tuple[str, float, str]] = [
-            (key, *calc_size_unit(item["shape"]))
+            (key, *calc_size_unit(item["shape"], item["datatype"][0]))
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]
@@ -312,7 +312,7 @@ class BenchmarkManager:
         self.unit_var: str = filesize_per_var[0][2]
         self.filesize_var: list[tuple[str, float, str]] = filesize_per_var
         self.chunksize_var: list[tuple[str, float, str]] = [
-            (key, *calc_size_unit(item["chunks"]))
+            (key, *calc_size_unit(item["chunks"], item["datatype"][0]))
             for key, item in run_config.variables.items()
             if key in self.var_to_bm
         ]

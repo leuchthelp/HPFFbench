@@ -98,16 +98,19 @@ source: |
       variables: list[str],
       node: str,
       dataset: h5py.File,
-  ) -> list[tuple[str, str, str]]:
-      bench: list[tuple[str, str, str]] = []
+  ) -> list[tuple[str, ...]]:
+      bench: list[tuple[str, ...]] = []
       for _ in range(iterations):
+          total_read: int = 0
+
           start = time.monotonic()
 
           for var in variables:
               # self.dataset[variable].read_direct(arr)
-              dataset[var][:]
+              smth = dataset[var][:]
+              total_read += sum(smth.shape)
 
-          bench.append(("0", node, str(round(time.monotonic() - start, 32))))
+          bench.append(("0", node, total_read, str(round(time.monotonic() - start, 32))))
 
       dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
@@ -121,7 +124,7 @@ source: |
       xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
-  ) -> list[tuple[str, str, str]] | None:
+  ) -> list[tuple[str, ...]] | None:
 
       dataset = h5py.File(path, mode="r")
       var_tmp = []

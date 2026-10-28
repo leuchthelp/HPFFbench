@@ -1,19 +1,18 @@
 parallel: False
-task: read-random-ND
+task: read-random-ND-full-range
 language: py
-extension: h5
-format: hdf5
+extension: zarr
+format: zarr
 required_packages:
     - python
-    - hdf5
-    - h5py
+    - zarr
 create_command:
   serial: python {runnable}
 create: |
   from typing import TypedDict
   
-  import h5py
   import numpy as np
+  import zarr
   
   
   class Form(TypedDict):
@@ -51,24 +50,20 @@ create: |
               "dtype": datatypes[index],
           }
   
-      root = h5py.File(path, "w-")
+      root = zarr.create_group(store=path, overwrite=True)
       for variable, element in form.items():
           shape = element["shape"]
           chunk = element["chunks"]
-          dtype = element["dtype"]
+          dtype = element["dtype"][0]
   
           if chunk:
-              x: h5py.Dataset = root.create_dataset(
-                  variable, shape=shape, chunks=tuple(chunk), dtype=dtype[0]
-              )
+              x = root.create_array(name=variable, shape=shape, chunks=chunk, dtype=dtype)
           else:
-              x: h5py.Dataset = root.create_dataset(variable, shape=shape, dtype=dtype[0])
+              x = root.create_array(name=variable, shape=shape, dtype=dtype)
   
-          x[:] = np.random.randn(*shape).astype(dtype[0])
+          x[:] = np.random.randn(*shape).astype(dtype)
   
-      root.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
-
 
   #MAIN
 run_command:
@@ -81,7 +76,8 @@ source: |
   from typing import Any
   
   import numpy as np
-  import h5py
+  import zarr
+  from zarr.types import AnyArray
   
   
   class bcolors:
@@ -102,14 +98,15 @@ source: |
       variables: list[str],
       xrun_params: dict[str, Any],
       node: str,
-      dataset: h5py.File,
-  ) -> list[tuple[str, str, str]]:
-      bench: list[tuple[str, str, str]] = []
+      arrays: dict[str, AnyArray],
+  ) -> list[tuple[str, ...]]:
+      bench: list[tuple[str, ...]] = []
       for _ in range(iterations):
           times: list[float] = []
+          total_read: int = 0
   
           for var in variables:
-              current: h5py.Dataset = dataset[var]
+              current = arrays[var]
               combinations = [
                   [
                       slice(None, None, np.random.randint(low=1, high=size))
@@ -118,15 +115,15 @@ source: |
                   for _ in range(xrun_params["max_number_access"])
               ]
   
-              # self.dataset[variable].read_direct(arr)
               start = time.monotonic()
               for comb in combinations:
-                  np.mean(current[*comb])
+                  smth = current[*comb]
+                  np.mean(smth)
+                  total_read += sum(smth.shape)
               times.append(time.monotonic() - start)
   
-          bench.append(("0", node, str(round(np.mean(times), 32))))
+          bench.append(("0", node, total_read, str(round(np.mean(times), 32))))
   
-      dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
       return bench
   
@@ -138,26 +135,32 @@ source: |
       xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
-  ) -> list[tuple[str, str, str]] | None:
+  ) -> list[tuple[str, ...]] | None:
   
-      dataset = h5py.File(path, mode="r")
+      dataset = zarr.open(path, mode="r")
+  
+      if not isinstance(dataset, zarr.Group):
+          raise TypeError("Not from kind of AnyArray for zarr")
+  
+      arrays = dict(dataset.arrays())
       var_tmp = []
   
       var_sizes: list[tuple[int, ...]] = []
       for var in variables:
           try:
-              var_size: tuple[int, ...] = dataset[var].shape
+              var_size: tuple[int, ...] = arrays[var].shape
               var_sizes.append(var_size)
               var_tmp.append(var)
           except KeyError:
               print(f"Variable: {var} does not exist.")
-      print(f'for variable: {var_tmp} for engine: "hdf5", size: {var_sizes}')
+      print(f'for variable: {var_tmp} for engine: "zarr", size: {var_sizes}')
   
       node = "None"
       if "SLURMD_NODENAME" in os.environ:
           node = os.environ["SLURMD_NODENAME"]
   
-      result = bench_helper(iterations, var_tmp, xrun_params, node, dataset)
+      result = bench_helper(iterations, var_tmp, xrun_params, node, arrays)
+  
       return result
 
 

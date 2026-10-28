@@ -33,6 +33,7 @@ from hpffbench.configloader import (
     ProfilerConfigLoader,
 )
 from hpffbench.spackmanager import SpackManager
+from src.hpffbench.dev_utils.dev_utils import calc_size_unit
 
 logger = logging.getLogger(__name__)
 
@@ -564,15 +565,18 @@ class Handler:
 
         used_nodes: list[str] = []
         ranks: list[int] = []
+        total_read: list[int] = []
         measures: list[float] = []
         for entry in initial:
             split = entry.split("-")
             rank = int(split[0])
             node = split[1]
-            value = float(split[2])
+            read = int(split[2])
+            value = float(split[3])
 
             ranks.append(rank)
             used_nodes.append(node)
+            total_read.append(read)
             measures.append(value)
 
         count_per_rank = Counter(ranks)
@@ -586,7 +590,13 @@ class Handler:
         time_rsd = time_std / time_mean
         time_error = time_std / float(np.sqrt(len(measures)))
 
-        throughputs = [benchmark.total_filesize / time for time in measures]
+        throughputs: list[float] = []
+        for idx, time in enumerate(measures):
+            read = total_read[idx]
+            dtype = benchmark.datatype[0][0]
+            size = calc_size_unit([read], dtype, "GB")
+            throughputs.append(size[0] / time)
+
         throughput_mean = np.mean(throughputs)
         throughput_std = np.std(throughputs)
         throughput_rsd = throughput_std / throughput_mean

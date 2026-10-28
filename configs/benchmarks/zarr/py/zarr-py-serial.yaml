@@ -95,15 +95,19 @@ source: |
       variables: list[str],
       node: str,
       arrays: dict[str, AnyArray],
-  ) -> list[tuple[str, str, str]]:
-      bench: list[tuple[str, str, str]] = []
+  ) -> list[tuple[str, ...]]:
+      bench: list[tuple[str, ...]] = []
       for _ in range(iterations):
+          total_read: int = 0
+
           start = time.monotonic()
   
           for var in variables:
-              arrays[var][:]
+              smth = arrays[var][:]
+              total_read += sum(smth.shape)
+              
   
-          bench.append(("0", node, str(round(time.monotonic() - start, 32))))
+          bench.append(("0", node, total_read, str(round(time.monotonic() - start, 32))))
   
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
       return bench
@@ -116,7 +120,7 @@ source: |
       xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
-  ) -> list[tuple[str, str, str]] | None:
+  ) -> list[tuple[str, ...]] | None:
   
       dataset = zarr.open(path, mode="r")
   

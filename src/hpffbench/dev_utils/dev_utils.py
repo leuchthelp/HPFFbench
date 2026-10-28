@@ -1,35 +1,46 @@
-def calc_size_unit(input: list[int]) -> tuple[float, str]:
+import numpy as np
+
+
+def calc_size_unit(
+    shape: list[int], dtype: str = "f8", required_unit: str = "GB"
+) -> tuple[float, str]:
     compare = 1.0
     size = "Byte"
 
-    if not input:
+    if not shape:
         res = 0.0
         return res, size
 
-    for item in input:
+    for item in shape:
         compare *= item
 
-    compare *= 8.0
-    res = compare
+    compare *= np.dtype(dtype).itemsize
 
-    if compare >= 1 * 1024:
-        res = res / 1024
-        size = "KB"
+    res = compare / 1024
+    size = "KB"
 
-    if compare >= 1 * 1024**2:
-        res = res / 1024
-        size = "MB"
+    if required_unit == size:
+        return res, size
 
-    if compare >= 1 * 1024**3:
-        res = res / 1024
-        size = "GB"
+    res = compare / 1024**2
+    size = "MB"
 
-    if compare >= 1 * 1024**4:
-        res = res / 1024
-        size = "TB"
+    if required_unit == size:
+        return res, size
 
-    if compare >= 1 * 1024**5:
-        res = res / 1024
-        size = "PB"
+    res = compare / 1024**3
+    size = "GB"
+
+    if required_unit == size:
+        return res, size
+
+    res = compare / 1024**4
+    size = "TB"
+
+    if required_unit == size:
+        return res, size
+
+    res = compare / 1024**5
+    size = "PB"
 
     return res, size

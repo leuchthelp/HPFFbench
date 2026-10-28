@@ -1,9 +1,10 @@
 tasks:
 - read
+- read-random-ND
+- read-random-ND-ranged
+- read-random-ND-full-range
 formats:
 - hdf5
-- netcdf4
-- zarr
 languages:
 - py
 paths:
@@ -16,46 +17,73 @@ paths:
   path_res_profiling: results/profiling
 iterations: 5
 runs:
-  run16:
+  run51-3D:
     X:
-    - - 1342177280
-    - []
-  run01-3D:
-    X:
-    - - 5120
+    - - 25600
       - 512
       - 512
     - []
-  run02-3D:
+  run52-3D:
     X:
-    - - 5120
+    - - 25600
       - 512
       - 512
     - - 256
       - 256
       - 256
-  run03-3D:
+  run53-3D:
     X:
-    - - 5120
+    - - 25600
       - 512
       - 512
     - - 128
       - 128
       - 128
-  run04-3D:
+  run54-3D:
     X:
-    - - 5120
+    - - 25600
       - 512
       - 512
     - - 64
       - 64
       - 64
-parallel: true
+  run101:
+    X:
+    - - 13421772800
+    - []
+  run102:
+    X:
+    - - 13421772800
+    - - 8388608
+  run103:
+    X:
+    - - 13421772800
+    - - 4194304
+  run104:
+    X:
+    - - 13421772800
+    - - 2097152
+  run105:
+    X:
+    - - 13421772800
+    - - 1048576
+  run106:
+    X:
+    - - 13421772800
+    - - 524288
+  run107:
+    X:
+    - - 13421772800
+    - - 262144
+parallel: Both
 collective: false
 par_backend:
 - MPI
 ranks:
 - 8
+- 16
+- 32
+- 64
 nodes:
 - 1
 variable_to_benchmark:

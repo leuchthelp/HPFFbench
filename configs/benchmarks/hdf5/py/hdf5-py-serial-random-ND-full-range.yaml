@@ -1,25 +1,24 @@
 parallel: False
-task: read-random-ND
+task: read-random-ND-full-range
 language: py
-extension: nc
-format: netcdf4
+extension: h5
+format: hdf5
 required_packages:
     - python
     - hdf5
     - h5py
-    - netcdf4
 create_command:
   serial: python {runnable}
 create: |
   from typing import TypedDict
   
-  import netCDF4
+  import h5py
   import numpy as np
   
   
   class Form(TypedDict):
       shape: list[int]
-      chunk: list[int]
+      chunks: list[int]
       dtype: tuple[str, list[str]]
   
   
@@ -48,48 +47,24 @@ create: |
       for index, var in enumerate(variables):
           form[var] = {
               "shape": shapes[index],
-              "chunk": chunks[index],
+              "chunks": chunks[index],
               "dtype": datatypes[index],
           }
   
-      root = netCDF4.Dataset(path, "w", format="NETCDF4", parallel=False)
-      root.createGroup("/")
-      used = 0
-  
+      root = h5py.File(path, "w-")
       for variable, element in form.items():
           shape = element["shape"]
-          chunk = element["chunk"]
+          chunk = element["chunks"]
           dtype = element["dtype"]
   
-          # setup individual dimensions & variables per main data variable
-          dimensions = []
-          for idx, dim_shape in enumerate(shape):
-              varname = f"{used}"
-  
-              root.createDimension(varname, dim_shape)
-              dimensions.append(varname)
-              used += 1
-  
-              dim_dtype = dtype[1][idx]
-              if chunk:
-                  dim_chunks = chunk[idx]
-                  x = root.createVariable(
-                      varname, dim_dtype, (varname,), chunksizes=[dim_chunks]
-                  )
-              else:
-                  x = root.createVariable(varname, dtype[0], (varname,))
-              x[:] = np.random.randn(dim_shape).astype(dim_dtype)
-  
-          # setup main data variable
-          data_dtype = dtype[0]
           if chunk:
-              data_chunks = chunk
-              x = root.createVariable(
-                  variable, data_dtype, dimensions, chunksizes=data_chunks
+              x: h5py.Dataset = root.create_dataset(
+                  variable, shape=shape, chunks=tuple(chunk), dtype=dtype[0]
               )
           else:
-              x = root.createVariable(variable, data_dtype, dimensions)
-          x[:] = np.random.randn(*shape).astype(data_dtype)
+              x: h5py.Dataset = root.create_dataset(variable, shape=shape, dtype=dtype[0])
+  
+          x[:] = np.random.randn(*shape).astype(dtype[0])
   
       root.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
@@ -105,8 +80,8 @@ source: |
   import time
   from typing import Any
   
-  import netCDF4
   import numpy as np
+  import h5py
   
   
   class bcolors:
@@ -127,14 +102,15 @@ source: |
       variables: list[str],
       xrun_params: dict[str, Any],
       node: str,
-      dataset: netCDF4.Dataset,
-  ) -> list[tuple[str, str, str]]:
-      bench: list[tuple[str, str, str]] = []
+      dataset: h5py.File,
+  ) -> list[tuple[str, ...]]:
+      bench: list[tuple[str, ...]] = []
       for _ in range(iterations):
           times: list[float] = []
+          total_read: int = 0
   
           for var in variables:
-              current: netCDF4.Variable = dataset[var]
+              current: h5py.Dataset = dataset[var]
               combinations = [
                   [
                       slice(None, None, np.random.randint(low=1, high=size))
@@ -143,12 +119,15 @@ source: |
                   for _ in range(xrun_params["max_number_access"])
               ]
   
+              # self.dataset[variable].read_direct(arr)
               start = time.monotonic()
               for comb in combinations:
-                  np.mean(current[*comb])
+                  smth = current[*comb]
+                  np.mean(smth)
+                  total_read += sum(smth.shape)
               times.append(time.monotonic() - start)
   
-          bench.append(("0", node, str(round(np.mean(times), 32))))
+          bench.append(("0", node, total_read, str(round(np.mean(times), 32))))
   
       dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")
@@ -162,9 +141,9 @@ source: |
       xrun_params: dict[str, Any],
       parallel: bool = False,
       collective: bool = False,
-  ) -> list[tuple[str, str, str]] | None:
+  ) -> list[tuple[str, ...]] | None:
   
-      dataset = netCDF4.Dataset(path, mode="r", format="NETCDF4", parallel=parallel)
+      dataset = h5py.File(path, mode="r")
       var_tmp = []
   
       var_sizes: list[tuple[int, ...]] = []
@@ -175,14 +154,13 @@ source: |
               var_tmp.append(var)
           except KeyError:
               print(f"Variable: {var} does not exist.")
-      print(f'for variable: {var_tmp} for engine: "netcdf4", size: {var_sizes}')
+      print(f'for variable: {var_tmp} for engine: "hdf5", size: {var_sizes}')
   
       node = "None"
       if "SLURMD_NODENAME" in os.environ:
           node = os.environ["SLURMD_NODENAME"]
   
       result = bench_helper(iterations, var_tmp, xrun_params, node, dataset)
-  
       return result
 
 
