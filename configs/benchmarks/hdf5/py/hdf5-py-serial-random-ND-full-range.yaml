@@ -76,6 +76,7 @@ run_command:
 required_additional_params:
     - max_number_access
 source: |
+  import math
   import os
   import time
   from typing import Any
@@ -96,7 +97,6 @@ source: |
       UNDERLINE = "\033[4m"
   
   
-  #INSTRUMENTER_START
   def bench_helper(
       iterations: int,
       variables: list[str],
@@ -122,9 +122,11 @@ source: |
               # self.dataset[variable].read_direct(arr)
               start = time.monotonic()
               for comb in combinations:
+                  #INSTRUMENTER_START
                   smth = current[*comb]
                   np.mean(smth)
-                  total_read += sum(smth.shape)
+                  #INSTRUMENTER_STOP
+                  total_read += math.prod(smth.shape)
               times.append(time.monotonic() - start)
   
           bench.append(("0", node, str(total_read), str(round(np.mean(times), 32))))

@@ -594,7 +594,8 @@ class Handler:
         for idx, time in enumerate(measures):
             read = total_read[idx]
             dtype = benchmark.datatype[0][0]
-            size = calc_size_unit([read], dtype, "GB")
+            required_unit = benchmark.filesize_var[0][2]
+            size = calc_size_unit([read], dtype, required_unit)
             throughputs.append(size[0] / time)
 
         throughput_mean = np.mean(throughputs)

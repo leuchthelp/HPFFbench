@@ -1,7 +1,5 @@
 tasks:
 - read
-- read-random-ND-ranged
-- read-random-ND-full-range
 formats:
 - hdf5
 languages:
@@ -14,75 +12,28 @@ paths:
   path_to_bm_results: results/general
   path_to_results: results
   path_res_profiling: results/profiling
-iterations: 5
+iterations: 1
 runs:
-  run51-3D:
+  run01-3D:
     X:
-    - - 25600
+    - - 512
       - 512
       - 512
     - []
-  run52-3D:
+  run02-3D:
     X:
-    - - 25600
+    - - 512
       - 512
       - 512
     - - 256
       - 256
       - 256
-  run53-3D:
-    X:
-    - - 25600
-      - 512
-      - 512
-    - - 128
-      - 128
-      - 128
-  run54-3D:
-    X:
-    - - 25600
-      - 512
-      - 512
-    - - 64
-      - 64
-      - 64
-  run101:
-    X:
-    - - 13421772800
-    - []
-  run102:
-    X:
-    - - 13421772800
-    - - 8388608
-  run103:
-    X:
-    - - 13421772800
-    - - 4194304
-  run104:
-    X:
-    - - 13421772800
-    - - 2097152
-  run105:
-    X:
-    - - 13421772800
-    - - 1048576
-  run106:
-    X:
-    - - 13421772800
-    - - 524288
-  run107:
-    X:
-    - - 13421772800
-    - - 262144
 parallel: Both
 collective: false
 par_backend:
 - MPI
 ranks:
 - 8
-- 16
-- 32
-- 64
 nodes:
 - 1
 variable_to_benchmark:
@@ -90,7 +41,7 @@ variable_to_benchmark:
 only_data: false
 no_caching: true
 use_spack_env: true
-max_processes: 20
+max_processes: 1
 slurm_options:
 - '
 

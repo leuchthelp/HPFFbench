@@ -101,6 +101,7 @@ run_command:
 required_additional_params:
     - max_number_access
 source: |
+  import math
   import os
   import time
   from typing import Any
@@ -148,7 +149,7 @@ source: |
               for comb in combinations:
                   smth = current[*comb]
                   np.mean(smth)
-                  total_read += sum(smth.shape)
+                  total_read += math.prod(smth.shape)
               times.append(time.monotonic() - start)
   
           bench.append(("0", node, str(total_read), str(round(np.mean(times), 32))))

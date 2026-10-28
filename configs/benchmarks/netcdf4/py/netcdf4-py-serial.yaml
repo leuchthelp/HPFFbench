@@ -99,6 +99,7 @@ create: |
 run_command:
   serial: python {runnable}
 source: |
+  import math
   import time
   from typing import Any
 
@@ -131,8 +132,10 @@ source: |
           start = time.monotonic()
 
           for var in variables:
+              #INSTRUMENTER_START
               smth = dataset[var][:]
-              total_read += sum(smth.shape)
+              #INSTRUMENTER_STOP
+              total_read += math.prod(smth.shape)
 
           bench.append(("0", node, str(total_read), str(round(time.monotonic() - start, 32))))
 

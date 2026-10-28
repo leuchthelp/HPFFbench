@@ -240,7 +240,7 @@ class BenchmarkManager:
         self.internal_i = 1
 
         self.no_caching = no_caching
-        self.local = False
+        self.local = True
 
         self.imports: str = ""
         self.profiler = profiler

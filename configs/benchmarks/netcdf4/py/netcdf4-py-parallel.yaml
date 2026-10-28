@@ -103,6 +103,7 @@ run_command:
   serial: python {runnable}
   MPI: mpiexec -n python {runnable}
 source: |
+  import math
   import os
   import time
   from itertools import chain
@@ -175,8 +176,8 @@ source: |
   
               #INSTRUMENTER_START
               smth = current[*slices]
-              total_read += sum(smth.shape)
               #INSTRUMENTER_STOP
+              total_read += math.prod(smth.shape)
               
               times.append(time.monotonic() - start)
   

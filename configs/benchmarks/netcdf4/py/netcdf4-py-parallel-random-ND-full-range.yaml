@@ -105,6 +105,7 @@ run_command:
 required_additional_params:
     - max_number_access
 source: |
+  import math
   import os
   import time
   from itertools import chain
@@ -172,7 +173,7 @@ source: |
               for comb in combinations:
                   smth = current[*comb]
                   np.mean(smth)
-                  total_read += sum(smth.shape)
+                  total_read += math.prod(smth.shape)
               #INSTRUMENTER_STOP
               times.append(time.monotonic() - start)
   

@@ -69,6 +69,7 @@ create: |
 run_command:
   serial: python {runnable}
 source: |
+  import math
   import os
   import time
   from typing import Any
@@ -89,7 +90,6 @@ source: |
       UNDERLINE = "\033[4m"
   
   
-  #INSTRUMENTER_START
   def bench_helper(
       iterations: int,
       variables: list[str],
@@ -103,8 +103,10 @@ source: |
           start = time.monotonic()
   
           for var in variables:
+              #INSTRUMENTER_START
               smth = arrays[var][:]
-              total_read += sum(smth.shape)
+              #INSTRUMENTER_STOP
+              total_read += math.prod(smth.shape)
               
   
           bench.append(("0", node, str(total_read), str(round(time.monotonic() - start, 32))))
