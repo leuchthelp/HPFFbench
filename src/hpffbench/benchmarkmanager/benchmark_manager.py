@@ -880,7 +880,7 @@ def main():
                     xrun_params = json.load(file)
             
             vars = args.vars_to_bm.split(",")
-            result: list[tuple[str, str, str]] | None = bench(iterations=args.iterations, 
+            result: list[tuple[str, ...]] | None = bench(iterations=args.iterations, 
                             variables=vars, 
                             parallel=args.parallel, 
                             path=args.location, 

@@ -151,7 +151,7 @@ source: |
                   total_read += sum(smth.shape)
               times.append(time.monotonic() - start)
   
-          bench.append(("0", node, total_read, str(round(np.mean(times), 32))))
+          bench.append(("0", node, str(total_read), str(round(np.mean(times), 32))))
   
       dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")

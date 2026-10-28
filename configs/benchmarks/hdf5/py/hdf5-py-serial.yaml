@@ -110,7 +110,7 @@ source: |
               smth = dataset[var][:]
               total_read += sum(smth.shape)
 
-          bench.append(("0", node, total_read, str(round(time.monotonic() - start, 32))))
+          bench.append(("0", node, str(total_read), str(round(time.monotonic() - start, 32))))
 
       dataset.close()
       print(f"{bcolors.OKGREEN}FINISHED{bcolors.ENDC}")

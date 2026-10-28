@@ -176,7 +176,7 @@ source: |
               #INSTRUMENTER_STOP
               times.append(time.monotonic() - start)
   
-          bench.append((str(rank), node, total_read, str(round(np.mean(times), 32))))
+          bench.append((str(rank), node, str(total_read), str(round(np.mean(times), 32))))
           MPI.COMM_WORLD.Barrier()
   
       dataset.close()

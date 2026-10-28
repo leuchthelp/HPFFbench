@@ -1,6 +1,5 @@
 tasks:
 - read
-- read-random-ND
 - read-random-ND-ranged
 - read-random-ND-full-range
 formats:
