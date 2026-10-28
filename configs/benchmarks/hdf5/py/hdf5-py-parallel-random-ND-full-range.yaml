@@ -75,7 +75,7 @@ create: |
           slices: list[slice] = []
           needed_shape: list[int] = []
           
-          size = current.shape[0] // rsize
+          size = shape[0] // rsize
           rstart = rank * size
           rend = rstart + size
           slices.append(
@@ -86,7 +86,7 @@ create: |
               )
           needed_shape.append(size)
 
-          for total_size in current.shape[1:]:
+          for total_size in shape[1:]:
               slices.append(
                   slice(
                       None,
