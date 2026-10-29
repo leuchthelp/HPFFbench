@@ -590,19 +590,20 @@ class Handler:
         time_rsd = time_std / time_mean
         time_error = time_std / float(np.sqrt(len(measures)))
 
-        throughput_per_rank: list[float] = []
+        throughput_per_measure: list[float] = []
         for idx, time in enumerate(measures):
             read = total_read[idx]
             dtype = benchmark.datatype[0][0]
             required_unit = benchmark.filesize_var[0][2]
             size = calc_size_unit([read], dtype, required_unit)
-            throughput_per_rank.append(size[0] / time)
-
-        throughput_total = sum(throughput_per_rank)
-        throughput_mean = np.mean(throughput_per_rank)
-        throughput_std = np.std(throughput_per_rank)
+            throughput_per_measure.append(size[0] / time)
+        
+        reshaped = np.array(throughput_per_measure).reshape(iter_amount, benchmark.ranks)
+        throughput_total = np.mean(np.sum(reshaped, axis=1))
+        throughput_mean = np.mean(throughput_per_measure)
+        throughput_std = np.std(throughput_per_measure)
         throughput_rsd = throughput_std / throughput_mean
-        throughput_err = throughput_std / float(np.sqrt(len(throughput_per_rank)))
+        throughput_err = throughput_std / float(np.sqrt(len(throughput_per_measure)))
 
         anomaly_prob, anomaly_class = self.__calc_anomaly_prob(measures=measures)
         coords: dict[str, Any] = {
@@ -612,17 +613,18 @@ class Handler:
                 ("iterations", "on_rank"),
                 np.array(used_nodes).reshape(iter_amount, benchmark.ranks),
             ),
+            "dimensions": len([benchmark.run_config.variables][0]["shape"]),
             "run_config": str(benchmark.run_config.variables),
-            "mean_time": time_mean,
+            "time_mean": time_mean,
             "time_std": time_std,
             "time_relative_std": time_rsd,
             "time_error_bar": time_error,
-            "throughput_per_rank": (
+            "throughput_per_measure": (
                 ("iterations", "on_rank"),
-                np.array(throughput_per_rank).reshape(iter_amount, benchmark.ranks),
+                np.array(throughput_per_measure).reshape(iter_amount, benchmark.ranks),
             ),
             "throughput_total": throughput_total,
-            "mean_throughput": throughput_mean,
+            "throughput_mean": throughput_mean,
             "throughput_std": throughput_std,
             "throughput_relative_std": throughput_rsd,
             "throughput_error_bar": throughput_err,
