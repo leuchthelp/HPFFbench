@@ -3,7 +3,9 @@ tasks:
 - read-random-ND-ranged
 - read-random-ND-full-range
 formats:
+- netcdf4
 - hdf5
+- zarr
 languages:
 - py
 paths:
@@ -87,7 +89,7 @@ nodes:
 - 1
 variable_to_benchmark:
 - X
-only_data: false
+only_data: true
 no_caching: true
 use_spack_env: true
 max_processes: 20
