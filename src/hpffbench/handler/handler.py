@@ -613,7 +613,7 @@ class Handler:
                 ("iterations", "on_rank"),
                 np.array(used_nodes).reshape(iter_amount, benchmark.ranks),
             ),
-            "dimensions": len([benchmark.run_config.variables][0]["shape"]),
+            "dimensions": len(next(iter(benchmark.run_config.variables.values()))["shape"]),
             "run_config": str(benchmark.run_config.variables),
             "time_mean": time_mean,
             "time_std": time_std,
