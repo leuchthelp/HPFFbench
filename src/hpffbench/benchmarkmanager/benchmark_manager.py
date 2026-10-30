@@ -22,7 +22,6 @@ from hpffbench.configloader import (
 )
 from hpffbench.configloader.config_loaders import RunConfig
 from hpffbench.dev_utils import calc_size_unit
-from hpffbench.dev_utils.dev_utils import FileSizes
 from hpffbench.spackmanager import SpackManager
 
 logger = logging.getLogger(__name__)
@@ -162,10 +161,10 @@ class BenchmarkManager:
     datatype: list[tuple[str, list[str]]]
     var_to_bm: str | list[str]
     total_filesize: float
-    unit_var: FileSizes
-    unit_chunk: FileSizes
-    filesize_var: list[tuple[str, float, FileSizes]]
-    chunksize_var: list[tuple[str, float, FileSizes]]
+    unit_var: str
+    unit_chunk: str
+    filesize_var: list[tuple[str, float, str]]
+    chunksize_var: list[tuple[str, float, str]]
     iterations: int
     internal_i: int
     current_time: str
@@ -299,25 +298,28 @@ class BenchmarkManager:
         # Benchmark info
         self.location = f"{self.id}.{self.extension}"
 
-        filesize_per_var: list[tuple[str, float, FileSizes]] = [
-            (key, *calc_size_unit(item["shape"], item["datatype"][0]))
-            for key, item in run_config.variables.items()
-            if key in self.var_to_bm
-        ]
+        filesize_per_var: list[tuple[str, float, str]] = []
+        for key, item in run_config.variables.items():
+            if key in self.var_to_bm:
+                calc = calc_size_unit(item["shape"], item["datatype"][0])
+                filesize_per_var.append((key, calc[0], calc[1].name))
 
         total_filesize = 0
         for filesize in filesize_per_var:
             total_filesize += filesize[1]
 
         self.total_filesize: float = total_filesize
-        self.unit_var: FileSizes = filesize_per_var[0][2]
-        self.filesize_var: list[tuple[str, float, FileSizes]] = filesize_per_var
-        self.chunksize_var: list[tuple[str, float, FileSizes]] = [
-            (key, *calc_size_unit(item["chunks"], item["datatype"][0]))
-            for key, item in run_config.variables.items()
-            if key in self.var_to_bm
-        ]
-        self.unit_chunk: FileSizes = self.chunksize_var[0][2]
+        self.unit_var: str = filesize_per_var[0][2]
+        self.filesize_var: list[tuple[str, float, str]] = filesize_per_var
+
+        chunksize_var: list[tuple[str, float, str]] = []
+        for key, item in run_config.variables.items():
+            if key in self.var_to_bm:
+                calc = calc_size_unit(item["chunks"], item["datatype"][0])
+                chunksize_var.append((key, calc[0], calc[1].name))
+        self.chunksize_var = chunksize_var
+
+        self.unit_chunk: str = self.chunksize_var[0][2]
         self.show_metadata = True
 
         self.xrun_params: dict[str, Any] = {}
