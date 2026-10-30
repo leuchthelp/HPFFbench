@@ -162,10 +162,10 @@ class BenchmarkManager:
     datatype: list[tuple[str, list[str]]]
     var_to_bm: str | list[str]
     total_filesize: float
-    unit_var: str
-    unit_chunk: str
-    filesize_var: list[tuple[str, float, str]]
-    chunksize_var: list[tuple[str, float, str]]
+    unit_var: FileSizes
+    unit_chunk: FileSizes
+    filesize_var: list[tuple[str, float, FileSizes]]
+    chunksize_var: list[tuple[str, float, FileSizes]]
     iterations: int
     internal_i: int
     current_time: str

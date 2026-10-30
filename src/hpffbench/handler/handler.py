@@ -658,9 +658,9 @@ class Handler:
             "total_filesize": benchmark.total_filesize,
             "var_to_bm": str(benchmark.var_to_bm),
             "filesize_per_var": benchmark.filesize_var[0][1],
-            "unit_var": benchmark.unit_var,
+            "unit_var": benchmark.unit_var.name,
             "filesize_per_chunk": benchmark.chunksize_var[0][1],
-            "unit_chunk": benchmark.unit_chunk,
+            "unit_chunk": benchmark.unit_chunk.name,
         }
 
         return xr.DataArray(
