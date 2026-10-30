@@ -15,6 +15,7 @@ def calc_size_unit(
         compare *= item
 
     compare *= np.dtype(dtype).itemsize
+    res = compare
 
     if compare >= 1024 or required_unit == "KB":
         res = compare / 1024
