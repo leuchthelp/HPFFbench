@@ -33,7 +33,6 @@ from hpffbench.configloader import (
     ProfilerConfigLoader,
 )
 from hpffbench.spackmanager import SpackManager
-from src.hpffbench.dev_utils.dev_utils import calc_size_unit
 
 logger = logging.getLogger(__name__)
 
@@ -592,17 +591,16 @@ class Handler:
 
         throughput_per_measure: list[float] = []
         for idx, time in enumerate(measures):
-            read = total_read[idx]
-            dtype = benchmark.datatype[0][0]
-            required_unit = benchmark.filesize_var[0][2]
-            size = calc_size_unit([read], dtype, required_unit)
-            throughput_per_measure.append(size[0] / time)
-        
-        reshaped = np.array(throughput_per_measure).reshape(iter_amount, benchmark.ranks)
-        throughput_total = np.mean(np.sum(reshaped, axis=1))
-        throughput_mean = np.mean(throughput_per_measure)
+            total_number_read = total_read[idx]
+            throughput_per_measure.append(total_number_read / time)
+
+        reshaped = np.array(throughput_per_measure).reshape(
+            iter_amount, benchmark.ranks
+        )
+        throughput_all_combined: float = np.mean(np.sum(reshaped, axis=1))
+        throughput_mean_per_measure = np.mean(throughput_per_measure)
         throughput_std = np.std(throughput_per_measure)
-        throughput_rsd = throughput_std / throughput_mean
+        throughput_rsd = throughput_std / throughput_mean_per_measure
         throughput_err = throughput_std / float(np.sqrt(len(throughput_per_measure)))
 
         anomaly_prob, anomaly_class = self.__calc_anomaly_prob(measures=measures)
@@ -613,18 +611,27 @@ class Handler:
                 ("iterations", "on_rank"),
                 np.array(used_nodes).reshape(iter_amount, benchmark.ranks),
             ),
-            "dimensions": len(next(iter(benchmark.run_config.variables.values()))["shape"]),
+            "dimensions": len(
+                next(iter(benchmark.run_config.variables.values()))["shape"]
+            ),
+            "entry_dtype": next(iter(benchmark.run_config.variables.values()))[
+                "datatype"
+            ][0],
             "run_config": str(benchmark.run_config.variables),
+            "entry_accessed_per_measure": (
+                ("iterations", "on_rank"),
+                np.array(total_read).reshape(iter_amount, benchmark.ranks),
+            ),
             "time_mean": time_mean,
             "time_std": time_std,
             "time_relative_std": time_rsd,
             "time_error_bar": time_error,
+            "throughput_all_combined": throughput_all_combined,
             "throughput_per_measure": (
                 ("iterations", "on_rank"),
                 np.array(throughput_per_measure).reshape(iter_amount, benchmark.ranks),
             ),
-            "throughput_total": throughput_total,
-            "throughput_mean": throughput_mean,
+            "throughput_mean_per_measure": throughput_mean_per_measure,
             "throughput_std": throughput_std,
             "throughput_relative_std": throughput_rsd,
             "throughput_error_bar": throughput_err,
@@ -662,7 +669,7 @@ class Handler:
             dims=["iterations", "on_rank"],
             attrs={
                 "description": "Time taken per benchmark run (lower is better)",
-                "units": "ms (microseconds)",
+                "units": "s (second)",
             },
         )
 
