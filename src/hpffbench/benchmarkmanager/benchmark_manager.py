@@ -287,7 +287,9 @@ class BenchmarkManager:
 
         if self.profiler:
             profiling_res_path = Path(paths["path_res_profiling"]["path"])
-            new_profiler_path = Path(f"{profiling_res_path.absolute()}/{self.id}")
+            new_profiler_path = Path(
+                f"{profiling_res_path.absolute()}/{self.task}-{self.id}"
+            )
             self.profiling_res_path = new_profiler_path
 
         self.use_path = Path(paths["path_to_tmp"]["path"])

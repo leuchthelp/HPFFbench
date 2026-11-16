@@ -1,10 +1,8 @@
 tasks:
-- read
 - read-random-ND-ranged
 - read-random-ND-full-range
+- read
 formats:
-- netcdf4
-- hdf5
 - zarr
 languages:
 - py
@@ -18,64 +16,64 @@ paths:
   path_res_profiling: results/profiling
 iterations: 5
 runs:
-  run01-3D:
+  run16:
     X:
-    - - 5120
+    - - 1342177280
+    - []
+  run17:
+    X:
+    - - 1342177280
+    - - 8388608
+  run18:
+    X:
+    - - 1342177280
+    - - 4194304
+  run19:
+    X:
+    - - 1342177280
+    - - 2097152
+  run10:
+    X:
+    - - 1342177280
+    - - 1048576
+  run11:
+    X:
+    - - 1342177280
+    - - 524288
+  run12:
+    X:
+    - - 1342177280
+    - - 262144
+  run101-3D:
+    X:
+    - - 51200
       - 512
       - 512
     - []
-  run02-3D:
+  run102-3D:
     X:
-    - - 5120
+    - - 51200
       - 512
       - 512
     - - 256
       - 256
       - 256
-  run03-3D:
+  run103-3D:
     X:
-    - - 5120
+    - - 51200
       - 512
       - 512
     - - 128
       - 128
       - 128
-  run04-3D:
+  run104-3D:
     X:
-    - - 5120
+    - - 51200
       - 512
       - 512
     - - 64
       - 64
       - 64
-  run101:
-    X:
-    - - 13421772800
-    - []
-  run102:
-    X:
-    - - 13421772800
-    - - 8388608
-  run103:
-    X:
-    - - 13421772800
-    - - 4194304
-  run104:
-    X:
-    - - 13421772800
-    - - 2097152
-  run105:
-    X:
-    - - 13421772800
-    - - 1048576
-  run106:
-    X:
-    - - 13421772800
-    - - 524288
-  run107:
-    X:
-    - - 13421772800
-    - - 262144
 parallel: Both
 collective: false
 par_backend:
@@ -89,7 +87,7 @@ nodes:
 - 1
 variable_to_benchmark:
 - X
-only_data: true
+only_data: false
 no_caching: true
 use_spack_env: true
 max_processes: 20
