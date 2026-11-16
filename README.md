@@ -2,6 +2,9 @@
 
 [Documentation](https://hpffbench.readthedocs.io/en/latest/)
 
+HPFFbench is an extension to the design & concept originally published in my bachelors thesis [Analyzing I/O Efficiency
+in Zarr, HDF5, and NetCDF4](https://cloud.ovgu.de/public.php/dav/files/WDRmaTtBFErai2q/2025/Lucas%20Philipp.pdf).
+
 ## Introduction
 
 Requires: `python >= 3.14` and some form of `git` present, either through direct install or a `module` file.
